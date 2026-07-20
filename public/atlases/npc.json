@@ -1,0 +1,351 @@
+{
+  "frames": {
+    "npc_1.png": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 26,
+        "h": 44
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 14,
+        "y": 6,
+        "w": 26,
+        "h": 44
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_2.png": {
+      "frame": {
+        "x": 28,
+        "y": 0,
+        "w": 36,
+        "h": 50
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 9,
+        "y": 2,
+        "w": 36,
+        "h": 50
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_3.png": {
+      "frame": {
+        "x": 66,
+        "y": 0,
+        "w": 28,
+        "h": 46
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 14,
+        "y": 4,
+        "w": 28,
+        "h": 46
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_4.png": {
+      "frame": {
+        "x": 96,
+        "y": 0,
+        "w": 32,
+        "h": 50
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 2,
+        "w": 32,
+        "h": 50
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_5.png": {
+      "frame": {
+        "x": 130,
+        "y": 0,
+        "w": 30,
+        "h": 52
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 12,
+        "y": 4,
+        "w": 30,
+        "h": 52
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_6.png": {
+      "frame": {
+        "x": 162,
+        "y": 0,
+        "w": 30,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 12,
+        "y": 4,
+        "w": 30,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 56,
+        "h": 56
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_0.png": {
+      "frame": {
+        "x": 194,
+        "y": 0,
+        "w": 148,
+        "h": 258
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 148,
+        "y": 4,
+        "w": 148,
+        "h": 258
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_1.png": {
+      "frame": {
+        "x": 344,
+        "y": 0,
+        "w": 136,
+        "h": 242
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 156,
+        "y": 12,
+        "w": 136,
+        "h": 242
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_2.png": {
+      "frame": {
+        "x": 482,
+        "y": 0,
+        "w": 190,
+        "h": 252
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 118,
+        "y": 0,
+        "w": 190,
+        "h": 252
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_3.png": {
+      "frame": {
+        "x": 674,
+        "y": 0,
+        "w": 156,
+        "h": 244
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 141,
+        "y": 7,
+        "w": 156,
+        "h": 244
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_4.png": {
+      "frame": {
+        "x": 832,
+        "y": 0,
+        "w": 170,
+        "h": 264
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 145,
+        "y": 0,
+        "w": 170,
+        "h": 264
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_5.png": {
+      "frame": {
+        "x": 1004,
+        "y": 0,
+        "w": 172,
+        "h": 240
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 137,
+        "y": 12,
+        "w": 172,
+        "h": 240
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_6.png": {
+      "frame": {
+        "x": 1178,
+        "y": 0,
+        "w": 154,
+        "h": 244
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 144,
+        "y": 10,
+        "w": 154,
+        "h": 244
+      },
+      "sourceSize": {
+        "w": 446,
+        "h": 264
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "npc_dig_bg.png": {
+      "frame": {
+        "x": 1334,
+        "y": 0,
+        "w": 518,
+        "h": 267
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 518,
+        "h": 267
+      },
+      "sourceSize": {
+        "w": 518,
+        "h": 267
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  },
+  "meta": {
+    "app": "Death-Diary plist_to_phaser_atlas.py",
+    "version": "2.0",
+    "image": "npc.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 2048,
+      "h": 267
+    },
+    "scale": "1"
+  }
+}
