@@ -60,7 +60,7 @@ export type NodeMountContext = {
     bgBottomY: number;
     toScreenX: (localX: number) => number;
     toScreenY: (localY: number) => number;
-    setTitle: (title: string) => void;
+    setTitle: (title: string, opts?: { align?: 'left' | 'center' }) => void;
     setRightEnabled: (enabled: boolean, label?: string) => void;
     setLeftEnabled: (enabled: boolean) => void;
     forward: (nodeName: string, userData?: unknown) => void;
@@ -165,9 +165,22 @@ export function createNavigationHost (
         opts?.onToast?.(msg);
     };
 
-    const setTitle = (title: string) =>
+    const setTitle = (title: string, opts?: { align?: 'left' | 'center' }) =>
     {
         titleText.setText(title);
+        const align = opts?.align ?? 'center';
+        if (align === 'left')
+        {
+            // Original Site/Battle: title left of bar, after back btn.
+            // leftBtn x=60; btn ~82 wide → title at 60 + 41 + 10 ≈ 111, anchor top-left.
+            titleText.setOrigin(0, 0.5);
+            titleText.setPosition(toScreenX(111), titleY);
+        }
+        else
+        {
+            titleText.setOrigin(0.5, 0.5);
+            titleText.setPosition(width / 2, titleY);
+        }
     };
 
     const setLeftEnabled = (enabled: boolean) =>

@@ -130,6 +130,29 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         effectWeapon: WEAPON_CROWBAR,
         effectTool: { workingTime: 10 },
     },
+    /** 电锯 — 武器 + 搜刮工具（开发开局赠送） */
+    1302043: {
+        id: 1302043,
+        name: '电锯',
+        weight: 6,
+        slot: 'weapon',
+        effectWeapon: {
+            atk: 100,
+            atkCD: 1.5,
+            range: 0,
+            bulletMin: 0,
+            bulletMax: 0,
+            bulletNum: 0,
+            reloadCD: 0.6,
+            precise: 1,
+            dtPrecise: 0,
+            deathHit: 0,
+            dtDeathHit: 0,
+            brokenProbability: 0.04,
+        },
+        // 原版仅 effect_weapon；开发用补 tool 以便搜刮选工具
+        effectTool: { workingTime: 5 },
+    },
     1303012: {
         id: 1303012,
         name: '炸药',

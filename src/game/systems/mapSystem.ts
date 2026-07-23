@@ -85,6 +85,7 @@ export function createSiteState (siteId: number): SiteState
 
     const workRooms: SiteRoom[] = lootPools.map((list) => ({
         type: 'work' as const,
+        workType: Math.floor(Math.random() * 3),
         loot: list,
     }));
 
@@ -157,6 +158,10 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
 {
     let advanced = false;
     let siteEnded = false;
+    let doneWorkType: number | null = null;
+    let siteName = '';
+    const unlockedNames: string[] = [];
+
     mutateSession((live) =>
     {
         const site = live.map.sites[siteId];
@@ -164,16 +169,56 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
         {
             return;
         }
+        const doneRoom = site.rooms[site.step];
+        if (doneRoom?.type === 'work')
+        {
+            doneWorkType = doneRoom.workType ?? 0;
+        }
         site.step += 1;
         advanced = true;
         if (site.step >= site.rooms.length)
         {
             site.ended = true;
             siteEnded = true;
+            const cfg = getSiteConfig(siteId);
+            siteName = cfg?.name ?? '';
+            // siteEnd unlocks
+            for (const unlockId of cfg?.unlockSites ?? [])
+            {
+                if (!live.map.unlocked.includes(unlockId))
+                {
+                    live.map.unlocked.push(unlockId);
+                    const name = getSiteConfig(unlockId)?.name;
+                    if (name)
+                    {
+                        unlockedNames.push(name);
+                    }
+                }
+            }
         }
     });
+
     if (advanced)
     {
+        // 1117 你打开了箱子/桌子/柜子 (after work room)
+        if (doneWorkType !== null)
+        {
+            const labels = ['箱子', '桌子', '柜子'];
+            appendSessionLog(`你打开了${labels[doneWorkType] ?? '箱子'}`);
+        }
+        if (siteEnded)
+        {
+            // 1119 你彻底清除了%s里的全部威胁！
+            if (siteName)
+            {
+                appendSessionLog(`你彻底清除了${siteName}里的全部威胁！`);
+            }
+            // 1104 新地点 %s 解锁！
+            for (const name of unlockedNames)
+            {
+                appendSessionLog(`新地点 ${name} 解锁！`);
+            }
+        }
         gameBusEmit('session_updated');
     }
     return { advanced, siteEnded };

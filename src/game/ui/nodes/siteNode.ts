@@ -1,11 +1,18 @@
 /**
- * SiteNode — site dig art + progress, enter room (battle/work), site storage.
- * dig illustration: site_dig_{id}.png (original site entry layout).
+ * SiteNode — port of Buried-City siteNode.js entry layout.
+ *
+ * Cocos coords are y-up from bottom-frame bg (596×839). Convert with
+ * phaserY = bgBottomY - cocosY (no content-nudge; chrome is absolute).
+ *
+ * - Title left of bar (host setTitle align left)
+ * - 进度 under title; 存放物品 top-right of action bar
+ * - dig at cocos y = contentTopLine(770) - 50, anchor top
+ * - des under dig by 40px
+ * - Buttons at cocos y=100: 物品存放点 | 进入副本
  */
 
 import { getSiteConfig } from '../../data/siteConfig';
 import {
-    currentRoom,
     getSite,
     leaveSite,
     siteStorageCount,
@@ -20,118 +27,147 @@ import {
 } from '../uiFont';
 import { addAtlasButton } from '../atlasButton';
 
+const LEFT_EDGE = 40;
+/** BottomFrame contentTopLineHeight */
+const CONTENT_TOP = 770;
+/** actionBarBaseHeight */
+const ACTION_BAR = 803;
+
 export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
 {
     const siteId = Number(ctx.userData);
     const cfg = getSiteConfig(siteId);
-    ctx.setTitle(cfg?.name ?? `地点${siteId}`);
+    const site = getSite(siteId);
+
+    ctx.setTitle(cfg?.name ?? `地点${siteId}`, { align: 'left' });
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
 
-    const site = getSite(siteId);
-    const contentTop = ctx.toScreenY(770);
-    const digFrame = `site_dig_${siteId}.png`;
-    let belowDigY = contentTop + 24;
+    // Absolute chrome coords (ignore content toScreenY nudge).
+    const fromBottom = (cocosY: number) => ctx.bgBottomY - cocosY;
+    const leftEdge = ctx.width / 2 - ctx.bgWidth / 2 + LEFT_EDGE;
+    const rightEdge = ctx.width / 2 + ctx.bgWidth / 2 - LEFT_EDGE;
 
-    if (ctx.scene.textures.exists('site') && ctx.scene.textures.get('site').has(digFrame))
-    {
-        const dig = ctx.scene.add
-            .image(ctx.width / 2, contentTop - 12, 'site', digFrame)
-            .setOrigin(0.5, 0)
-            .setScale(0.9);
-        ctx.content.add(dig);
-        belowDigY = dig.y + dig.displayHeight + 12;
-    }
-
+    // Title bar: [back] 加油站  进度:n/m .............. 存放物品:n
+    // Progress sits to the RIGHT of the title (not under it).
+    const titleY = fromBottom(ACTION_BAR);
+    const titleX = ctx.width / 2 - ctx.bgWidth / 2 + 111;
+    const siteName = cfg?.name ?? `地点${siteId}`;
     const progress =
         site && site.rooms.length > 0
-            ? `进度 ${Math.min(site.step, site.rooms.length)}/${site.rooms.length}`
-            : '无房间';
-    const ended = site?.ended ? '（已探索完毕）' : '';
+            ? `进度:${Math.min(site.step, site.rooms.length)}/${site.rooms.length}`
+            : '进度:0/0';
+    const storageN = siteStorageCount(siteId);
+
+    // Measure title width so progress starts after the name.
+    const titleProbe = ctx.scene.add
+        .text(0, 0, siteName, {
+            fontFamily: UI_FONT_FAMILY,
+            resolution: UI_TEXT_RESOLUTION,
+            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+        })
+        .setVisible(false);
+    const progressX = titleX + titleProbe.width + 16;
+    titleProbe.destroy();
 
     ctx.content.add(
         ctx.scene.add
-            .text(ctx.width / 2, belowDigY, `${progress}${ended}`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                color: '#f0e6d2',
-            })
-            .setOrigin(0.5, 0),
-    );
-
-    let desBottom = belowDigY + 36;
-    if (cfg)
-    {
-        const des = ctx.scene.add
-            .text(ctx.width / 2, belowDigY + 36, cfg.des, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                color: '#cccccc',
-                align: 'center',
-                wordWrap: uiWordWrap(500),
-            })
-            .setOrigin(0.5, 0);
-        ctx.content.add(des);
-        desBottom = des.y + des.height + 16;
-    }
-
-    const room = currentRoom(siteId);
-    let roomLabel = '无更多房间';
-    if (room?.type === 'battle')
-    {
-        roomLabel = `当前：战斗房（难度${room.difficulty}，${room.monsters.length}只）`;
-    }
-    else if (room?.type === 'work')
-    {
-        const n = (room.loot ?? []).reduce((s, r) => s + r.num, 0);
-        roomLabel = `当前：搜刮房（约${n}件物资）`;
-    }
-    else if (site?.ended)
-    {
-        roomLabel = '地点已清空';
-    }
-
-    ctx.content.add(
-        ctx.scene.add
-            .text(ctx.width / 2, desBottom, roomLabel, {
+            .text(progressX, titleY, progress, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
                 color: '#ffffff',
             })
-            .setOrigin(0.5, 0),
+            .setOrigin(0, 0.5),
+    );
+    ctx.content.add(
+        ctx.scene.add
+            .text(rightEdge + 20, titleY, `存放物品:${storageN}`, {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                color: '#ffffff',
+            })
+            .setOrigin(1, 0.5),
     );
 
-    const btnY = Math.min(desBottom + 80, ctx.bgBottomY - 160);
-    const storageN = siteStorageCount(siteId);
+    // dig: (bgW/2, contentTop - 50), anchor top-center
+    const digTop = fromBottom(CONTENT_TOP - 50);
+    const digFrame = `site_dig_${siteId}.png`;
+    let digBottom = digTop + 200;
 
-    if (room && !site?.ended)
+    if (ctx.scene.textures.exists('site') && ctx.scene.textures.get('site').has(digFrame))
     {
-        const exploreBtn = addAtlasButton(ctx.scene, ctx.width / 2, btnY, {
-            atlas: 'ui',
-            frame: 'btn_common_white_normal.png',
-            label: room.type === 'battle' ? '进入战斗' : '开始搜刮',
-            onClick: () =>
-            {
-                ctx.forward(NavNode.BATTLE_AND_WORK, siteId);
-            },
-        });
-        ctx.content.add(exploreBtn);
+        const dig = ctx.scene.add
+            .image(ctx.width / 2, digTop, 'site', digFrame)
+            .setOrigin(0.5, 0);
+        ctx.content.add(dig);
+        digBottom = dig.y + dig.displayHeight;
     }
 
-    const storageBtn = addAtlasButton(ctx.scene, ctx.width / 2, btnY + 90, {
+    // des: under dig by 40, white COMMON_2, width = rightEdge - leftEdge
+    if (cfg)
+    {
+        ctx.content.add(
+            ctx.scene.add
+                .text(ctx.width / 2, digBottom + 40, cfg.des, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    color: '#ffffff',
+                    align: 'center',
+                    wordWrap: uiWordWrap(rightEdge - leftEdge),
+                })
+                .setOrigin(0.5, 0),
+        );
+    }
+
+    // Twin buttons: (bgW/4, 100) and (3*bgW/4, 100) from bg bottom.
+    const btnY = fromBottom(100);
+    const leftBtnX = ctx.width / 2 - ctx.bgWidth / 4;
+    const rightBtnX = ctx.width / 2 + ctx.bgWidth / 4;
+    const siteEnded = Boolean(site?.ended);
+
+    const storageBtn = addAtlasButton(ctx.scene, leftBtnX, btnY, {
         atlas: 'ui',
-        frame: 'btn_common_black_normal.png',
-        label: `地点仓库（${storageN}）`,
-        labelColor: '#eee',
+        frame: 'btn_common_white_normal.png',
+        label: '物品存放点',
         onClick: () =>
         {
             ctx.forward(NavNode.SITE_STORAGE, siteId);
         },
     });
     ctx.content.add(storageBtn);
+
+    if (
+        site?.haveNewItems
+        && ctx.scene.textures.exists('map')
+        && ctx.scene.textures.get('map').has('map_actor.png')
+    )
+    {
+        ctx.content.add(
+            ctx.scene.add
+                .image(leftBtnX + 70, btnY - 18, 'map', 'map_actor.png')
+                .setOrigin(0.5)
+                .setDepth(2),
+        );
+    }
+
+    const enterBtn = addAtlasButton(ctx.scene, rightBtnX, btnY, {
+        atlas: 'ui',
+        frame: 'btn_common_white_normal.png',
+        label: '进入副本',
+        enabled: !siteEnded,
+        onClick: () =>
+        {
+            if (siteEnded)
+            {
+                return;
+            }
+            ctx.forward(NavNode.BATTLE_AND_WORK, siteId);
+        },
+    });
+    ctx.content.add(enterBtn);
 
     return {
         onLeft: () =>

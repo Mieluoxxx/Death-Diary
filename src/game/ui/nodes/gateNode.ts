@@ -79,7 +79,8 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
     const slotIcons: SlotIcon[] = [];
     let openPos: EquipPos | null = null;
     let dropRoot: GameObjects.Container | null = null;
-
+    // Original selectedCap: frame_tab_head under active tab, connecting to dropdown.
+    let selectedCap: GameObjects.Image | GameObjects.Rectangle | null = null;
     ([0, 1, 2, 3] as EquipPos[]).forEach((pos, i) =>
     {
         const x = equipLeft + padding * (i + 1) + tabBgW * (i + 0.5);
@@ -183,6 +184,10 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         openPos = null;
         dropRoot?.destroy(true);
         dropRoot = null;
+        if (selectedCap)
+        {
+            selectedCap.setVisible(false);
+        }
     }
 
     function openDropDown (pos: EquipPos): void
@@ -196,7 +201,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
             return;
         }
 
-        // Candidate ids for this slot (from bag).
+        // Candidate ids for this slot (from bag) — original getItemsByType(130x).
         let list = itemsForSlot(SLOT_KIND[pos]).filter(
             (id) => getCount(session.bag, id) > 0,
         );
@@ -204,25 +209,107 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         {
             list = [HAND_ITEM_ID, ...list];
         }
-        // Empty → show "无" (id 0).
+        // Empty → show "无" (id 0) — original string 1024.
         if (list.length === 0)
         {
             list = [0];
         }
         const dropH = LINE_H * list.length + 2 * DROP_VPAD;
-        // Hang just under equip tabs (original content under EquipNode).
-        const dropTop = equipCy + tabBgH / 2 + 2;
+
+        // EquipNode.createDropDownView: content anchor top @ (equipW/2, 5) in equip-local y-up.
+        // ≈ just under equip strip bottom.
+        const equipBottom = contentTop + equipH;
+        const dropTop = equipBottom - 5;
 
         dropRoot = ctx.scene.add.container(equipCx, dropTop);
         dropRoot.setDepth(50);
         ctx.content.add(dropRoot);
         ctx.content.bringToTop(dropRoot);
 
-        // Light panel matching original tab content sheet (no 9-slice content tile at 31px).
-        const panel = ctx.scene.add
-            .rectangle(0, dropH / 2, DROP_W, dropH, 0xe8e4dc, 0.98)
-            .setStrokeStyle(1, 0x8a8478);
-        dropRoot.add(panel);
+        // frame_tab_content.png 31×31, scale9 inset 14 — dark sheet (#222).
+        if (
+            ctx.scene.textures.exists('gate')
+            && ctx.scene.textures.get('gate').has('frame_tab_content.png')
+            && 'add' in ctx.scene
+            && typeof (ctx.scene.add as { nineslice?: unknown }).nineslice === 'function'
+        )
+        {
+            const panel = (ctx.scene.add as Phaser.GameObjects.GameObjectFactory).nineslice(
+                0,
+                0,
+                'gate',
+                'frame_tab_content.png',
+                DROP_W,
+                dropH,
+                14,
+                14,
+                14,
+                14,
+            );
+            panel.setOrigin(0.5, 0);
+            dropRoot.add(panel);
+        }
+        else if (
+            ctx.scene.textures.exists('gate')
+            && ctx.scene.textures.get('gate').has('frame_tab_content.png')
+        )
+        {
+            const panel = ctx.scene.add
+                .image(0, 0, 'gate', 'frame_tab_content.png')
+                .setOrigin(0.5, 0)
+                .setDisplaySize(DROP_W, dropH);
+            dropRoot.add(panel);
+        }
+        else
+        {
+            // Fallback: original content fill ≈ #222222
+            dropRoot.add(
+                ctx.scene.add
+                    .rectangle(0, dropH / 2, DROP_W, dropH, 0x222222, 0.98)
+                    .setStrokeStyle(1, 0x555555),
+            );
+        }
+        // selectedCap: frame_tab_head, Cocos anchor (0.5,1) at y = equipH/2 + tabH/2
+        // → top of cap sits at bottom of tab, hanging into the dropdown.
+        const tabSlot = slotIcons.find((s) => s.pos === pos);
+        if (tabSlot)
+        {
+            const capY = equipCy + tabBgH / 2;
+            if (!selectedCap)
+            {
+                if (
+                    ctx.scene.textures.exists('gate')
+                    && ctx.scene.textures.get('gate').has('frame_tab_head.png')
+                )
+                {
+                    selectedCap = ctx.scene.add
+                        .image(tabSlot.x, capY, 'gate', 'frame_tab_head.png')
+                        .setOrigin(0.5, 0);
+                }
+                else
+                {
+                    selectedCap = ctx.scene.add
+                        .rectangle(tabSlot.x, capY, tabBgW, 24, 0x222222)
+                        .setOrigin(0.5, 0);
+                }
+                ctx.content.add(selectedCap);
+            }
+            else
+            {
+                selectedCap.setPosition(tabSlot.x, capY);
+            }
+            selectedCap.setVisible(true);
+            // Cap under dropdown; tab icons stay readable above.
+            ctx.content.bringToTop(selectedCap);
+            for (const slot of slotIcons)
+            {
+                if (slot.icon)
+                {
+                    ctx.content.bringToTop(slot.icon);
+                }
+            }
+            ctx.content.bringToTop(dropRoot);
+        }
 
         list.forEach((itemId, index) =>
         {
@@ -232,7 +319,10 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
 
             if (index > 0)
             {
-                if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has('frame_tab_line.png'))
+                if (
+                    ctx.scene.textures.exists('gate')
+                    && ctx.scene.textures.get('gate').has('frame_tab_line.png')
+                )
                 {
                     const sep = ctx.scene.add.image(
                         0,
@@ -240,7 +330,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                         'gate',
                         'frame_tab_line.png',
                     );
-                    sep.setDisplaySize(DROP_W - 24, 2);
+                    sep.setDisplaySize(DROP_W - 40, 2);
                     dropRoot!.add(sep);
                 }
                 else
@@ -249,9 +339,10 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                         ctx.scene.add.rectangle(
                             0,
                             DROP_VPAD + index * LINE_H,
-                            DROP_W - 24,
+                            DROP_W - 40,
                             1,
-                            0x666666,
+                            0xffffff,
+                            0.35,
                         ),
                     );
                 }
@@ -264,13 +355,13 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         const line = ctx.scene.add.container(0, y);
         const left = -DROP_W / 2;
 
-        // Full-row hit target.
+        // Full-row hit — original tab_content_btn_normal is transparent; pressed #555.
         const hit = ctx.scene.add
-            .rectangle(0, 0, DROP_W - 8, LINE_H - 4, 0xffffff, 0.001)
+            .rectangle(0, 0, DROP_W - 8, LINE_H - 4, 0x555555, 0.001)
             .setInteractive({ useHandCursor: true });
         line.add(hit);
-        hit.on('pointerover', () => hit.setFillStyle(0xffffff, 0.08));
-        hit.on('pointerout', () => hit.setFillStyle(0xffffff, 0.001));
+        hit.on('pointerover', () => hit.setFillStyle(0x555555, 0.55));
+        hit.on('pointerout', () => hit.setFillStyle(0x555555, 0.001));
         hit.on('pointerup', () =>
         {
             equipItem(posOrOpen(), itemId);
@@ -287,7 +378,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                         fontFamily: UI_FONT_FAMILY,
                         resolution: UI_TEXT_RESOLUTION,
                         fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                        color: '#111111',
+                        color: '#ffffff',
                     })
                     .setOrigin(0.5),
             );
@@ -357,7 +448,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                    color: '#111111',
+                    color: '#ffffff',
                 })
                 .setOrigin(0, 0),
         );
@@ -367,7 +458,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                    color: '#222222',
+                    color: '#ffffff',
                 })
                 .setOrigin(0, 0),
         );
@@ -377,7 +468,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                    color: '#222222',
+                    color: '#ffffff',
                 })
                 .setOrigin(0, 0),
         );
@@ -390,7 +481,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                         fontFamily: UI_FONT_FAMILY,
                         resolution: UI_TEXT_RESOLUTION,
                         fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                        color: '#222222',
+                        color: '#ffffff',
                     })
                     .setOrigin(1, 0),
             );
@@ -496,6 +587,8 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         {
             gameBusOff('session_updated', onSession);
             closeDropDown();
+            selectedCap?.destroy();
+            selectedCap = null;
             for (const slot of slotIcons)
             {
                 slot.icon?.destroy();

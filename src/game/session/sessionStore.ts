@@ -38,7 +38,12 @@ export type NavEntry = {
 
 export type SiteRoom =
     | { type: 'battle'; difficulty: number; monsters: number[] }
-    | { type: 'work'; loot: Array<{ itemId: number; num: number }> };
+    | {
+        type: 'work';
+        /** 0..2 → work_dig_N + string 3008 */
+        workType: number;
+        loot: Array<{ itemId: number; num: number }>;
+    };
 
 export type SiteState = {
     siteId: number;
@@ -166,7 +171,7 @@ function defaultStorage (): ItemCounts
         1101051: 8,  // electric
         1101061: 6,  // water
         1103083: 4,  // canned food
-        1302011: 1,  // crowbar (in warehouse until gated into bag)
+        1302011: 1,  // crowbar
         1301011: 1,  // pistol
         1304012: 1,  // coat
         [BULLET_ID]: 40,
@@ -175,7 +180,10 @@ function defaultStorage (): ItemCounts
 
 function defaultBag (): ItemCounts
 {
-    return {};
+    // Dev convenience: start with one equipped chainsaw in bag.
+    return {
+        1302043: 1,
+    };
 }
 
 function defaultEquip (): EquipState

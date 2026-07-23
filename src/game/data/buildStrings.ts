@@ -273,8 +273,13 @@ export const ITEM_STRINGS: Record<string, NamedCopy> = {
   "1107042": {
     "title": "军用口粮",
     "des": "难以置信，用蜂蜜、面粉和色拉油调制的东西，吃了居然几天都不会感到饿…"
+  },
+  "1302043": {
+    "title": "电锯",
+    "des": "终极杀器，任何僵尸都无法抵挡。除此之外，用于清除障碍，开箱倒柜更是得心应手。"
   }
 };
+
 
 export function buildLevelName(bid: number, level: number): string {
     const safeLevel = Math.max(0, level);
