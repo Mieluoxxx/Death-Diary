@@ -20,6 +20,21 @@ export type GameBusEventMap = {
     weather_change: number;
     player_died: void;
     session_updated: void;
+    build_upgrade_started: { bid: number; nextLevel: number; createTime: number };
+    build_upgrade_progress: { bid: number; percentage: number };
+    build_upgraded: { bid: number; level: number };
+    nav_changed: { nodeName: string };
+    battle_started: void;
+    battle_tick: void;
+    battle_ended: {
+        win: boolean;
+        monsterKilled: number;
+        playerHarm: number;
+        bulletsUsed: number;
+        meleeHits: number;
+        gunHits: number;
+        log: string[];
+    };
 };
 
 type Handler<T> = (payload: T) => void;

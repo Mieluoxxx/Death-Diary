@@ -17,7 +17,8 @@
     "dev": "bun log.js dev && bunx --bun vite --config vite/config.dev.mjs",
     "build": "bun log.js build && bunx --bun vite build --config vite/config.prod.mjs",
     "dev-nolog": "bunx --bun vite --config vite/config.dev.mjs",
-    "build-nolog": "bunx --bun vite build --config vite/config.prod.mjs"
+    "build-nolog": "bunx --bun vite build --config vite/config.prod.mjs",
+    "gen:frames": "bun tools/gen_frame_multiatlas.mjs"
   },
   "devDependencies": {
     "typescript": "~5.7.2",

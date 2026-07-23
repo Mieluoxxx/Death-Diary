@@ -271,7 +271,7 @@ function advanceGameTime (session: SessionState, deltaGameSeconds: number): void
         // Throttled persist: once per game-minute (~0.6s real at default scale).
         try
         {
-            localStorage.setItem('buried_city_session_v1', JSON.stringify(session));
+            localStorage.setItem('buried_city_session_v2', JSON.stringify(session));
         }
         catch
         {

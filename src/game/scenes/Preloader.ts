@@ -1,6 +1,25 @@
 import { Scene, Textures } from 'phaser';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
 
+/** Atlas keys used by the current vertical slice (must match multiatlas JSON). */
+const ATLAS_KEYS = [
+    'menu',
+    'ui',
+    'icon',
+    'medal',
+    'npc',
+    'home',
+    'dig_build',
+    'build',
+    'gate',
+    'map',
+    'site',
+    'dig_monster',
+    'dig_item',
+    'dig_work',
+    'weather',
+] as const;
+
 export class Preloader extends Scene
 {
     constructor ()
@@ -33,19 +52,22 @@ export class Preloader extends Scene
 
     preload ()
     {
-        this.load.atlas('menu', 'atlases/menu.png', 'atlases/menu.json');
-        this.load.atlas('ui', 'atlases/ui.png', 'atlases/ui.json');
-        this.load.atlas('icon', 'atlases/icon.png', 'atlases/icon.json');
-        this.load.atlas('medal', 'atlases/medal.png', 'atlases/medal.json');
-        this.load.atlas('npc', 'atlases/npc.png', 'atlases/npc.json');
-        this.load.atlas('home', 'atlases/home.png', 'atlases/home.json');
+        // Single-frame original art: each PNG is one multi-atlas page.
+        // JSON from tools/gen_frame_multiatlas.mjs; PNGs under public/source-art/frames/.
+        for (const key of ATLAS_KEYS)
+        {
+            this.load.multiatlas(
+                key,
+                `source-art/multiatlas/${key}.json`,
+                `source-art/frames/${key}/`,
+            );
+        }
     }
 
     create ()
     {
-        // Hand-painted atlases: LINEAR (smooth) filtering, not NEAREST pixel-art.
-        const atlasKeys = ['menu', 'ui', 'icon', 'medal', 'npc', 'home'];
-        for (const key of atlasKeys)
+        // Hand-painted frames: LINEAR (smooth) filtering, not NEAREST pixel-art.
+        for (const key of ATLAS_KEYS)
         {
             if (this.textures.exists(key))
             {

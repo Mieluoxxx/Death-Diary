@@ -6,7 +6,8 @@ import {
 } from '../session/sessionStore';
 import { addTopFrame, type TopFrameHandle } from '../ui/topFrame';
 import { openSettingLayer } from '../ui/settingLayer';
-import { getLanguage, t } from '../settings/settingsStore';
+import { openBuildPanel, type BuildPanelHandle } from '../ui/buildPanel';
+import { createNavigationHost, NavNode, type NavHostHandle } from '../ui/navigation';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
 import { gameBusOn, gameBusOff, gameBusClear } from '../systems/gameBus';
 import {
@@ -15,6 +16,7 @@ import {
     debugSkipGameHours,
 } from '../systems/survivalLoop';
 import { tickTimeClock } from '../systems/timeClock';
+import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
 
 /**
  * Port of Buried-City MainScene + HomeNode (web vertical slice).
@@ -73,33 +75,15 @@ function buildsForRole (role: RoleKey): BuildSpot[]
     return spots;
 }
 
-const BUILD_NAME_KEYS: Record<number, string> = {
-    1: 'build_tool',
-    2: 'build_fence',
-    3: 'build_well',
-    4: 'build_farm',
-    5: 'build_kitchen',
-    6: 'build_workshop',
-    7: 'build_cellar',
-    8: 'build_bathroom',
-    9: 'build_bed',
-    10: 'build_fireplace',
-    11: 'build_booth',
-    12: 'build_doghouse',
-    13: 'build_storage',
-    14: 'build_gate',
-    15: 'build_radio',
-    16: 'build_minefield',
-    17: 'build_lathe',
-    18: 'build_power',
-    19: 'build_electric',
-};
-
 export class HomeScene extends Scene
 {
     private toastText: GameObjects.Text | null = null;
     private topFrame: TopFrameHandle | null = null;
     private deathOverlay: GameObjects.Container | null = null;
+    private buildPanel: BuildPanelHandle | null = null;
+    private navHost: NavHostHandle | null = null;
+    private buildButtons = new Map<number, GameObjects.Image | GameObjects.Rectangle>();
+    private homeLayer: GameObjects.Container | null = null;
     private boundRefresh: (() => void) | null = null;
     private boundDied: (() => void) | null = null;
 
@@ -121,6 +105,7 @@ export class HomeScene extends Scene
         this.toastText = null;
         this.topFrame = null;
         this.deathOverlay = null;
+        this.buildPanel = null;
 
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
 
@@ -133,6 +118,11 @@ export class HomeScene extends Scene
         }
 
         this.placeHomeContent(session, width, height);
+
+        this.navHost = createNavigationHost(this, {
+            onHomeVisible: (visible) => this.setHomeMapVisible(visible),
+            onToast: (msg) => this.showToast(msg),
+        });
 
         this.topFrame = addTopFrame(this, session, {
             onSettings: () => openSettingLayer(this, { fromGame: true }),
@@ -177,6 +167,7 @@ export class HomeScene extends Scene
         {
             return;
         }
+        this.navHost?.update(deltaMs);
         tickTimeClock(deltaMs / 1000);
     }
 
@@ -195,6 +186,11 @@ export class HomeScene extends Scene
             this.boundDied = null;
         }
         stopSurvivalLoop();
+        clearActiveUpgrades();
+        this.buildPanel?.destroy();
+        this.buildPanel = null;
+        this.navHost?.destroy();
+        this.navHost = null;
         // Clear bus so menu does not keep Home listeners if any leaked.
         gameBusClear();
         this.topFrame = null;
@@ -203,33 +199,36 @@ export class HomeScene extends Scene
 
     private placeHomeContent (session: SessionState, width: number, height: number): void
     {
-        const lan = getLanguage();
         const homeBottom = height - 18;
         let homeWidth = 596;
+
+        this.homeLayer?.destroy(true);
+        this.homeLayer = this.add.container(0, 0).setDepth(1);
 
         if (this.textures.exists('home') && this.textures.get('home').has('home_bg.png'))
         {
             const homeBg = this.add
                 .image(width / 2, homeBottom, 'home', 'home_bg.png')
-                .setOrigin(0.5, 1)
-                .setDepth(1);
+                .setOrigin(0.5, 1);
+            this.homeLayer.add(homeBg);
             homeWidth = homeBg.displayWidth;
         }
         else
         {
-            this.add
-                .rectangle(width / 2, homeBottom - 420, homeWidth, 840, 0x3a342c)
-                .setDepth(1);
+            this.homeLayer.add(
+                this.add.rectangle(width / 2, homeBottom - 420, homeWidth, 840, 0x3a342c),
+            );
         }
 
         const homeLeft = width / 2 - homeWidth / 2;
         const spots = buildsForRole(session.role);
 
+        this.buildButtons.clear();
         spots.forEach((spot) =>
         {
-            const level = session.buildLevels[spot.bid] ?? 0;
+            const level = session.buildLevels[spot.bid] ?? -1;
             const safeLevel = Math.max(0, level);
-            const frame = `icon_start_build_${spot.bid}_${safeLevel}.png`;
+            const frame = homeBuildFrame(spot.bid, safeLevel);
             const px = homeLeft + spot.x;
             const py = homeBottom - spot.y;
 
@@ -245,16 +244,21 @@ export class HomeScene extends Scene
                     .setDepth(2);
             }
 
+            if (level < 0)
+            {
+                btn.setAlpha(0.55);
+            }
+
             btn.setInteractive({ useHandCursor: true });
-            btn.on('pointerdown', () => btn.setAlpha(0.7));
-            btn.on('pointerout', () => btn.setAlpha(1));
+            btn.on('pointerdown', () => btn.setAlpha(level < 0 ? 0.4 : 0.7));
+            btn.on('pointerout', () => btn.setAlpha(level < 0 ? 0.55 : 1));
             btn.on('pointerup', () =>
             {
-                btn.setAlpha(1);
-                const nameKey = BUILD_NAME_KEYS[spot.bid] ?? `build_${spot.bid}`;
-                const name = t(nameKey, lan);
-                this.showToast(`${name} (Lv.${safeLevel}) — ${t('buildSoon', lan)}`);
+                btn.setAlpha(level < 0 ? 0.55 : 1);
+                this.openFacility(spot.bid);
             });
+            this.homeLayer?.add(btn);
+            this.buildButtons.set(spot.bid, btn);
         });
     }
 
@@ -330,6 +334,65 @@ export class HomeScene extends Scene
             }
             this.topFrame?.refresh();
         });
+    }
+
+
+    private openFacility (bid: number): void
+    {
+        // P0 navigation: storage / gate enter stack nodes; others keep build panel.
+        if (bid === 13)
+        {
+            this.navHost?.forward(NavNode.STORAGE, { bid: 13 });
+            return;
+        }
+        if (bid === 14)
+        {
+            this.navHost?.forward(NavNode.GATE, { bid: 14 });
+            return;
+        }
+
+        if (this.buildPanel)
+        {
+            this.buildPanel.destroy();
+            this.buildPanel = null;
+        }
+        // Match original Navigation: hide Home map while BuildNode is up.
+        this.setHomeMapVisible(false);
+        this.buildPanel = openBuildPanel(this, bid, {
+            onClose: () =>
+            {
+                this.buildPanel = null;
+                this.setHomeMapVisible(true);
+            },
+            onUpgraded: (upgradedBid, level) =>
+            {
+                this.refreshBuildIcon(upgradedBid, level);
+            },
+        });
+    }
+
+    private setHomeMapVisible (visible: boolean): void
+    {
+        this.homeLayer?.setVisible(visible);
+        this.buildButtons.forEach((btn) =>
+        {
+            btn.setVisible(visible);
+        });
+    }
+
+    private refreshBuildIcon (bid: number, level: number): void
+    {
+        const btn = this.buildButtons.get(bid);
+        if (!btn || !(btn instanceof GameObjects.Image))
+        {
+            return;
+        }
+        const frame = homeBuildFrame(bid, level);
+        if (this.textures.exists('home') && this.textures.get('home').has(frame))
+        {
+            btn.setFrame(frame);
+            btn.setAlpha(level < 0 ? 0.55 : 1);
+        }
     }
 
     private showToast (message: string): void

@@ -1,11 +1,11 @@
 /**
- * Minimal in-run session for the Home vertical slice.
- * Not a full SaveService — just enough to show role/talent/day/attrs
- * and keep Continue enabled across menu restarts in the same browser tab.
- *
+ * In-run session for Home + P0 main loop (nav / bag / map / site).
  * Time: `gameTime` (total game seconds) is the source of truth;
- * `day` / `hour` / `minute` / `season` are derived for UI and older code.
+ * `day` / `hour` / `minute` / `season` are derived for UI.
  */
+
+import { HAND_ITEM_ID, BULLET_ID } from '../data/itemConfig';
+import { HOME_SITE_ID, STARTER_SITE_ID, getSiteConfig } from '../data/siteConfig';
 
 export type RoleKey = 'STRANGER' | 'LUO' | 'YAZI';
 export type TalentId = 0 | 101 | 102 | 103 | 104;
@@ -26,6 +26,36 @@ export type SessionLogEntry = {
     timeLabel: string;
 };
 
+export type ItemCounts = Record<number, number>;
+
+/** EquipmentPos: 0 gun, 1 weapon, 2 equip, 3 tool. Weapon default HAND=1. */
+export type EquipState = Record<0 | 1 | 2 | 3, number>;
+
+export type NavEntry = {
+    nodeName: string;
+    userData?: unknown;
+};
+
+export type SiteRoom =
+    | { type: 'battle'; difficulty: number; monsters: number[] }
+    | { type: 'work'; loot: Array<{ itemId: number; num: number }> };
+
+export type SiteState = {
+    siteId: number;
+    step: number;
+    rooms: SiteRoom[];
+    storage: ItemCounts;
+    haveNewItems: boolean;
+    closed: boolean;
+    ended: boolean;
+};
+
+export type MapState = {
+    pos: { x: number; y: number };
+    unlocked: number[];
+    sites: Record<number, SiteState>;
+};
+
 export type SessionState = {
     role: RoleKey;
     talent: TalentId;
@@ -38,8 +68,22 @@ export type SessionState = {
     weatherId: number;
     temperature: number;
     attrs: PlayerAttrs;
-    /** Building id → level (-1 unbuilt, 0+ built). Web slice: all at 0. */
+    /** Building id → level (-1 unbuilt, 0+ built). */
     buildLevels: Record<number, number>;
+    /** Home warehouse itemId → count. */
+    storage: ItemCounts;
+    /** Carry bag (weight-limited). */
+    bag: ItemCounts;
+    /** Four equipment slots. */
+    equip: EquipState;
+    /** Navigation stack (BottomFrame). */
+    navigation: NavEntry[];
+    /** Map position + unlocked sites + site progress. */
+    map: MapState;
+    /** Work-room temp loot before flush to site/bag. */
+    tempLoot: ItemCounts;
+    isAtSite: boolean;
+    nowSiteId: number | null;
     /** Latest log line (TopFrame strip). */
     lastLog: string;
     /** Recent log history (newest last). */
@@ -49,7 +93,7 @@ export type SessionState = {
     isDead: boolean;
 };
 
-const STORAGE_KEY = 'buried_city_session_v1';
+const STORAGE_KEY = 'buried_city_session_v3';
 const MAX_LOG_ENTRIES = 40;
 
 const DEFAULT_ATTRS: PlayerAttrs = {
@@ -62,30 +106,96 @@ const DEFAULT_ATTRS: PlayerAttrs = {
     spirit: 80,
 };
 
-/** Stranger starter buildings (level 0) — matches HomeNode infos + stranger branch. */
-const STRANGER_BUILD_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-
 const SECONDS_PER_DAY = 24 * 60 * 60;
 const SECONDS_PER_HOUR = 60 * 60;
 const SECONDS_PER_MINUTE = 60;
 
 let activeSession: SessionState | null = null;
 
+/**
+ * Port of Room.initData(): most facilities start unbuilt (-1);
+ * toolbox(1), storage(13), gate(14) start at 0; Luo minefield(17) at 0.
+ */
 function defaultBuildLevels (role: RoleKey): Record<number, number>
 {
-    const levels: Record<number, number> = {};
-    const ids =
-        role === 'LUO'
-            ? [1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 13, 14, 15, 16, 17]
-            : role === 'YAZI'
-                ? [1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 15, 18, 19]
-                : STRANGER_BUILD_IDS;
+    const levels: Record<number, number> = {
+        1: 0,
+        2: -1,
+        3: -1,
+        4: -1,
+        6: -1,
+        8: -1,
+        9: -1,
+        10: -1,
+        12: -1,
+        13: 0,
+        14: 0,
+        15: -1,
+    };
 
-    ids.forEach((buildId) =>
+    if (role === 'LUO')
     {
-        levels[buildId] = 0;
-    });
+        levels[5] = -1;
+        levels[16] = -1;
+        levels[17] = 0;
+    }
+    else if (role === 'YAZI')
+    {
+        levels[7] = -1;
+        levels[18] = -1;
+        levels[19] = -1;
+    }
+    else
+    {
+        levels[5] = -1;
+        levels[7] = -1;
+        levels[11] = -1;
+    }
+
     return levels;
+}
+
+/** Starter materials so first upgrades are playable without exploring. */
+function defaultStorage (): ItemCounts
+{
+    return {
+        1101011: 20, // wood
+        1101021: 16, // metal
+        1101031: 10, // soft
+        1101041: 16, // parts
+        1101051: 8,  // electric
+        1101061: 6,  // water
+        1103083: 4,  // canned food
+        1302011: 1,  // crowbar (in warehouse until gated into bag)
+        1301011: 1,  // pistol
+        1304012: 1,  // coat
+        [BULLET_ID]: 40,
+    };
+}
+
+function defaultBag (): ItemCounts
+{
+    return {};
+}
+
+function defaultEquip (): EquipState
+{
+    return {
+        0: 0,
+        1: HAND_ITEM_ID,
+        2: 0,
+        3: 0,
+    };
+}
+
+function defaultMap (): MapState
+{
+    const home = getSiteConfig(HOME_SITE_ID);
+    return {
+        pos: home ? { ...home.coordinate } : { x: 45, y: 50 },
+        unlocked: [HOME_SITE_ID, STARTER_SITE_ID],
+        sites: {},
+    };
 }
 
 /** Convert display day/hour/minute → total game seconds (day 1 00:00 = 0). */
@@ -152,8 +262,16 @@ function normalizeSession (raw: SessionState): SessionState
             ? raw.gameTime
             : gameTimeFromClock(day, hour, minute);
 
+    const role = raw.role;
+    let buildLevels = raw.buildLevels ?? defaultBuildLevels(role);
+    // Old web-slice saves put every building at 0 — re-seed to Room.initData defaults.
+    if (looksLikeLegacyAllZeroBuilds(buildLevels))
+    {
+        buildLevels = defaultBuildLevels(role);
+    }
+
     const session: SessionState = {
-        role: raw.role,
+        role,
         talent: raw.talent,
         gameTime,
         day,
@@ -163,7 +281,15 @@ function normalizeSession (raw: SessionState): SessionState
         weatherId: raw.weatherId ?? 0,
         temperature: raw.temperature ?? 18,
         attrs: { ...DEFAULT_ATTRS, ...(raw.attrs ?? {}) },
-        buildLevels: raw.buildLevels ?? defaultBuildLevels(raw.role),
+        buildLevels,
+        storage: raw.storage ?? defaultStorage(),
+        bag: raw.bag ?? defaultBag(),
+        equip: normalizeEquip(raw.equip),
+        navigation: Array.isArray(raw.navigation) ? raw.navigation : [{ nodeName: 'HomeNode' }],
+        map: normalizeMap(raw.map),
+        tempLoot: raw.tempLoot ?? {},
+        isAtSite: Boolean(raw.isAtSite),
+        nowSiteId: typeof raw.nowSiteId === 'number' ? raw.nowSiteId : null,
         lastLog: raw.lastLog ?? '',
         logs: Array.isArray(raw.logs) ? raw.logs.slice(-MAX_LOG_ENTRIES) : [],
         isAtHome: raw.isAtHome !== false,
@@ -172,6 +298,50 @@ function normalizeSession (raw: SessionState): SessionState
     };
     applyGameTimeToSession(session, gameTime);
     return session;
+}
+
+function normalizeEquip (raw: EquipState | undefined): EquipState
+{
+    const base = defaultEquip();
+    if (!raw || typeof raw !== 'object')
+    {
+        return base;
+    }
+    return {
+        0: typeof raw[0] === 'number' ? raw[0] : 0,
+        1: typeof raw[1] === 'number' ? raw[1] : HAND_ITEM_ID,
+        2: typeof raw[2] === 'number' ? raw[2] : 0,
+        3: typeof raw[3] === 'number' ? raw[3] : 0,
+    };
+}
+
+function normalizeMap (raw: MapState | undefined): MapState
+{
+    const base = defaultMap();
+    if (!raw || typeof raw !== 'object')
+    {
+        return base;
+    }
+    return {
+        pos: raw.pos && typeof raw.pos.x === 'number'
+            ? { x: raw.pos.x, y: raw.pos.y }
+            : base.pos,
+        unlocked: Array.isArray(raw.unlocked) && raw.unlocked.length > 0
+            ? raw.unlocked
+            : base.unlocked,
+        sites: raw.sites && typeof raw.sites === 'object' ? raw.sites : {},
+    };
+}
+
+/** True if every known building is level 0 (pre-facility-migration save). */
+function looksLikeLegacyAllZeroBuilds (levels: Record<number, number>): boolean
+{
+    const values = Object.values(levels);
+    if (values.length < 8)
+    {
+        return false;
+    }
+    return values.every((level) => level === 0);
 }
 
 export function createNewSession (role: RoleKey, talent: TalentId): SessionState
@@ -190,6 +360,14 @@ export function createNewSession (role: RoleKey, talent: TalentId): SessionState
         temperature: 18,
         attrs: { ...DEFAULT_ATTRS },
         buildLevels: defaultBuildLevels(role),
+        storage: defaultStorage(),
+        bag: defaultBag(),
+        equip: defaultEquip(),
+        navigation: [{ nodeName: 'HomeNode' }],
+        map: defaultMap(),
+        tempLoot: {},
+        isAtSite: false,
+        nowSiteId: null,
         lastLog: '你回到了避难所。',
         logs: [
             {
@@ -243,6 +421,22 @@ export function updateSession (partial: Partial<SessionState>): SessionState
         buildLevels: partial.buildLevels
             ? { ...current.buildLevels, ...partial.buildLevels }
             : current.buildLevels,
+        storage: partial.storage
+            ? { ...current.storage, ...partial.storage }
+            : current.storage,
+        bag: partial.bag ? { ...current.bag, ...partial.bag } : current.bag,
+        equip: partial.equip ? { ...current.equip, ...partial.equip } : current.equip,
+        navigation: partial.navigation ?? current.navigation,
+        map: partial.map
+            ? {
+                pos: partial.map.pos ?? current.map.pos,
+                unlocked: partial.map.unlocked ?? current.map.unlocked,
+                sites: partial.map.sites
+                    ? { ...current.map.sites, ...partial.map.sites }
+                    : current.map.sites,
+            }
+            : current.map,
+        tempLoot: partial.tempLoot ?? current.tempLoot,
     };
     if (typeof partial.gameTime === 'number')
     {
@@ -356,4 +550,85 @@ export function attrRatio (session: SessionState, attr: keyof PlayerAttrs): numb
         return Math.min(1, Math.max(0, session.attrs[attr] / 100));
     }
     return Math.min(1, Math.max(0, session.attrs[attr] / 100));
+}
+
+
+export function getStorageCount (itemId: number): number
+{
+    const session = getSession();
+    if (!session)
+    {
+        return 0;
+    }
+    return session.storage[itemId] ?? 0;
+}
+
+export function validateStorageItems (
+    costs: Array<{ itemId: number; num: number }>,
+): boolean
+{
+    const session = getSession();
+    if (!session)
+    {
+        return false;
+    }
+    return costs.every((cost) => (session.storage[cost.itemId] ?? 0) >= cost.num);
+}
+
+export function costStorageItems (
+    costs: Array<{ itemId: number; num: number }>,
+): boolean
+{
+    if (!validateStorageItems(costs))
+    {
+        return false;
+    }
+    mutateSession((session) =>
+    {
+        costs.forEach((cost) =>
+        {
+            const have = session.storage[cost.itemId] ?? 0;
+            const next = have - cost.num;
+            if (next <= 0)
+            {
+                delete session.storage[cost.itemId];
+            }
+            else
+            {
+                session.storage[cost.itemId] = next;
+            }
+        });
+    });
+    return true;
+}
+
+export function gainStorageItems (
+    items: Array<{ itemId: number; num: number }>,
+): void
+{
+    mutateSession((session) =>
+    {
+        items.forEach((item) =>
+        {
+            session.storage[item.itemId] = (session.storage[item.itemId] ?? 0) + item.num;
+        });
+    });
+}
+
+export function getBuildLevel (bid: number): number
+{
+    const session = getSession();
+    if (!session)
+    {
+        return -1;
+    }
+    return session.buildLevels[bid] ?? -1;
+}
+
+export function setBuildLevel (bid: number, level: number): void
+{
+    mutateSession((session) =>
+    {
+        session.buildLevels[bid] = level;
+    });
 }

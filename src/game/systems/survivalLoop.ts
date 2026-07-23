@@ -138,7 +138,7 @@ export function runHourlySurvivalTick (): void
     // Persist + notify UI once per hour batch.
     try
     {
-        localStorage.setItem('buried_city_session_v1', JSON.stringify(session));
+        localStorage.setItem('buried_city_session_v2', JSON.stringify(session));
     }
     catch
     {
