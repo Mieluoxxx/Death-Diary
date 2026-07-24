@@ -1,151 +1,62 @@
-# Phaser Bun TypeScript Template
+# 死亡日记 (Death-Diary)
 
-This is a Phaser 3 project template that uses Vite and Bun for bundling. It supports hot-reloading for quick development workflow, includes TypeScript support and scripts to generate production-ready builds.
+末日生存竖屏游戏，基于原版 *Buried Town / Buried-City* 的 Phaser 4 + Bun + TypeScript 重制。
 
-### Versions
+设计分辨率 **640×1136**（`Scale.FIT`）。
 
-This template has been updated for:
+![主菜单](screenshot.png)
 
-- [Phaser 3.90.0](https://github.com/phaserjs/phaser)
-- [Vite 6.3.1](https://github.com/vitejs/vite)
-- [TypeScript 5.7.2](https://github.com/microsoft/TypeScript)
+## 已实现（相对原版）
 
-![screenshot](screenshot.png)
+| 模块 | 说明 |
+|------|------|
+| 主菜单 / 选角 / 勋章 | 设置、语言、继续/新游戏 |
+| 商店 IAP | 永久包 101–109，Web 端免费解锁 |
+| 家园与设施 | 升级、工具箱配方制作、床睡觉、椅子咖啡/喝酒 |
+| 仓库 / 大门 / 地图 | 物品管理、外出、地点探索 |
+| 夜袭 | 跨日 DayLayer、防御与失物规则 |
+| 电台 | 本地作弊终端 `/list` `/get` `/getall`（全物品表） |
 
-## Requirements
+## 运行
 
-[Bun](https://bun.sh) is required to install dependencies and run scripts via `bun`.
-
-## Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `bun install` | Install project dependencies |
-| `bun run dev` | Launch a development web server |
-| `bun run build` | Create a production build in the `dist` folder |
-| `bun run dev-nolog` | Launch a development web server without sending anonymous data (see "About log.js" below) |
-| `bun run build-nolog` | Create a production build in the `dist` folder without sending anonymous data (see "About log.js" below) |
-
-## Writing Code
-
-After cloning the repo, run `bun install` from your project directory. Then, you can start the local development server by running `bun run dev`.
-
-The local development server runs on `http://localhost:8080` by default. Please see the Vite documentation if you wish to change this, or add SSL support.
-
-Once the server is running you can edit any of the files in the `src` folder. Vite will automatically recompile your code and then reload the browser.
-
-## Template Project Structure
-
-We have provided a default project structure to get you started. This is as follows:
-
-| Path                         | Description                                                |
-|------------------------------|------------------------------------------------------------|
-| `index.html`                 | A basic HTML page to contain the game.                     |
-| `public/assets`              | Game sprites, audio, etc. Served directly at runtime.      |
-| `public/style.css`           | Global layout styles.                                      |
-| `src/game`                   | Folder containing the game code.                           |
-| `src/main.ts`                | Application bootstrap.                                     |
-| `src/game/main.ts`           | Game entry point: configures and starts the game.          |
-| `src/game/scenes`            | Folder with all Phaser game scenes.                        |
-
-## Handling Assets
-
-Vite supports loading assets via JavaScript module `import` statements.
-
-This template provides support for both embedding assets and also loading them from a static folder. To embed an asset, you can import it at the top of the JavaScript file you are using it in:
-
-```js
-import logoImg from './assets/logo.png'
-```
-
-To load static files such as audio files, videos, etc place them into the `public/assets` folder. Then you can use this path in the Loader calls within Phaser:
-
-```js
-preload ()
-{
-    //  This is an example of an imported bundled image.
-    //  Remember to import it at the top of this file
-    this.load.image('logo', logoImg);
-
-    //  This is an example of loading a static image
-    //  from the public/assets folder:
-    this.load.image('background', 'assets/bg.png');
-}
-```
-
-When you issue the `bun run build` command, all static assets are automatically copied to the `dist/assets` folder.
-
-## Deploying to Production
-
-After you run the `bun run build` command, your code will be built into a single bundle and saved to the `dist` folder, along with any other assets your project imported, or stored in the public assets folder.
-
-In order to deploy your game, you will need to upload *all* of the contents of the `dist` folder to a public facing web server.
-
-## Customizing the Template
-
-### Vite
-
-If you want to customize your build, such as adding plugin (i.e. for loading CSS or fonts), you can modify the `vite/config.*.mjs` file for cross-project changes, or you can modify and/or create new configuration files and target them in specific bun tasks inside of `package.json`. Please see the [Vite documentation](https://vitejs.dev/) for more information.
-
-## About log.js
-
-If you inspect our node scripts you will see there is a file called `log.js`. This file makes a single silent API call to a domain called `gryzor.co`. This domain is owned by Phaser Studio Inc. The domain name is a homage to one of our favorite retro games.
-
-We send the following 3 pieces of data to this API: The name of the template being used (vue, react, etc). If the build was 'dev' or 'prod' and finally the version of Phaser being used.
-
-At no point is any personal data collected or sent. We don't know about your project files, device, browser or anything else. Feel free to inspect the `log.js` file to confirm this.
-
-Why do we do this? Because being open source means we have no visible metrics about which of our templates are being used. We work hard to maintain a large and diverse set of templates for Phaser developers and this is our small anonymous way to determine if that work is actually paying off, or not. In short, it helps us ensure we're building the tools for you.
-
-However, if you don't want to send any data, you can use these commands instead:
-
-Dev:
+需要 [Bun](https://bun.sh)。
 
 ```bash
-bun run dev-nolog
+bun install
+bun run dev
 ```
 
-Build:
+默认开发地址：`http://localhost:8080`（以 Vite 配置为准）。
 
-```bash
-bun run build-nolog
-```
+| 命令 | 说明 |
+|------|------|
+| `bun install` | 安装依赖 |
+| `bun run dev` | 开发服务器（热更新） |
+| `bun run build` | 生产构建 → `dist/` |
+| `bun run gen:frames` | 从 `public/source-art/frames` 生成 multiatlas / `frames.gen.ts` |
+| `bun run typecheck` | `tsc --noEmit` |
 
-Or, to disable the log entirely, simply delete the file `log.js` and remove the call to it in the `scripts` section of `package.json`:
+生产部署：上传 `dist/` 全部内容即可。
 
-Before:
+## 目录要点
 
-```json
-"scripts": {
-    "dev": "bun log.js dev & bunx --bun vite --config vite/config.dev.mjs",
-    "build": "bun log.js build & bunx --bun vite build --config vite/config.prod.mjs"
-},
-```
+| 路径 | 说明 |
+|------|------|
+| `src/game/scenes/` | 场景：Boot / Preloader / MainMenu / Shop / Home… |
+| `src/game/systems/` | 生存时钟、制作、夜袭、战斗、地图… |
+| `src/game/data/` | 配置表（物品、配方、建筑、IAP…） |
+| `src/game/ui/` | 底栏导航、面板、弹窗 |
+| `public/source-art/frames/` | 单帧原画（加载策略见 `ART.md`） |
 
-After:
+美术与图集流水线详见 [ART.md](./ART.md)。
 
-```json
-"scripts": {
-    "dev": "bunx --bun vite --config vite/config.dev.mjs",
-    "build": "bunx --bun vite build --config vite/config.prod.mjs"
-},
-```
+## 与原版的关系
 
-Either of these will stop `log.js` from running. If you do decide to do this, please could you at least join our Discord and tell us which template you're using! Or send us a quick email. Either will be super-helpful, thank you.
+- **Buried-City / Buried-Town**：原版参考实现与资源  
+- **Death-Diary**：本仓库，Web 竖屏切片 + 逐步对齐  
 
-## Join the Phaser Community!
+部分系统仍为半成品（完整 NPC 交易、真支付、部分地图遭遇等），以代码与 `ART.md` 为准。
 
-We love to see what developers like you create with Phaser! It really motivates us to keep improving. So please join our community and show-off your work 😄
+## License
 
-**Visit:** The [Phaser website](https://phaser.io) and follow on [Phaser Twitter](https://twitter.com/phaser_)<br />
-**Play:** Some of the amazing games [#madewithphaser](https://twitter.com/search?q=%23madewithphaser&src=typed_query&f=live)<br />
-**Learn:** [API Docs](https://newdocs.phaser.io), [Support Forum](https://phaser.discourse.group/) and [StackOverflow](https://stackoverflow.com/questions/tagged/phaser-framework)<br />
-**Discord:** Join us on [Discord](https://discord.gg/phaser)<br />
-**Code:** 2000+ [Examples](https://labs.phaser.io)<br />
-**Read:** The [Phaser World](https://phaser.io/community/newsletter) Newsletter<br />
-
-Created by [Phaser Studio](mailto:support@phaser.io). Powered by coffee, anime, pixels and love.
-
-The Phaser logo and characters are &copy; 2011 - 2025 Phaser Studio Inc.
-
-All rights reserved.
+以仓库内授权文件为准。原作商业资源与 SDK 请自行处理权利与渠道合规。
