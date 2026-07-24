@@ -5,16 +5,15 @@
  *   frame_bg_bottom (596×839) @ (width/2, 18) anchor bottom-center
  *   title + back + shop on action bar (local y = 803)
  *   upgrade list row under content line (local y = 770)
- *   "操作" section + action rows (formulas / sleep / …)
+ *   "操作" section + scrollable action rows (formulas / sleep / rest / …)
  *
  * Phaser: screenY = (height - 18) - localY  (Cocos y-up on bg).
- * This slice: upgrade row fully wired; action list shows stubs for bed.
+ * Upgrade row + craft/facility action list are fully wired.
  */
 
 import { Scene, GameObjects } from 'phaser';
 import {
     buildLevelName,
-    itemName,
 } from '../data/buildStrings';
 import {
     getBuildLevel,
@@ -27,6 +26,16 @@ import {
     isBuildUpgrading,
     startBuildUpgrade,
 } from '../systems/buildSystem';
+import {
+    clickCraftAction,
+    listCraftActions,
+    type CraftActionView,
+} from '../systems/craftSystem';
+import {
+    clickFacilityAction,
+    listFacilityActions,
+    type FacilityActionView,
+} from '../systems/facilityAction';
 import { gameBusOn, gameBusOff } from '../systems/gameBus';
 import { addAtlasButton } from './atlasButton';
 import {
@@ -130,9 +139,19 @@ export function openBuildPanel (
             return;
         }
         closed = true;
+        scene.input.off('pointerdown', onListPointerDown);
+        scene.input.off('pointermove', onListPointerMove);
+        scene.input.off('pointerup', onListPointerUp);
+        scene.input.off('wheel', onListWheel);
         gameBusOff('build_upgrade_progress', onProgressBus);
         gameBusOff('build_upgraded', onUpgradedBus);
         gameBusOff('session_updated', onSession);
+        gameBusOff('craft_changed', onCraftChanged);
+        gameBusOff('craft_progress', onCraftProgress);
+        gameBusOff('facility_changed', onFacilityChanged);
+        gameBusOff('facility_progress', onFacilityProgress);
+        maskRect.destroy();
+        actionListRoot.filters?.internal.clear();
         root.destroy(true);
         opts?.onClose?.();
     };
@@ -295,101 +314,151 @@ export function openBuildPanel (
             })
             .setOrigin(0, 0.5),
     );
-
-    // Action list (bed: 3 sleep rows locked until built; others: placeholder).
+    // Scrollable action list (original TableView 596×610 under "操作").
+    // Phaser 4 GeometryMask is Canvas-only; WebGL needs FilterMask (see radioNode / ChooseScene).
     const listTop = sectionY + SECTION_HEIGHT / 2 + 8;
+    const listViewH = Math.max(120, bgBottomY - listTop - 12);
+    const listLeft = width / 2 - BG_WIDTH / 2;
     const actionListRoot = scene.add.container(width / 2, listTop);
     root.add(actionListRoot);
 
+    // Fixed world-space viewport; list content scrolls under it.
+    const maskRect = scene.add
+        .rectangle(listLeft + BG_WIDTH / 2, listTop + listViewH / 2, BG_WIDTH, listViewH, 0xffffff)
+        .setVisible(false);
+    actionListRoot.enableFilters();
+    if (actionListRoot.filters)
+    {
+        actionListRoot.filters.internal.addMask(
+            maskRect,
+            false,
+            scene.cameras.main,
+            'world',
+        );
+    }
+
+    let listContentH = 0;
+    let listDragBaseY = listTop;
+    let listDragStartY = 0;
+    let listDragging = false;
+    let listDidDrag = false;
+
+    const clampListOffset = () =>
+    {
+        const minY = listTop + Math.min(0, listViewH - listContentH);
+        const maxY = listTop;
+        actionListRoot.y = Math.max(minY, Math.min(maxY, actionListRoot.y));
+    };
+
+    const inActionList = (x: number, y: number) =>
+        x >= listLeft
+        && x <= listLeft + BG_WIDTH
+        && y >= listTop
+        && y <= listTop + listViewH;
+
+    const onListPointerDown = (pointer: Phaser.Input.Pointer) =>
+    {
+        if (closed || !inActionList(pointer.x, pointer.y))
+        {
+            return;
+        }
+        listDragging = true;
+        listDidDrag = false;
+        listDragBaseY = actionListRoot.y;
+        listDragStartY = pointer.y;
+    };
+    const onListPointerMove = (pointer: Phaser.Input.Pointer) =>
+    {
+        if (!listDragging || !pointer.isDown)
+        {
+            return;
+        }
+        const dy = pointer.y - listDragStartY;
+        if (Math.abs(dy) > 6)
+        {
+            listDidDrag = true;
+        }
+        if (listDidDrag)
+        {
+            actionListRoot.y = listDragBaseY + dy;
+            clampListOffset();
+        }
+    };
+    const onListPointerUp = () =>
+    {
+        listDragging = false;
+    };
+    const onListWheel = (
+        pointer: Phaser.Input.Pointer,
+        _gos: unknown,
+        _dx: number,
+        dy: number,
+    ) =>
+    {
+        if (closed || !inActionList(pointer.x, pointer.y))
+        {
+            return;
+        }
+        actionListRoot.y -= dy * 0.5;
+        clampListOffset();
+    };
+    scene.input.on('pointerdown', onListPointerDown);
+    scene.input.on('pointermove', onListPointerMove);
+    scene.input.on('pointerup', onListPointerUp);
+    scene.input.on('wheel', onListWheel);
+
     const rebuildActionList = (level: number) =>
     {
+        const prevOffset = actionListRoot.y - listTop;
         actionListRoot.removeAll(true);
-        if (bid === 9)
+
+        const facilityActions = listFacilityActions(bid);
+        const craftActions = listCraftActions(bid);
+
+        if (facilityActions.length === 0 && craftActions.length === 0)
         {
-            // Original BedBuildActionType: SLEEP_1_HOUR / SLEEP_4_HOUR / SLEEP_ALL_NIGHT
-            // strings: 1144("%s" hours) → 睡N个小时; 1145 → 睡到天亮; button 1018 → 睡觉
-            // needBuild {bid:9, level:0}: unbuilt → red "你没有睡袋!"
-            const sleepHints = ['睡1个小时', '睡4个小时', '睡到天亮'];
-            sleepHints.forEach((hint, index) =>
-            {
-                // Cell center: original TableView cell height 120, top-down fill.
-                const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
-                const row = scene.add.container(0, rowY);
-                actionListRoot.add(row);
-
-                const iconX = -BG_WIDTH / 2 + 20 + 55;
-                const iconY = 4;
-                if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png'))
-                {
-                    row.add(scene.add.image(iconX, iconY, 'ui', 'build_icon_bg.png'));
-                }
-                const actionFrame = `build_action_9_${index}.png`;
-                if (scene.textures.exists('build') && scene.textures.get('build').has(actionFrame))
-                {
-                    row.add(scene.add.image(iconX, iconY, 'build', actionFrame));
-                }
-                else if (scene.textures.exists('build') && scene.textures.get('build').has('build_9_0.png'))
-                {
-                    row.add(scene.add.image(iconX, iconY, 'build', 'build_9_0.png').setScale(0.85));
-                }
-
-                // Hint: locked red OR duration label (white) when built.
-                const hintText = level < 0 ? '你没有睡袋!' : hint;
-                const hintColor = level < 0 ? '#ff5555' : '#ffffff';
-                row.add(
-                    scene.add
-                        .text(-BG_WIDTH / 2 + 140, iconY - 10, hintText, {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                            color: hintColor,
-                        })
-                        .setOrigin(0, 0.5),
-                );
-
-                // Progress bar under hint (original list item always has pb).
-                if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png'))
-                {
-                    row.add(
-                        scene.add
-                            .image(-BG_WIDTH / 2 + 140, iconY + 22, 'ui', 'pb_bg.png')
-                            .setOrigin(0, 0.5),
-                    );
-                }
-
-                if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
-                {
-                    const sleepBtn = addAtlasButton(scene, BG_WIDTH / 2 - 90, 0, {
-                        atlas: 'ui',
-                        frame: 'btn_common_white_normal.png',
-                        label: '睡觉',
-                        labelSizeTier: 'COMMON_2',
-                        enabled: level >= 0,
-                        onClick: level >= 0
-                            ? () =>
-                            {
-                                // Sleep system deferred (timer + attr restore next pass).
-                            }
-                            : undefined,
-                    });
-                    row.add(sleepBtn);
-                }
-            });
+            actionListRoot.add(
+                scene.add
+                    .text(0, 40, level < 0 ? '建造后解锁操作。' : '暂无操作。', {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        color: '#cccccc',
+                        align: 'center',
+                        wordWrap: uiWordWrap(520),
+                    })
+                    .setOrigin(0.5, 0),
+            );
+            listContentH = listViewH;
+            actionListRoot.y = listTop;
             return;
         }
 
-        actionListRoot.add(
-            scene.add
-                .text(0, 40, '制作/操作列表将在后续版本开放。', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                    color: '#cccccc',
-                    align: 'center',
-                    wordWrap: uiWordWrap(520),
-                })
-                .setOrigin(0.5, 0),
-        );
+        let rowIndex = 0;
+        facilityActions.forEach((action) =>
+        {
+            mountFacilityRow(scene, actionListRoot, action, rowIndex, (msg) =>
+            {
+                costText.setText(msg);
+                costText.setColor('#ff5555');
+                clearItemIcons();
+            }, () => listDidDrag);
+            rowIndex += 1;
+        });
+        craftActions.forEach((action) =>
+        {
+            mountCraftRow(scene, actionListRoot, action, rowIndex, (msg) =>
+            {
+                costText.setText(msg);
+                costText.setColor('#ff5555');
+                clearItemIcons();
+            }, () => listDidDrag);
+            rowIndex += 1;
+        });
+
+        listContentH = Math.max(listViewH, rowIndex * ACTION_ROW_HEIGHT);
+        actionListRoot.y = listTop + prevOffset;
+        clampListOffset();
     };
 
     const setProgress = (pct: number) =>
@@ -589,18 +658,316 @@ export function openBuildPanel (
         opts?.onUpgraded?.(payload.bid, payload.level);
     };
     const onSession = () => refreshUpgradeRow();
+    const onCraftChanged = (payload: { bid: number }) =>
+    {
+        if (payload.bid === bid)
+        {
+            refreshUpgradeRow();
+        }
+    };
+    const onCraftProgress = (payload: { bid: number }) =>
+    {
+        if (payload.bid === bid)
+        {
+            rebuildActionList(getBuildLevel(bid));
+        }
+    };
+    const onFacilityChanged = (payload: { bid: number }) =>
+    {
+        if (payload.bid === bid)
+        {
+            refreshUpgradeRow();
+        }
+    };
+    const onFacilityProgress = (payload: { bid: number }) =>
+    {
+        if (payload.bid === bid)
+        {
+            rebuildActionList(getBuildLevel(bid));
+        }
+    };
 
     gameBusOn('build_upgrade_progress', onProgressBus);
     gameBusOn('build_upgraded', onUpgradedBus);
     gameBusOn('session_updated', onSession);
+    gameBusOn('craft_changed', onCraftChanged);
+    gameBusOn('craft_progress', onCraftProgress);
+    gameBusOn('facility_changed', onFacilityChanged);
+    gameBusOn('facility_progress', onFacilityProgress);
 
     refreshUpgradeRow();
-
-    // Silence unused helpers
-    void itemName;
 
     return {
         root,
         destroy: closePanel,
     };
+}
+
+function mountCraftRow (
+    scene: Scene,
+    parent: GameObjects.Container,
+    action: CraftActionView,
+    index: number,
+    onFail: (msg: string) => void,
+    wasDragging: () => boolean,
+): void
+{
+    const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
+    const row = scene.add.container(0, rowY);
+    parent.add(row);
+
+    const iconX = -BG_WIDTH / 2 + 20 + 55;
+    const iconY = 4;
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png'))
+    {
+        row.add(scene.add.image(iconX, iconY, 'ui', 'build_icon_bg.png'));
+    }
+
+    // Prefer produce icon; stove/trap fall back to build_action frames.
+    const iconFrame = `icon_item_${action.produceItemId}.png`;
+    const trapFrame = `build_action_${action.bid}_0.png`;
+    if (
+        action.kind !== 'stove'
+        && scene.textures.exists('icon')
+        && scene.textures.get('icon').has(iconFrame)
+    )
+    {
+        row.add(scene.add.image(iconX, iconY, 'icon', iconFrame).setScale(0.55));
+    }
+    else if (scene.textures.exists('build') && scene.textures.get('build').has(trapFrame))
+    {
+        row.add(scene.add.image(iconX, iconY, 'build', trapFrame));
+    }
+    else if (scene.textures.exists('build') && scene.textures.get('build').has(`build_${action.bid}_0.png`))
+    {
+        row.add(
+            scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`).setScale(0.85),
+        );
+    }
+
+    const textLeft = -BG_WIDTH / 2 + 140;
+    if (action.hint)
+    {
+        const color =
+            action.hintColor === 'red'
+                ? '#ff5555'
+                : action.hintColor === 'white'
+                    ? '#ffffff'
+                    : '#cccccc';
+        row.add(
+            scene.add
+                .text(textLeft, iconY - 18, action.hint, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color,
+                })
+                .setOrigin(0, 0.5),
+        );
+    }
+    else if (action.step === 0 && !action.isActioning)
+    {
+        // Cost icons
+        let cx = textLeft;
+        action.costRows.forEach((cost) =>
+        {
+            const frame = `icon_item_${cost.itemId}.png`;
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame))
+            {
+                const icon = scene.add.image(cx, iconY - 10, 'icon', frame).setScale(0.28).setOrigin(0, 0.5);
+                row.add(icon);
+                cx += icon.displayWidth + 2;
+            }
+            row.add(
+                scene.add
+                    .text(cx, iconY - 10, `x${cost.num}`, {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: '16px',
+                        color: cost.ok ? '#ffffff' : '#ff5555',
+                    })
+                    .setOrigin(0, 0.5),
+            );
+            cx += 36;
+        });
+    }
+
+    // Progress bar
+    const pbY = iconY + 22;
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png'))
+    {
+        row.add(scene.add.image(textLeft, pbY, 'ui', 'pb_bg.png').setOrigin(0, 0.5));
+        if (scene.textures.get('ui').has('pb.png') && action.percentage > 0)
+        {
+            const frame = scene.textures.get('ui').get('pb.png');
+            const fill = scene.add.image(textLeft, pbY, 'ui', 'pb.png').setOrigin(0, 0.5);
+            fill.setCrop(0, 0, Math.max(1, Math.floor(frame.width * action.percentage / 100)), frame.height);
+            row.add(fill);
+        }
+    }
+    else
+    {
+        row.add(scene.add.rectangle(textLeft + 134, pbY, 268, 12, 0x444444).setOrigin(0.5, 0.5));
+        if (action.percentage > 0)
+        {
+            row.add(
+                scene.add
+                    .rectangle(textLeft, pbY, Math.max(2, 268 * action.percentage / 100), 10, 0x8fbf6a)
+                    .setOrigin(0, 0.5),
+            );
+        }
+    }
+
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
+    {
+        const btn = addAtlasButton(scene, BG_WIDTH / 2 - 90, 0, {
+            atlas: 'ui',
+            frame: 'btn_common_white_normal.png',
+            label: action.actionLabel,
+            labelSizeTier: 'COMMON_2',
+            enabled: !action.actionDisabled,
+            onClick: action.actionDisabled
+                ? undefined
+                : () =>
+                {
+                    if (wasDragging())
+                    {
+                        return;
+                    }
+                    const res = clickCraftAction(action.bid, action.formulaId);
+                    if (!res.ok)
+                    {
+                        onFail(res.msg);
+                    }
+                },
+        });
+        row.add(btn);
+    }
+}
+
+function mountFacilityRow (
+    scene: Scene,
+    parent: GameObjects.Container,
+    action: FacilityActionView,
+    index: number,
+    onFail: (msg: string) => void,
+    wasDragging: () => boolean,
+): void
+{
+    const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
+    const row = scene.add.container(0, rowY);
+    parent.add(row);
+
+    const iconX = -BG_WIDTH / 2 + 20 + 55;
+    const iconY = 4;
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png'))
+    {
+        row.add(scene.add.image(iconX, iconY, 'ui', 'build_icon_bg.png'));
+    }
+    if (scene.textures.exists('build') && scene.textures.get('build').has(action.iconHint))
+    {
+        row.add(scene.add.image(iconX, iconY, 'build', action.iconHint));
+    }
+    else if (
+        scene.textures.exists('build')
+        && scene.textures.get('build').has(`build_${action.bid}_0.png`)
+    )
+    {
+        row.add(
+            scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`).setScale(0.85),
+        );
+    }
+
+    const textLeft = -BG_WIDTH / 2 + 140;
+    if (action.hint)
+    {
+        const color =
+            action.hintColor === 'red'
+                ? '#ff5555'
+                : action.hintColor === 'white'
+                    ? '#ffffff'
+                    : '#cccccc';
+        row.add(
+            scene.add
+                .text(textLeft, iconY - 18, action.hint, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color,
+                })
+                .setOrigin(0, 0.5),
+        );
+    }
+    else if (!action.isActioning && action.costRows.length > 0)
+    {
+        let cx = textLeft;
+        action.costRows.forEach((cost) =>
+        {
+            const frame = `icon_item_${cost.itemId}.png`;
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame))
+            {
+                const icon = scene.add
+                    .image(cx, iconY - 10, 'icon', frame)
+                    .setScale(0.28)
+                    .setOrigin(0, 0.5);
+                row.add(icon);
+                cx += icon.displayWidth + 2;
+            }
+            row.add(
+                scene.add
+                    .text(cx, iconY - 10, `x${cost.num}`, {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: '16px',
+                        color: cost.ok ? '#ffffff' : '#ff5555',
+                    })
+                    .setOrigin(0, 0.5),
+            );
+            cx += 36;
+        });
+    }
+
+    const pbY = iconY + 22;
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png'))
+    {
+        row.add(scene.add.image(textLeft, pbY, 'ui', 'pb_bg.png').setOrigin(0, 0.5));
+        if (scene.textures.get('ui').has('pb.png') && action.percentage > 0)
+        {
+            const frame = scene.textures.get('ui').get('pb.png');
+            const fill = scene.add.image(textLeft, pbY, 'ui', 'pb.png').setOrigin(0, 0.5);
+            fill.setCrop(
+                0,
+                0,
+                Math.max(1, Math.floor((frame.width * action.percentage) / 100)),
+                frame.height,
+            );
+            row.add(fill);
+        }
+    }
+
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
+    {
+        const btn = addAtlasButton(scene, BG_WIDTH / 2 - 90, 0, {
+            atlas: 'ui',
+            frame: 'btn_common_white_normal.png',
+            label: action.actionLabel,
+            labelSizeTier: 'COMMON_2',
+            enabled: !action.actionDisabled,
+            onClick: action.actionDisabled
+                ? undefined
+                : () =>
+                {
+                    if (wasDragging())
+                    {
+                        return;
+                    }
+                    const res = clickFacilityAction(action.bid, action.actionId);
+                    if (!res.ok)
+                    {
+                        onFail(res.msg);
+                    }
+                },
+        });
+        row.add(btn);
+    }
 }
