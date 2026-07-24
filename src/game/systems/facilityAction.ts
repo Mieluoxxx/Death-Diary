@@ -23,8 +23,12 @@ import { gameBusEmit } from './gameBus';
 import { changeSpirit } from './playerAttrs';
 import { addBonfireFuel } from './survivalLoop';
 import {
-    accelerateWorkTime,
-    addTimerCallback,
+    getTimedProgressJob,
+    isTimedProgressActive,
+    startTimedProgress,
+    timedProgressPercentage,
+} from './timedProgress';
+import {
     type TimerCallbackHandle,
 } from './timeClock';
 
@@ -116,23 +120,47 @@ export function listFacilityActions (bid: number): FacilityActionView[]
     if (bid === 9)
     {
         const locked = level < 0;
-        return [
-            {
-                bid, actionId: 0, iconHint: 'build_action_9_0.png', isActioning: false, percentage: 0,
-                hint: locked ? '你没有睡袋!' : '睡1个小时', hintColor: locked ? 'red' : 'white',
-                costRows: [], actionLabel: '睡觉', actionDisabled: locked,
-            },
-            {
-                bid, actionId: 1, iconHint: 'build_action_9_1.png', isActioning: false, percentage: 0,
-                hint: locked ? '你没有睡袋!' : '睡4个小时', hintColor: locked ? 'red' : 'white',
-                costRows: [], actionLabel: '睡觉', actionDisabled: locked,
-            },
-            {
-                bid, actionId: 2, iconHint: 'build_action_9_2.png', isActioning: false, percentage: 0,
-                hint: locked ? '你没有睡袋!' : '睡到天亮', hintColor: locked ? 'red' : 'white',
-                costRows: [], actionLabel: '睡觉', actionDisabled: locked,
-            },
-        ];
+        // Any sleep action occupies the bed (original activeBtnIndex exclusivity).
+        const sleepBusy = [0, 1, 2].some((actionId) =>
+            isTimedProgressActive({ kind: 'facility', id: 9, actionId }),
+        );
+        const activeSleep = [0, 1, 2]
+            .map((actionId) => getTimedProgressJob({ kind: 'facility', id: 9, actionId }))
+            .find((job) => job?.isActioning);
+        const activeId = activeSleep?.channel.actionId;
+        const pct = sleepBusy
+            ? timedProgressPercentage({
+                kind: 'facility',
+                id: 9,
+                actionId: activeId,
+            })
+            : 0;
+
+        const rows: FacilityActionView[] = [];
+        for (const actionId of [0, 1, 2] as const)
+        {
+            const hints = ['睡1个小时', '睡4个小时', '睡到天亮'] as const;
+            const thisBusy = isTimedProgressActive({ kind: 'facility', id: 9, actionId });
+            const anyOtherBusy = sleepBusy && !thisBusy;
+            rows.push({
+                bid,
+                actionId,
+                iconHint: `build_action_9_${actionId}.png`,
+                isActioning: thisBusy,
+                // Show progress on the active row (and keep bar fill via percentage).
+                percentage: thisBusy ? pct : 0,
+                hint: locked
+                    ? '你没有睡袋!'
+                    : thisBusy
+                        ? '进入睡眠，身体和精力得到恢复'
+                        : hints[actionId],
+                hintColor: locked ? 'red' : 'white',
+                costRows: [],
+                actionLabel: '睡觉',
+                actionDisabled: locked || sleepBusy || anyOtherBusy,
+            });
+        }
+        return rows;
     }
 
     // Chair (10): coffee rest + Luo drink
@@ -345,6 +373,10 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         {
             return { ok: false, msg: '你没有睡袋!' };
         }
+        if ([0, 1, 2].some((id) => isTimedProgressActive({ kind: 'facility', id: 9, actionId: id })))
+        {
+            return { ok: false, msg: '已经在睡觉' };
+        }
         let hours = 1;
         if (actionId === 1)
         {
@@ -359,12 +391,11 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         {
             live.isInSleep = true;
         });
-        addTimerCallback(gameSeconds, {
-            process: () =>
-            {
-                // recovery via survivalLoop while isInSleep
-            },
-            end: () =>
+        startTimedProgress({
+            channel: { kind: 'facility', id: 9, actionId },
+            duration: gameSeconds,
+            accelerate: true,
+            onEnd: () =>
             {
                 mutateSession((live) =>
                 {
@@ -382,9 +413,8 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
                 gameBusEmit('session_updated');
             },
         });
-        accelerateWorkTime(gameSeconds);
-        // HP/vigour recovery is applied hourly by survivalLoop while isInSleep.
-        gameBusEmit('facility_changed', { bid });
+        // Also notify facility listeners so list rebuilds into "sleeping" state.
+        gameBusEmit('facility_changed', { bid: 9 });
         gameBusEmit('session_updated');
         return { ok: true, msg: `睡了约${hours}小时` };
     }
@@ -416,6 +446,8 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         }
 
         const makeTime = Math.max(1, cfg.makeTime * 60);
+        // Track chair job via timedProgress channel for listFacilityActions.
+        // Keep chairJobs map for busy checks / legacy fields.
         const job: ChairJob = {
             actionId,
             isActioning: true,
@@ -425,14 +457,15 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         };
         chairJobs.set(actionId, job);
 
-        const handle = addTimerCallback(makeTime, {
-            process: (dt) =>
+        const timed = startTimedProgress({
+            channel: { kind: 'facility', id: 10, actionId },
+            duration: makeTime,
+            accelerate: true,
+            onTick: (timedJob) =>
             {
-                job.pastTime += dt;
-                const percentage = Math.min(100, (job.pastTime / job.totalTime) * 100);
-                gameBusEmit('facility_progress', { bid: 10, percentage });
+                job.pastTime = timedJob.pastTime;
             },
-            end: () =>
+            onEnd: () =>
             {
                 job.isActioning = false;
                 job.handle = null;
@@ -447,7 +480,6 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
                 }
                 costStorageItems(cfg.cost);
 
-                // effect.spirit — original applyEffect with chance
                 if (Math.random() <= (cfg.effect.spirit_chance ?? 1))
                 {
                     changeSpirit(cfg.effect.spirit);
@@ -482,8 +514,7 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
                 gameBusEmit('session_updated');
             },
         });
-        job.handle = handle;
-        accelerateWorkTime(makeTime);
+        job.handle = timed.handle;
         gameBusEmit('facility_changed', { bid: 10 });
         gameBusEmit('session_updated');
         return { ok: true };

@@ -446,7 +446,10 @@ function startPlacePhase (
         {
             job.pastTime += dt;
             const percentage = Math.min(100, (job.pastTime / job.totalTime) * 100);
-            gameBusEmit('craft_progress', { bid, percentage });
+            gameBusEmit('progress', {
+                channel: { kind: 'craft', id: bid },
+                percentage,
+            });
         },
         end: () =>
         {
@@ -556,7 +559,10 @@ export function clickCraftAction (bid: number, formulaId: number): CraftClickRes
         {
             job.pastTime += dt;
             const percentage = Math.min(100, (job.pastTime / job.totalTime) * 100);
-            gameBusEmit('craft_progress', { bid, percentage });
+            gameBusEmit('progress', {
+                channel: { kind: 'craft', id: bid },
+                percentage,
+            });
         },
         end: () =>
         {

@@ -6,10 +6,7 @@
  *   /get <id> <number>
  *   /getall <number>
  *
- * Scroll model mirrors storageNode:
- * - fixed viewport under title line / above input
- * - GeometryMask on a content container
- * - drag + wheel move the container, never draw outside the well
+ * Log well scrolls via shared ScrollViewport.
  */
 
 import {
@@ -20,6 +17,7 @@ import {
 } from '../../data/radioItemCatalog';
 import { type ItemCounts, mutateSession } from '../../session/sessionStore';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
+import { mountScrollViewport } from '../scrollViewport';
 import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
@@ -46,10 +44,12 @@ function parsePositiveAmount (raw: string): number | null
     {
         return null;
     }
-    const amount = Number(raw);
-    return Number.isSafeInteger(amount) && amount > 0 && amount <= MAX_SAFE_AMOUNT
-        ? amount
-        : null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 1 || n > MAX_SAFE_AMOUNT)
+    {
+        return null;
+    }
+    return n;
 }
 
 function addCounts (storage: ItemCounts, itemId: number, amount: number): void
@@ -76,25 +76,14 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
         .setOrigin(0.5);
     ctx.content.add(well);
 
-    // Phaser 4 GeometryMask is Canvas-only; WebGL needs FilterMask.
-    // Fixed world-space viewport so scrolling content is clipped to the log well.
-    const maskRect = ctx.scene.add
-        .rectangle(logX + viewW / 2, viewTop + viewH / 2, viewW, viewH, 0xffffff)
-        .setVisible(false);
-
-    // Scrollable content lives in this container; only this is filtered.
-    const listRoot = ctx.scene.add.container(logX, viewTop);
-    listRoot.enableFilters();
-    if (listRoot.filters)
-    {
-        listRoot.filters.internal.addMask(
-            maskRect,
-            false,
-            ctx.scene.cameras.main,
-            'world',
-        );
-    }
-    ctx.content.add(listRoot);
+    const scroll = mountScrollViewport(ctx.scene, ctx.content, {
+        x: logX,
+        y: viewTop,
+        width: viewW,
+        height: viewH,
+        axis: 'y',
+        inputBlocker: true,
+    });
 
     const logText = ctx.scene.add
         .text(0, 0, '', {
@@ -106,7 +95,7 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
             wordWrap: uiWordWrap(viewW),
         })
         .setOrigin(0, 0);
-    listRoot.add(logText);
+    scroll.content.add(logText);
 
     const inputBg = ctx.scene.add
         .rectangle(ctx.toScreenX(298), inputY, INPUT_WIDTH, 48, 0xeeeeee)
@@ -115,11 +104,6 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
     ctx.content.add(inputBg);
 
     let inputValue = '';
-    let contentH = 0;
-    let dragBaseY = viewTop;
-    let dragStartPointerY = 0;
-    let dragging = false;
-    let didDrag = false;
 
     const inputText = ctx.scene.add
         .text(ctx.toScreenX(28), inputY, '> ', {
@@ -133,41 +117,19 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
 
     const repaintInput = () => inputText.setText(`> ${inputValue}`);
 
-    const clampOffset = () =>
-    {
-        // listRoot.y is absolute screen y of content top.
-        // Content top may not go below viewTop; may not go above viewTop+(viewH-contentH).
-        const minY = viewTop + Math.min(0, viewH - contentH);
-        const maxY = viewTop;
-        listRoot.y = Math.max(minY, Math.min(maxY, listRoot.y));
-    };
-
-    const syncContentHeight = () =>
-    {
-        contentH = Math.max(logText.height + 8, viewH);
-        clampOffset();
-    };
-
-    const inView = (x: number, y: number) =>
-        x >= logX
-        && x <= logX + viewW
-        && y >= viewTop
-        && y <= viewTop + viewH;
-
     const setBody = (message: string, stickBottom = false) =>
     {
         logText.setText(message);
-        syncContentHeight();
+        const contentH = Math.max(logText.height + 8, viewH);
+        scroll.setContentSize(contentH);
         if (stickBottom)
         {
-            listRoot.y = viewTop + Math.min(0, viewH - contentH);
-            clampOffset();
+            scroll.setOffset(Math.min(0, viewH - contentH));
         }
         else
         {
             // /list starts at the first group; drag / wheel reveals the rest.
-            listRoot.y = viewTop;
-            clampOffset();
+            scroll.setOffset(0);
         }
     };
 
@@ -272,58 +234,6 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
     };
     keyboard?.on('keydown', onKeyDown);
 
-    const onPointerDown = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!inView(pointer.x, pointer.y))
-        {
-            return;
-        }
-        dragging = true;
-        didDrag = false;
-        dragBaseY = listRoot.y;
-        dragStartPointerY = pointer.y;
-    };
-    const onPointerMove = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!dragging || !pointer.isDown)
-        {
-            return;
-        }
-        const dy = pointer.y - dragStartPointerY;
-        if (Math.abs(dy) > 6)
-        {
-            didDrag = true;
-        }
-        if (didDrag)
-        {
-            listRoot.y = dragBaseY + dy;
-            clampOffset();
-        }
-    };
-    const onPointerUp = () =>
-    {
-        dragging = false;
-    };
-    const onWheel = (
-        pointer: Phaser.Input.Pointer,
-        _gos: unknown,
-        _dx: number,
-        dy: number,
-    ) =>
-    {
-        if (!inView(pointer.x, pointer.y))
-        {
-            return;
-        }
-        listRoot.y -= dy * 0.5;
-        clampOffset();
-    };
-
-    ctx.scene.input.on('pointerdown', onPointerDown);
-    ctx.scene.input.on('pointermove', onPointerMove);
-    ctx.scene.input.on('pointerup', onPointerUp);
-    ctx.scene.input.on('wheel', onWheel);
-
     setBody(
         '电台已改为本地作弊终端。\n'
         + `/list：按类别列出全部物品和编号（共 ${radioItemIds().length} 种）\n`
@@ -337,12 +247,7 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
         destroy: () =>
         {
             keyboard?.off('keydown', onKeyDown);
-            ctx.scene.input.off('pointerdown', onPointerDown);
-            ctx.scene.input.off('pointermove', onPointerMove);
-            ctx.scene.input.off('pointerup', onPointerUp);
-            ctx.scene.input.off('wheel', onWheel);
-            listRoot.filters?.internal.clear();
-            maskRect.destroy();
+            scroll.destroy();
         },
     };
 }

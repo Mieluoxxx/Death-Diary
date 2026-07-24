@@ -38,6 +38,7 @@ import {
 } from '../systems/facilityAction';
 import { gameBusOff, gameBusOn } from '../systems/gameBus';
 import { addAtlasButton } from './atlasButton';
+import { mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
 import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
@@ -132,6 +133,7 @@ export function openBuildPanel (
     root.add(titleText);
 
     let closed = false;
+    let actionScroll: ScrollViewportHandle | null = null;
     const closePanel = () =>
     {
         if (closed)
@@ -139,19 +141,13 @@ export function openBuildPanel (
             return;
         }
         closed = true;
-        scene.input.off('pointerdown', onListPointerDown);
-        scene.input.off('pointermove', onListPointerMove);
-        scene.input.off('pointerup', onListPointerUp);
-        scene.input.off('wheel', onListWheel);
-        gameBusOff('build_upgrade_progress', onProgressBus);
+        gameBusOff('progress', onProgressBus);
         gameBusOff('build_upgraded', onUpgradedBus);
         gameBusOff('session_updated', onSession);
         gameBusOff('craft_changed', onCraftChanged);
-        gameBusOff('craft_progress', onCraftProgress);
         gameBusOff('facility_changed', onFacilityChanged);
-        gameBusOff('facility_progress', onFacilityProgress);
-        maskRect.destroy();
-        actionListRoot.filters?.internal.clear();
+        actionScroll?.destroy();
+        actionScroll = null;
         root.destroy(true);
         opts?.onClose?.();
     };
@@ -314,103 +310,34 @@ export function openBuildPanel (
             })
             .setOrigin(0, 0.5),
     );
-    // Scrollable action list (original TableView 596×610 under "操作").
-    // Phaser 4 GeometryMask is Canvas-only; WebGL needs FilterMask (see radioNode / ChooseScene).
+    // Scrollable action list (original TableView under "操作") via shared ScrollViewport.
     const listTop = sectionY + SECTION_HEIGHT / 2 + 8;
     const listViewH = Math.max(120, bgBottomY - listTop - 12);
     const listLeft = width / 2 - BG_WIDTH / 2;
-    const actionListRoot = scene.add.container(width / 2, listTop);
-    root.add(actionListRoot);
 
-    // Fixed world-space viewport; list content scrolls under it.
-    const maskRect = scene.add
-        .rectangle(listLeft + BG_WIDTH / 2, listTop + listViewH / 2, BG_WIDTH, listViewH, 0xffffff)
-        .setVisible(false);
-    actionListRoot.enableFilters();
-    if (actionListRoot.filters)
-    {
-        actionListRoot.filters.internal.addMask(
-            maskRect,
-            false,
-            scene.cameras.main,
-            'world',
-        );
-    }
+    actionScroll = mountScrollViewport(scene, root, {
+        x: listLeft,
+        y: listTop,
+        width: BG_WIDTH,
+        height: listViewH,
+        axis: 'y',
+        inputBlocker: true,
+    });
 
-    let listContentH = 0;
-    let listDragBaseY = listTop;
-    let listDragStartY = 0;
-    let listDragging = false;
-    let listDidDrag = false;
-
-    const clampListOffset = () =>
-    {
-        const minY = listTop + Math.min(0, listViewH - listContentH);
-        const maxY = listTop;
-        actionListRoot.y = Math.max(minY, Math.min(maxY, actionListRoot.y));
-    };
-
-    const inActionList = (x: number, y: number) =>
-        x >= listLeft
-        && x <= listLeft + BG_WIDTH
-        && y >= listTop
-        && y <= listTop + listViewH;
-
-    const onListPointerDown = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (closed || !inActionList(pointer.x, pointer.y))
-        {
-            return;
-        }
-        listDragging = true;
-        listDidDrag = false;
-        listDragBaseY = actionListRoot.y;
-        listDragStartY = pointer.y;
-    };
-    const onListPointerMove = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!listDragging || !pointer.isDown)
-        {
-            return;
-        }
-        const dy = pointer.y - listDragStartY;
-        if (Math.abs(dy) > 6)
-        {
-            listDidDrag = true;
-        }
-        if (listDidDrag)
-        {
-            actionListRoot.y = listDragBaseY + dy;
-            clampListOffset();
-        }
-    };
-    const onListPointerUp = () =>
-    {
-        listDragging = false;
-    };
-    const onListWheel = (
-        pointer: Phaser.Input.Pointer,
-        _gos: unknown,
-        _dx: number,
-        dy: number,
-    ) =>
-    {
-        if (closed || !inActionList(pointer.x, pointer.y))
-        {
-            return;
-        }
-        actionListRoot.y -= dy * 0.5;
-        clampListOffset();
-    };
-    scene.input.on('pointerdown', onListPointerDown);
-    scene.input.on('pointermove', onListPointerMove);
-    scene.input.on('pointerup', onListPointerUp);
-    scene.input.on('wheel', onListWheel);
+    // Rows are authored with x=0 as horizontal center (legacy createCommonListItem).
+    const actionListRoot = scene.add.container(BG_WIDTH / 2, 0);
+    actionScroll.content.add(actionListRoot);
 
     const rebuildActionList = (level: number) =>
     {
-        const prevOffset = actionListRoot.y - listTop;
+        if (!actionScroll || closed)
+        {
+            return;
+        }
+        const prevOffset = actionScroll.getOffset();
+        actionScroll.syncMask();
         actionListRoot.removeAll(true);
+        actionScroll.clearHits();
 
         const facilityActions = listFacilityActions(bid);
         const craftActions = listCraftActions(bid);
@@ -429,8 +356,8 @@ export function openBuildPanel (
                     })
                     .setOrigin(0.5, 0),
             );
-            listContentH = listViewH;
-            actionListRoot.y = listTop;
+            actionScroll.setContentSize(listViewH);
+            actionScroll.setOffset(0);
             return;
         }
 
@@ -442,7 +369,7 @@ export function openBuildPanel (
                 costText.setText(msg);
                 costText.setColor('#ff5555');
                 clearItemIcons();
-            }, () => listDidDrag);
+            }, () => Boolean(actionScroll?.didDrag()));
             rowIndex += 1;
         });
         craftActions.forEach((action) =>
@@ -452,13 +379,12 @@ export function openBuildPanel (
                 costText.setText(msg);
                 costText.setColor('#ff5555');
                 clearItemIcons();
-            }, () => listDidDrag);
+            }, () => Boolean(actionScroll?.didDrag()));
             rowIndex += 1;
         });
 
-        listContentH = Math.max(listViewH, rowIndex * ACTION_ROW_HEIGHT);
-        actionListRoot.y = listTop + prevOffset;
-        clampListOffset();
+        actionScroll.setContentSize(Math.max(listViewH, rowIndex * ACTION_ROW_HEIGHT));
+        actionScroll.setOffset(prevOffset);
     };
 
     const setProgress = (pct: number) =>
@@ -641,11 +567,24 @@ export function openBuildPanel (
         refreshUpgradeRow();
     };
 
-    const onProgressBus = (payload: { bid: number; percentage: number }) =>
+    const onProgressBus = (payload: {
+        channel: { kind: string; id: number; actionId?: number };
+        percentage: number;
+    }) =>
     {
-        if (payload.bid === bid)
+        if (payload.channel.id !== bid)
+        {
+            return;
+        }
+        if (payload.channel.kind === 'build_upgrade')
         {
             setProgress(payload.percentage);
+            return;
+        }
+        if (payload.channel.kind === 'craft' || payload.channel.kind === 'facility')
+        {
+            // Rebuild action rows so per-row percentage / sleeping hint refresh.
+            rebuildActionList(getBuildLevel(bid));
         }
     };
     const onUpgradedBus = (payload: { bid: number; level: number }) =>
@@ -665,13 +604,6 @@ export function openBuildPanel (
             refreshUpgradeRow();
         }
     };
-    const onCraftProgress = (payload: { bid: number }) =>
-    {
-        if (payload.bid === bid)
-        {
-            rebuildActionList(getBuildLevel(bid));
-        }
-    };
     const onFacilityChanged = (payload: { bid: number }) =>
     {
         if (payload.bid === bid)
@@ -679,21 +611,12 @@ export function openBuildPanel (
             refreshUpgradeRow();
         }
     };
-    const onFacilityProgress = (payload: { bid: number }) =>
-    {
-        if (payload.bid === bid)
-        {
-            rebuildActionList(getBuildLevel(bid));
-        }
-    };
 
-    gameBusOn('build_upgrade_progress', onProgressBus);
+    gameBusOn('progress', onProgressBus);
     gameBusOn('build_upgraded', onUpgradedBus);
     gameBusOn('session_updated', onSession);
     gameBusOn('craft_changed', onCraftChanged);
-    gameBusOn('craft_progress', onCraftProgress);
     gameBusOn('facility_changed', onFacilityChanged);
-    gameBusOn('facility_progress', onFacilityProgress);
 
     refreshUpgradeRow();
 

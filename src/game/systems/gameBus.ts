@@ -32,12 +32,28 @@ export type GameBusEventMap = {
         sitesRaided?: number[];
     };
     craft_changed: { bid: number };
-    craft_progress: { bid: number; percentage: number };
     facility_changed: { bid: number };
-    facility_progress: { bid: number; percentage: number };
     build_upgrade_started: { bid: number; nextLevel: number; createTime: number };
-    build_upgrade_progress: { bid: number; percentage: number };
     build_upgraded: { bid: number; level: number };
+    /**
+     * Unified timed-action progress stream (sleep / chair / craft / upgrade).
+     * channel.kind + channel.id (+ optional actionId) identify the bar.
+     */
+    progress: {
+        channel: {
+            kind: 'facility' | 'craft' | 'build_upgrade';
+            id: number;
+            actionId?: number;
+        };
+        percentage: number;
+    };
+    progress_done: {
+        channel: {
+            kind: 'facility' | 'craft' | 'build_upgrade';
+            id: number;
+            actionId?: number;
+        };
+    };
     nav_changed: { nodeName: string };
     battle_started: undefined;
     battle_tick: undefined;

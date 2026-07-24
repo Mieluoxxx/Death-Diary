@@ -233,7 +233,10 @@ export function startBuildUpgrade (
             }
             const percentage = Math.min(100, (pastTime / createTime) * 100);
             hooks?.onProgress?.(percentage);
-            gameBusEmit('build_upgrade_progress', { bid, percentage });
+            gameBusEmit('progress', {
+                channel: { kind: 'build_upgrade', id: bid },
+                percentage,
+            });
         },
         end: () =>
         {

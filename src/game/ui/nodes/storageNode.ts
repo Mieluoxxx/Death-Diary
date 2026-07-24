@@ -9,10 +9,12 @@
  * - Empty sections hidden; no name labels under icons
  */
 
+import type { GameObjects } from 'phaser';
 import { getSession, type ItemCounts } from '../../session/sessionStore';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { openItemDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
+import { mountScrollViewport } from '../scrollViewport';
 import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
@@ -84,7 +86,6 @@ function groupStorageItems (counts: ItemCounts): Record<string, ItemRow[]>
         }
     }
 
-    // Stable numeric order within section (original map order is unstable; numeric is fine).
     for (const key of Object.keys(groups))
     {
         groups[key].sort((a, b) => a.itemId - b.itemId);
@@ -119,7 +120,6 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         ctx.content.add(shop);
         shop.on('pointerup', () =>
         {
-            // ShopNode not ported yet — keep chrome parity.
             ctx.showToast('商店暂未开放');
         });
         if (ctx.scene.textures.get('ui').has('btn_shop_highlight.png'))
@@ -136,128 +136,16 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         }
     }
 
-    const listRoot = ctx.scene.add.container(tableLeft, tableTop);
-    ctx.content.add(listRoot);
+    const scroll = mountScrollViewport(ctx.scene, ctx.content, {
+        x: tableLeft,
+        y: tableTop,
+        width: tableWidth,
+        height: tableHeight,
+        axis: 'y',
+        inputBlocker: true,
+    });
 
-    // Phaser 4 GeometryMask is Canvas-only; WebGL needs fixed world-space FilterMask.
-    const maskRect = ctx.scene.add
-        .rectangle(
-            tableLeft + tableWidth / 2,
-            tableTop + tableHeight / 2,
-            tableWidth,
-            tableHeight,
-            0xffffff,
-        )
-        .setVisible(false);
-    listRoot.enableFilters();
-    if (listRoot.filters)
-    {
-        listRoot.filters.internal.addMask(
-            maskRect,
-            false,
-            ctx.scene.cameras.main,
-            'world',
-        );
-    }
-
-    let contentH = 0;
-    /** Stable scroll offset (≤ 0). Never re-read from listRoot after rebuild. */
-    let scrollOffset = 0;
-    let dragBaseOffset = 0;
-    let dragStartPointerY = 0;
-    let dragging = false;
-    let didDrag = false;
     let lastStorageKey = '';
-    /** Cell hits toggled with scroll so out-of-view cells don't steal input. */
-    const cellHits: Array<{ hit: Phaser.GameObjects.Rectangle; localY: number }> = [];
-
-    const syncCellInput = () =>
-    {
-        for (const entry of cellHits)
-        {
-            const worldY = listRoot.y + entry.localY;
-            const half = ITEM_CELL_PITCH_Y / 2;
-            const visible =
-                worldY + half > tableTop && worldY - half < tableTop + tableHeight;
-            if (visible)
-            {
-                if (!entry.hit.input?.enabled)
-                {
-                    entry.hit.setInteractive({ useHandCursor: true });
-                }
-            }
-            else if (entry.hit.input?.enabled)
-            {
-                entry.hit.disableInteractive();
-            }
-        }
-    };
-
-    const applyScroll = () =>
-    {
-        const minOffset = Math.min(0, tableHeight - contentH);
-        scrollOffset = Math.max(minOffset, Math.min(0, scrollOffset));
-        listRoot.y = tableTop + scrollOffset;
-        syncCellInput();
-    };
-
-    const inTable = (x: number, y: number) =>
-        x >= tableLeft
-        && x <= tableLeft + tableWidth
-        && y >= tableTop
-        && y <= tableTop + tableHeight;
-
-    // Drag-scroll without a full-area hit that steals item taps.
-    const onPointerDown = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!inTable(pointer.x, pointer.y))
-        {
-            return;
-        }
-        dragging = true;
-        didDrag = false;
-        dragBaseOffset = scrollOffset;
-        dragStartPointerY = pointer.y;
-    };
-    const onPointerMove = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!dragging || !pointer.isDown)
-        {
-            return;
-        }
-        const dy = pointer.y - dragStartPointerY;
-        if (Math.abs(dy) > 6)
-        {
-            didDrag = true;
-        }
-        if (didDrag)
-        {
-            scrollOffset = dragBaseOffset + dy;
-            applyScroll();
-        }
-    };
-    const onPointerUp = () =>
-    {
-        dragging = false;
-    };
-    const onWheel = (
-        pointer: Phaser.Input.Pointer,
-        _gos: unknown,
-        _dx: number,
-        dy: number,
-    ) =>
-    {
-        if (!inTable(pointer.x, pointer.y))
-        {
-            return;
-        }
-        scrollOffset -= dy * 0.5;
-        applyScroll();
-    };
-    ctx.scene.input.on('pointerdown', onPointerDown);
-    ctx.scene.input.on('pointermove', onPointerMove);
-    ctx.scene.input.on('pointerup', onPointerUp);
-    ctx.scene.input.on('wheel', onWheel);
 
     const storageKey = (counts: ItemCounts): string =>
     {
@@ -281,9 +169,12 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         }
         lastStorageKey = key;
 
-        listRoot.removeAll(true);
-        cellHits.length = 0;
+        const preserved = scroll.getOffset();
+        scroll.syncMask();
+        scroll.content.removeAll(true);
+        scroll.clearHits();
         const groups = groupStorageItems(counts);
+
         let y = 0;
         let any = false;
 
@@ -299,8 +190,7 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
             const gridH = rows * ITEM_CELL_PITCH_Y;
             const sectionH = gridH + SECTION_TITLE_H;
 
-            // Title (ItemSection): COMMON_2, left-aligned at x≈(100-84)/2=8
-            listRoot.add(
+            scroll.content.add(
                 ctx.scene.add
                     .text(8, y + SECTION_TITLE_H / 2, sec.title, {
                         fontFamily: UI_FONT_FAMILY,
@@ -317,9 +207,15 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
                 const col = index % ITEM_GRID_COLUMNS;
                 const r = Math.floor(index / ITEM_GRID_COLUMNS);
                 const cx = col * ITEM_CELL_PITCH_X + ITEM_CELL_PITCH_X / 2;
-                // ItemSection places cells from top of grid area downward.
                 const cy = gridTop + r * ITEM_CELL_PITCH_Y + ITEM_CELL_PITCH_Y / 2;
-                addItemCell(ctx, listRoot, cx, cy, row.itemId, row.num, cellHits);
+                addItemCell(ctx, scroll.content, cx, cy, row.itemId, row.num, (hit) =>
+                {
+                    scroll.trackHit({
+                        hit,
+                        local: cy,
+                        half: ITEM_CELL_PITCH_Y / 2,
+                    });
+                }, () => scroll.didDrag());
             });
 
             y += sectionH;
@@ -327,7 +223,7 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
 
         if (!any)
         {
-            listRoot.add(
+            scroll.content.add(
                 ctx.scene.add
                     .text(tableWidth / 2, 40, '仓库空空如也', {
                         fontFamily: UI_FONT_FAMILY,
@@ -337,21 +233,15 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
                     })
                     .setOrigin(0.5, 0),
             );
-            contentH = 80;
+            scroll.setContentSize(80);
         }
         else
         {
-            // Keep last cell fully inside the clipped well with a little trailing air.
-            contentH = y + 24;
+            scroll.setContentSize(y + 24);
         }
 
-        // If user is mid-drag, keep their base in sync with preserved offset.
-        if (dragging)
-        {
-            dragBaseOffset = scrollOffset;
-            dragStartPointerY = ctx.scene.input.activePointer?.y ?? dragStartPointerY;
-        }
-        applyScroll();
+        // Keep scroll position across rebuilds unless content shrank past it.
+        scroll.setOffset(preserved);
     };
 
     rebuild(true);
@@ -363,30 +253,25 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         destroy: () =>
         {
             gameBusOff('session_updated', onSession);
-            ctx.scene.input.off('pointerdown', onPointerDown);
-            ctx.scene.input.off('pointermove', onPointerMove);
-            ctx.scene.input.off('pointerup', onPointerUp);
-            ctx.scene.input.off('wheel', onWheel);
-            listRoot.filters?.internal.clear();
-            maskRect.destroy();
+            scroll.destroy();
         },
     };
 }
 
 function addItemCell (
     ctx: NodeMountContext,
-    parent: Phaser.GameObjects.Container,
+    parent: GameObjects.Container,
     cx: number,
     cy: number,
     itemId: number,
     num: number,
-    cellHits?: Array<{ hit: Phaser.GameObjects.Rectangle; localY: number }>,
+    trackHit: (hit: GameObjects.Rectangle) => void,
+    didDrag: () => boolean,
 ): void
 {
     const cell = ctx.scene.add.container(cx, cy);
     parent.add(cell);
 
-    // ItemCell: equip bg for equipment type (prefix 13 except bags etc.).
     const isEquipLike = itemId >= 1300000 && itemId < 1400000
         && !(itemId >= 1305000 && itemId < 1306000);
     const bgFrame = isEquipLike ? 'item_equip_bg.png' : 'item_bg.png';
@@ -432,8 +317,7 @@ function addItemCell (
     cell.add(hit);
     hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
     {
-        // Ignore if this was mostly a scroll drag.
-        if (pointer.getDistance() > 8)
+        if (pointer.getDistance() > 8 || didDrag())
         {
             return;
         }
@@ -442,5 +326,5 @@ function addItemCell (
             onToast: (msg) => ctx.showToast(msg),
         });
     });
-    cellHits?.push({ hit, localY: cy });
+    trackHit(hit);
 }

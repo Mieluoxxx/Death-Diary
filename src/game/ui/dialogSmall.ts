@@ -1,6 +1,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { getLanguage, t } from '../settings/settingsStore';
 import { addAtlasButton } from './atlasButton';
+import { mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 /**
@@ -196,10 +197,8 @@ export function openStatusDialog (
 
     root.add(des);
 
-    // Horizontal item strip (original TableView 400×100 at content bottom).
-    // All items are laid out; overflow scrolls with drag/wheel under a FilterMask.
-    let stripMaskRect: GameObjects.Rectangle | null = null;
-    let stripListRoot: GameObjects.Container | null = null;
+    // Horizontal item strip (original TableView 400×100) via shared ScrollViewport.
+    let stripScroll: ScrollViewportHandle | null = null;
     if (hasQuickItems && config.quickItems)
     {
         const stripTop = contentBottomY - quickStripH;
@@ -208,31 +207,17 @@ export function openStatusDialog (
         const viewW = 400;
         const viewH = quickStripH;
         const viewLeft = bgLeft + 20;
-        const viewCenterX = viewLeft + viewW / 2;
-        const viewCenterY = stripTop + viewH / 2;
 
-        stripListRoot = scene.add.container(viewLeft, stripTop);
-        root.add(stripListRoot);
+        stripScroll = mountScrollViewport(scene, root, {
+            x: viewLeft,
+            y: stripTop,
+            width: viewW,
+            height: viewH,
+            axis: 'x',
+            inputBlocker: true,
+            wheelFactor: 1,
+        });
 
-        stripMaskRect = scene.add
-            .rectangle(viewCenterX, viewCenterY, viewW, viewH, 0xffffff)
-            .setVisible(false);
-        root.add(stripMaskRect);
-        stripListRoot.enableFilters();
-        stripListRoot.filters?.internal.addMask(
-            stripMaskRect,
-            false,
-            scene.cameras.main,
-            'world',
-        );
-
-        // Invisible drag surface so empty strip area also scrolls.
-        const dragSurface = scene.add
-            .rectangle(viewW / 2, viewH / 2, viewW, viewH, 0xffffff, 0.001)
-            .setInteractive({ useHandCursor: false });
-        stripListRoot.add(dragSurface);
-
-        const cellHits: Array<{ hit: GameObjects.Rectangle; localX: number }> = [];
         let cursorX = 0;
         for (const row of config.quickItems)
         {
@@ -241,7 +226,7 @@ export function openStatusDialog (
 
             if (scene.textures.exists('ui') && scene.textures.get('ui').has('item_bg.png'))
             {
-                stripListRoot.add(
+                stripScroll.content.add(
                     scene.add
                         .image(cellCenterX, cellCenterY, 'ui', 'item_bg.png')
                         .setDisplaySize(cellSize, cellSize),
@@ -249,7 +234,7 @@ export function openStatusDialog (
             }
             else
             {
-                stripListRoot.add(
+                stripScroll.content.add(
                     scene.add
                         .rectangle(cellCenterX, cellCenterY, cellSize, cellSize, 0x3a342c)
                         .setStrokeStyle(1, 0x222222),
@@ -259,14 +244,14 @@ export function openStatusDialog (
             const iconFrame = `icon_item_${row.itemId}.png`;
             if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
             {
-                stripListRoot.add(
+                stripScroll.content.add(
                     scene.add
                         .image(cellCenterX, cellCenterY, 'icon', iconFrame)
                         .setDisplaySize(cellSize * 0.72, cellSize * 0.72),
                 );
             }
 
-            stripListRoot.add(
+            stripScroll.content.add(
                 scene.add
                     .text(
                         cellCenterX + cellSize / 2 - 4,
@@ -290,149 +275,34 @@ export function openStatusDialog (
             const itemId = row.itemId;
             hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
             {
-                // Ignore drag, or cells scrolled outside the strip viewport.
                 if (
                     pointer.getDistance() > 8
-                    || pointer.x < viewLeft
-                    || pointer.x > viewLeft + viewW
-                    || pointer.y < stripTop
-                    || pointer.y > stripTop + viewH
+                    || stripScroll?.didDrag()
+                    || !stripScroll?.inView(pointer.x, pointer.y)
                 )
                 {
                     return;
                 }
                 config.onQuickItemTap?.(itemId);
             });
-            stripListRoot.add(hit);
-            cellHits.push({ hit, localX: cellCenterX });
+            stripScroll.content.add(hit);
+            stripScroll.trackHit({
+                hit,
+                local: cellCenterX,
+                half: cellSize / 2,
+            });
 
             cursorX += cellPitch;
         }
 
-        const contentW = Math.max(viewW, config.quickItems.length * cellPitch);
-        const minX = viewLeft - Math.max(0, contentW - viewW);
-        const maxX = viewLeft;
-
-        const syncCellInput = () =>
-        {
-            if (!stripListRoot)
-            {
-                return;
-            }
-            // Cell local X is relative to stripListRoot; world X = stripListRoot.x + localX.
-            for (const entry of cellHits)
-            {
-                const worldX = stripListRoot.x + entry.localX;
-                const half = cellSize / 2;
-                const visible =
-                    worldX + half > viewLeft && worldX - half < viewLeft + viewW;
-                if (visible)
-                {
-                    if (!entry.hit.input?.enabled)
-                    {
-                        entry.hit.setInteractive({ useHandCursor: true });
-                    }
-                }
-                else if (entry.hit.input?.enabled)
-                {
-                    entry.hit.disableInteractive();
-                }
-            }
-        };
-
-        const clampX = () =>
-        {
-            if (!stripListRoot)
-            {
-                return;
-            }
-            stripListRoot.x = Math.min(maxX, Math.max(minX, stripListRoot.x));
-            syncCellInput();
-        };
-        syncCellInput();
-
-        let dragging = false;
-        let dragBaseX = viewLeft;
-        let dragStartPointerX = 0;
-
-        const onPointerDown = (pointer: Phaser.Input.Pointer) =>
-        {
-            if (
-                pointer.x < viewLeft
-                || pointer.x > viewLeft + viewW
-                || pointer.y < stripTop
-                || pointer.y > stripTop + viewH
-            )
-            {
-                return;
-            }
-            dragging = true;
-            dragBaseX = stripListRoot?.x ?? viewLeft;
-            dragStartPointerX = pointer.x;
-        };
-        const onPointerMove = (pointer: Phaser.Input.Pointer) =>
-        {
-            if (!dragging || !pointer.isDown || !stripListRoot)
-            {
-                return;
-            }
-            stripListRoot.x = dragBaseX + (pointer.x - dragStartPointerX);
-            clampX();
-        };
-        const onPointerUp = () =>
-        {
-            dragging = false;
-        };
-        const onWheel = (
-            pointer: Phaser.Input.Pointer,
-            _over: unknown,
-            _dx: number,
-            dy: number,
-        ) =>
-        {
-            if (
-                !stripListRoot
-                || pointer.x < viewLeft
-                || pointer.x > viewLeft + viewW
-                || pointer.y < stripTop
-                || pointer.y > stripTop + viewH
-            )
-            {
-                return;
-            }
-            // Vertical wheel scrolls the strip sideways (common touchpad path).
-            stripListRoot.x -= dy;
-            clampX();
-        };
-
-        scene.input.on('pointerdown', onPointerDown);
-        scene.input.on('pointermove', onPointerMove);
-        scene.input.on('pointerup', onPointerUp);
-        scene.input.on('wheel', onWheel);
-
-        // Stash cleanup on root so dismiss can unhook listeners.
-        (root as GameObjects.Container & {
-            __stripCleanup?: () => void;
-        }).__stripCleanup = () =>
-        {
-            scene.input.off('pointerdown', onPointerDown);
-            scene.input.off('pointermove', onPointerMove);
-            scene.input.off('pointerup', onPointerUp);
-            scene.input.off('wheel', onWheel);
-            stripListRoot?.filters?.internal.clear();
-            stripMaskRect?.destroy();
-            stripListRoot = null;
-            stripMaskRect = null;
-        };
+        stripScroll.setContentSize(Math.max(viewW, config.quickItems.length * cellPitch));
     }
 
 
     const dismiss = () =>
     {
-        const withCleanup = root as GameObjects.Container & {
-            __stripCleanup?: () => void;
-        };
-        withCleanup.__stripCleanup?.();
+        stripScroll?.destroy();
+        stripScroll = null;
         root.destroy(true);
     };
 
