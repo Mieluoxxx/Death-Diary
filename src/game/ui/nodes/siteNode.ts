@@ -5,7 +5,7 @@
  * phaserY = bgBottomY - cocosY (no content-nudge; chrome is absolute).
  *
  * - Title left of bar (host setTitle align left)
- * - 进度 under title; 存放物品 top-right of action bar
+ * - Progress right of title + 存放物品 top-right (shared siteChrome)
  * - dig at cocos y = contentTopLine(770) - 50, anchor top
  * - des under dig by 40px
  * - Buttons at cocos y=100: 物品存放点 | 进入副本
@@ -21,6 +21,10 @@ import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import {
+    formatSiteProgress,
+    mountSiteChromeCaptions,
+} from '../siteChrome';
+import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
     UI_TEXT_RESOLUTION,
@@ -30,8 +34,6 @@ import {
 const LEFT_EDGE = 40;
 /** BottomFrame contentTopLineHeight */
 const CONTENT_TOP = 770;
-/** actionBarBaseHeight */
-const ACTION_BAR = 803;
 
 export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
 {
@@ -48,48 +50,16 @@ export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
     const leftEdge = ctx.width / 2 - ctx.bgWidth / 2 + LEFT_EDGE;
     const rightEdge = ctx.width / 2 + ctx.bgWidth / 2 - LEFT_EDGE;
 
-    // Title bar: [back] 加油站  进度:n/m .............. 存放物品:n
-    // Progress sits to the RIGHT of the title (not under it).
-    const titleY = fromBottom(ACTION_BAR);
-    const titleX = ctx.width / 2 - ctx.bgWidth / 2 + 111;
     const siteName = cfg?.name ?? `地点${siteId}`;
     const progress =
         site && site.rooms.length > 0
-            ? `进度:${Math.min(site.step, site.rooms.length)}/${site.rooms.length}`
-            : '进度:0/0';
-    const storageN = siteStorageCount(siteId);
-
-    // Measure title width so progress starts after the name.
-    const titleProbe = ctx.scene.add
-        .text(0, 0, siteName, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-        })
-        .setVisible(false);
-    const progressX = titleX + titleProbe.width + 16;
-    titleProbe.destroy();
-
-    ctx.content.add(
-        ctx.scene.add
-            .text(progressX, titleY, progress, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                color: '#ffffff',
-            })
-            .setOrigin(0, 0.5),
-    );
-    ctx.content.add(
-        ctx.scene.add
-            .text(rightEdge + 20, titleY, `存放物品:${storageN}`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                color: '#ffffff',
-            })
-            .setOrigin(1, 0.5),
-    );
+            ? formatSiteProgress(site.step, site.rooms.length)
+            : formatSiteProgress(0, 0);
+    mountSiteChromeCaptions(ctx, {
+        siteName,
+        progress,
+        storageN: siteStorageCount(siteId),
+    });
 
     // dig: (bgW/2, contentTop - 50), anchor top-center
     const digTop = fromBottom(CONTENT_TOP - 50);

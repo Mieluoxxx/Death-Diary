@@ -30,6 +30,10 @@ import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import {
+    formatSiteProgress,
+    mountSiteChromeCaptions,
+} from '../siteChrome';
+import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
     UI_TEXT_RESOLUTION,
@@ -63,48 +67,6 @@ function hasFrame (ctx: NodeMountContext, atlas: string, frame: string): boolean
     return ctx.scene.textures.exists(atlas) && ctx.scene.textures.get(atlas).has(frame);
 }
 
-function placeChromeCaptions (
-    ctx: NodeMountContext,
-    siteName: string,
-    progress: string,
-    storageN: number,
-): void
-{
-    // Original BattleAndWorkNode._init:
-    // title left after back; txt1 under title (进度); txt2 right (存放物品).
-    const titleX = ctx.toScreenX(111);
-    const rightEdge = ctx.toScreenX(ctx.bgWidth - CONTENT_LEFT + 20);
-    // actionBarBaseHeight - 4 in Cocos local y-up → slightly below title center.
-    const subY = ctx.toScreenY(803 - 22);
-
-    void siteName; // title is owned by nav host setTitle
-
-    if (progress)
-    {
-        ctx.content.add(
-            ctx.scene.add
-                .text(titleX, subY, progress, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                    color: '#ffffff',
-                })
-                .setOrigin(0, 0.5)
-                .setDepth(5),
-        );
-    }
-    ctx.content.add(
-        ctx.scene.add
-            .text(rightEdge, subY, `存放物品:${storageN}`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                color: '#ffffff',
-            })
-            .setOrigin(1, 0.5)
-            .setDepth(5),
-    );
-}
 
 function placeDigHeader (
     ctx: NodeMountContext,
@@ -169,9 +131,13 @@ export function mountBattleNode (ctx: NodeMountContext): NodeMountResult
 
     const progress =
         site && site.rooms.length > 0
-            ? `进度:${Math.min(site.step + 1, site.rooms.length)}/${site.rooms.length}`
+            ? formatSiteProgress(site.step + 1, site.rooms.length)
             : '';
-    placeChromeCaptions(ctx, siteName, progress, siteStorageCount(siteId));
+    mountSiteChromeCaptions(ctx, {
+        siteName,
+        progress,
+        storageN: siteStorageCount(siteId),
+    });
 
     if (!room)
     {
@@ -368,9 +334,13 @@ function mountBattleBegin (
             const name = cfg?.name ?? '战斗';
             const prog =
                 site && site.rooms.length > 0
-                    ? `进度:${Math.min(site.step + 1, site.rooms.length)}/${site.rooms.length}`
+                    ? formatSiteProgress(site.step + 1, site.rooms.length)
                     : '';
-            placeChromeCaptions(ctx, name, prog, siteStorageCount(siteId));
+            mountSiteChromeCaptions(ctx, {
+                siteName: name,
+                progress: prog,
+                storageN: siteStorageCount(siteId),
+            });
             // Attach process handlers by replacing active node via side-effect mount.
             const process = mountBattleProcess(ctx, siteId, monsters, difficulty);
             // Store on content for host update — host already holds this result; we need to swap.
@@ -625,9 +595,13 @@ function mountWorkBegin (
                 const name = cfg?.name ?? '搜刮';
                 const prog =
                     site && site.rooms.length > 0
-                        ? `进度:${Math.min(site.step + 1, site.rooms.length)}/${site.rooms.length}`
+                        ? formatSiteProgress(site.step + 1, site.rooms.length)
                         : '';
-                placeChromeCaptions(ctx, name, prog, siteStorageCount(siteId));
+                mountSiteChromeCaptions(ctx, {
+                    siteName: name,
+                    progress: prog,
+                    storageN: siteStorageCount(siteId),
+                });
                 processHandle = mountWorkProcess(ctx, siteId, minutes, itemId, wt);
             });
 
@@ -873,9 +847,13 @@ function mountBattleProcess (
             const name = cfg?.name ?? '战斗';
             const prog =
                 site && site.rooms.length > 0
-                    ? `进度:${Math.min(site.step + 1, site.rooms.length)}/${site.rooms.length}`
+                    ? formatSiteProgress(site.step + 1, site.rooms.length)
                     : '';
-            placeChromeCaptions(ctx, name, prog, siteStorageCount(siteId));
+            mountSiteChromeCaptions(ctx, {
+                siteName: name,
+                progress: prog,
+                storageN: siteStorageCount(siteId),
+            });
 
             // Keep dig art on end view (original keeps dig_des).
             const digName = `monster_dig_${Math.max(1, Math.min(12, difficulty))}.png`;
