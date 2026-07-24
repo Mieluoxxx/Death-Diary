@@ -155,10 +155,30 @@ export async function openDayLayer (
     }
     else
     {
+        // Match Buried-City DayScene lose layout (cocos y-up):
+        // - "你的损失:" at (64, 550), bottom-left anchor
+        // - narrative body bottom = title.y + titleH/2 + 40
+        // - lost items top = title.y - titleH/2 - 20  (gap below title)
+        const lossTitle = scene.add
+            .text(bgLeft + 64, toY(550), '你的损失:', {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                color: '#f0e6d2',
+            })
+            .setOrigin(0, 1)
+            .setAlpha(0);
+        root.add(lossTitle);
+        fadeTargets.push(lossTitle);
+
+        const titleH = Math.max(lossTitle.height, UI_FONT_SIZE.COMMON_1);
+        // Cocos title center = 550 + titleH/2 → Phaser y = toY(550) - titleH/2
+        const titleCenterY = toY(550) - titleH / 2;
+
         const body = scene.add
             .text(
                 width / 2,
-                toY(620),
+                titleCenterY - 40,
                 '僵尸潮爆发，小镇到处都是暴躁的僵尸。几个僵尸突破了防御，进到家中大肆破坏。',
                 {
                     fontFamily: UI_FONT_FAMILY,
@@ -169,50 +189,43 @@ export async function openDayLayer (
                     wordWrap: uiWordWrap(contentWidth),
                 },
             )
-            .setOrigin(0.5, 0)
+            .setOrigin(0.5, 1)
             .setAlpha(0);
         root.add(body);
         fadeTargets.push(body);
 
-        const lossTitle = scene.add
-            .text(bgLeft + 64, toY(500), '你的损失:', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                color: '#f0e6d2',
-            })
-            .setOrigin(0, 0)
-            .setAlpha(0);
-        root.add(lossTitle);
-        fadeTargets.push(lossTitle);
-
         const items = res.items ?? [];
+        // Cocos: richText.y = title.y - titleH/2 - 20 (top anchor) → below title by titleH/2+20.
         let cursorX = bgLeft + 64;
-        let cursorY = toY(500) + 48;
+        let cursorY = toY(550) + titleH / 2 + 20;
         const rowMaxX = bgLeft + 640 - 64;
+        const itemScale = 0.8;
+        const rowStep = Math.max(56, Math.round(64 * itemScale) + 12);
 
         for (const it of items)
         {
             const iconFrame = `icon_item_${it.itemId}.png`;
             let cellW = 0;
+            let rowMidY = cursorY;
 
             if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
             {
                 const icon = scene.add
                     .image(cursorX, cursorY, 'icon', iconFrame)
-                    .setOrigin(0, 0.5)
-                    .setScale(0.55)
+                    .setOrigin(0, 0)
+                    .setScale(itemScale)
                     .setAlpha(0);
                 root.add(icon);
                 fadeTargets.push(icon);
                 cellW = icon.displayWidth + 4;
+                rowMidY = cursorY + icon.displayHeight / 2;
             }
 
             const label = scene.add
-                .text(cursorX + cellW, cursorY, `${itemLabel(it.itemId)}×${it.num}`, {
+                .text(cursorX + cellW, rowMidY, `${itemLabel(it.itemId)}×${it.num}`, {
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
                     color: '#f0e6d2',
                 })
                 .setOrigin(0, 0.5)
@@ -220,11 +233,18 @@ export async function openDayLayer (
             root.add(label);
             fadeTargets.push(label);
 
+            // If no icon, still advance past the text baseline using label height.
+            if (cellW === 0)
+            {
+                rowMidY = cursorY + label.height / 2;
+                label.setY(rowMidY);
+            }
+
             cursorX += cellW + label.width + 24;
             if (cursorX > rowMaxX - 100)
             {
                 cursorX = bgLeft + 64;
-                cursorY += 56;
+                cursorY += rowStep;
             }
         }
 
@@ -237,7 +257,7 @@ export async function openDayLayer (
                     fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
                     color: '#aaaaaa',
                 })
-                .setOrigin(0, 0.5)
+                .setOrigin(0, 0)
                 .setAlpha(0);
             root.add(empty);
             fadeTargets.push(empty);
