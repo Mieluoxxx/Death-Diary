@@ -10,6 +10,7 @@ import { getLanguage } from '../settings/settingsStore';
 import { openStatusDialog, type StatusQuickItem } from './dialogSmall';
 import { openItemDialog } from './itemDialog';
 import { openSettingLayer } from './settingLayer';
+import { mountScrollViewport } from './scrollViewport';
 import {
     ATTR_STATUS_ID,
     type AttrKey,
@@ -716,45 +717,122 @@ function openLogPanel (
         .setInteractive();
     panel.add(dim);
 
+    // Original: frame_bg_bottom anchor bottom-center @ (winW/2, 18).
     const bottomY = height - 18;
+    let frameW = 596;
+    let frameH = 839;
     if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png'))
     {
-        panel.add(
-            scene.add
-                .image(width / 2, bottomY, 'ui', 'frame_bg_bottom.png')
-                .setOrigin(0.5, 1),
-        );
+        const frame = scene.add
+            .image(width / 2, bottomY, 'ui', 'frame_bg_bottom.png')
+            .setOrigin(0.5, 1);
+        panel.add(frame);
+        frameW = frame.displayWidth;
+        frameH = frame.displayHeight;
     }
     else
     {
         panel.add(
             scene.add
-                .rectangle(width / 2, bottomY - 100, 596, 200, 0x2a2a2a)
-                .setOrigin(0.5, 1),
+                .rectangle(width / 2, bottomY, frameW, frameH, 0x1a1a1a)
+                .setOrigin(0.5, 1)
+                .setStrokeStyle(2, 0x888888),
         );
     }
 
-    const history = live.logs.length > 0
-        ? live.logs.slice(-12).map((entry) => `[${entry.timeLabel}] ${entry.text}`).join('\n')
-        : (live.lastLog || '—');
+    // Original LogView: size (bg.width, bg.height - 20) at (7, 5) in frame-local.
+    const viewW = Math.max(100, frameW - 14);
+    const viewH = Math.max(120, frameH - 20);
+    const viewLeft = width / 2 - frameW / 2 + 7;
+    const viewTop = bottomY - 5 - viewH;
 
-    const logText = scene.add
-        .text(width / 2 - 290, bottomY - 40, history, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-            color: '#ffffff',
-            wordWrap: uiWordWrap(580),
-        })
-        .setOrigin(0, 1);
-    panel.add(logText);
+    const scroll = mountScrollViewport(scene, panel, {
+        x: viewLeft,
+        y: viewTop,
+        width: viewW,
+        height: viewH,
+        axis: 'y',
+        inputBlocker: true,
+    });
+
+    const entries = live.logs.length > 0
+        ? live.logs
+        : (live.lastLog
+            ? [{ text: live.lastLog, timeLabel: '' }]
+            : []);
+
+    // Oldest at top, newest at bottom (Phaser y-down). Stick to bottom after layout.
+    let cursorY = 0;
+    const textWidth = viewW - 20;
+    if (entries.length === 0)
+    {
+        scroll.content.add(
+            scene.add
+                .text(10, 10, '—', {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color: '#888888',
+                })
+                .setOrigin(0, 0),
+        );
+        cursorY = 40;
+    }
+    else
+    {
+        for (const entry of entries)
+        {
+            const timeLabel = entry.timeLabel
+                ? scene.add
+                    .text(10, cursorY, entry.timeLabel, {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                        color: '#ffffff',
+                        wordWrap: uiWordWrap(textWidth),
+                    })
+                    .setOrigin(0, 0)
+                : null;
+            if (timeLabel)
+            {
+                scroll.content.add(timeLabel);
+                cursorY += timeLabel.height + 2;
+            }
+
+            const body = scene.add
+                .text(10, cursorY, entry.text, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color: '#ffffff',
+                    wordWrap: uiWordWrap(textWidth),
+                })
+                .setOrigin(0, 0);
+            scroll.content.add(body);
+            cursorY += body.height + 10;
+        }
+    }
+
+    const contentH = Math.max(viewH, cursorY + 8);
+    scroll.setContentSize(contentH);
+    // Newest at bottom of panel.
+    scroll.setOffset(Math.min(0, viewH - contentH));
 
     const close = () =>
     {
+        scroll.destroy();
         panel.destroy(true);
         onClosed();
     };
-    dim.on('pointerup', close);
+    // Tap dim (outside) closes; taps on the scroll well are swallowed by ScrollViewport.
+    dim.on('pointerup', (pointer: Phaser.Input.Pointer) =>
+    {
+        if (scroll.inView(pointer.x, pointer.y))
+        {
+            return;
+        }
+        close();
+    });
 
     return panel;
 }
