@@ -26,3 +26,7 @@ dist-ssr
 # Local agent / index tooling
 .agents/
 .codegraph/
+
+# Derived art (regen: bun run gen:frames)
+public/source-art/multiatlas/
+public/source-art/frame-index.json

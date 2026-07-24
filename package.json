@@ -14,16 +14,25 @@
   },
   "homepage": "https://github.com/phaserjs/template-bun#readme",
   "scripts": {
-    "dev": "bun log.js dev && bunx --bun vite --config vite/config.dev.mjs",
-    "build": "bun log.js build && bunx --bun vite build --config vite/config.prod.mjs",
-    "dev-nolog": "bunx --bun vite --config vite/config.dev.mjs",
-    "build-nolog": "bunx --bun vite build --config vite/config.prod.mjs",
-    "gen:frames": "bun tools/gen_frame_multiatlas.mjs"
+    "gen:frames": "bun tools/gen_frame_multiatlas.mjs",
+    "gen:frames:check": "bun tools/gen_frame_multiatlas.mjs --check",
+    "predev": "bun run gen:frames",
+    "prebuild": "bun run gen:frames",
+    "dev": "bun log.js dev && bun x --bun vite --config vite/config.dev.mjs",
+    "build": "bun log.js build && bun x --bun vite build --config vite/config.prod.mjs",
+    "dev-nolog": "bun x --bun vite --config vite/config.dev.mjs",
+    "build-nolog": "bun x --bun vite build --config vite/config.prod.mjs",
+    "lint": "biome lint .",
+    "lint:all": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.5",
+    "terser": "^5.39.0",
     "typescript": "~5.7.2",
-    "vite": "^6.3.1",
-    "terser": "^5.39.0"
+    "vite": "^6.3.1"
   },
   "dependencies": {
     "phaser": "4.0.0"

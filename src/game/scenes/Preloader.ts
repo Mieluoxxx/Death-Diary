@@ -1,24 +1,7 @@
-import { Scene, Textures } from 'phaser';
+import { Scene } from 'phaser';
+import { PRELOAD_ATLAS_KEYS } from '../assets/frames.gen';
+import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
-
-/** Atlas keys used by the current vertical slice (must match multiatlas JSON). */
-const ATLAS_KEYS = [
-    'menu',
-    'ui',
-    'icon',
-    'medal',
-    'npc',
-    'home',
-    'dig_build',
-    'build',
-    'gate',
-    'map',
-    'site',
-    'dig_monster',
-    'dig_item',
-    'dig_work',
-    'weather',
-] as const;
 
 export class Preloader extends Scene
 {
@@ -52,28 +35,14 @@ export class Preloader extends Scene
 
     preload ()
     {
-        // Single-frame original art: each PNG is one multi-atlas page.
-        // JSON from tools/gen_frame_multiatlas.mjs; PNGs under public/source-art/frames/.
-        for (const key of ATLAS_KEYS)
-        {
-            this.load.multiatlas(
-                key,
-                `source-art/multiatlas/${key}.json`,
-                `source-art/frames/${key}/`,
-            );
-        }
+        // Policy: atlasManifest preload. JSON from gen_frame_multiatlas.mjs.
+        queuePreloadAtlases(this, PRELOAD_ATLAS_KEYS);
     }
 
     create ()
     {
         // Hand-painted frames: LINEAR (smooth) filtering, not NEAREST pixel-art.
-        for (const key of ATLAS_KEYS)
-        {
-            if (this.textures.exists(key))
-            {
-                this.textures.get(key).setFilter(Textures.LINEAR);
-            }
-        }
+        applyLinearFilter(this, PRELOAD_ATLAS_KEYS);
 
         this.scene.start('MainMenu');
     }
