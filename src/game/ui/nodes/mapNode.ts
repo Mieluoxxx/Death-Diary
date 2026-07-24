@@ -15,11 +15,17 @@ import { GameObjects } from 'phaser';
 import {
     HOME_SITE_ID,
     getSiteConfig,
-    mapDistance,
-    travelTimeSeconds,
 } from '../../data/siteConfig';
-import { getSession } from '../../session/sessionStore';
-import { travelTo } from '../../systems/mapSystem';
+import { getNpcCopy, getNpcDef } from '../../data/npcConfig';
+import { getSession, mutateSession } from '../../session/sessionStore';
+import { accelerateTime } from '../../systems/timeClock';
+import { planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
+import {
+    clearBattle,
+    getDodgeProgress,
+    startBattle,
+    tickBattle,
+} from '../../systems/battleSystem';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import {
@@ -75,16 +81,22 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
     const mapOriginX = ctx.width / 2 - ctx.bgWidth / 2 + (ctx.bgWidth - drawW) / 2 + 1;
     const mapOriginY = ctx.bgBottomY - 6 - drawH;
 
-    // Clip to the map viewport (original ScrollView clipping).
-    const maskShape = ctx.scene.make.graphics({ x: 0, y: 0 });
-    maskShape.fillStyle(0xffffff);
-    maskShape.fillRect(mapOriginX, mapOriginY, drawW, drawH);
-    const mask = maskShape.createGeometryMask();
-    maskShape.setVisible(false);
-    ctx.content.add(maskShape);
+    // Phaser 4 GeometryMask is Canvas-only; WebGL needs fixed world-space FilterMask.
+    const maskRect = ctx.scene.add
+        .rectangle(mapOriginX + drawW / 2, mapOriginY + drawH / 2, drawW, drawH, 0xffffff)
+        .setVisible(false);
 
     const mapLayer = ctx.scene.add.container(0, 0);
-    mapLayer.setMask(mask);
+    mapLayer.enableFilters();
+    if (mapLayer.filters)
+    {
+        mapLayer.filters.internal.addMask(
+            maskRect,
+            false,
+            ctx.scene.cameras.main,
+            'world',
+        );
+    }
     ctx.content.add(mapLayer);
 
     if (hasFrame(ctx, 'map', 'map_bg.png'))
@@ -214,6 +226,45 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         markers.set(siteId, { siteId, root: marker, highlight, setHighlight });
     }
 
+    // Unlocked NPC homes (npc_N.png).
+    for (const npcId of session.map.unlockedNpcs ?? [])
+    {
+        const def = getNpcDef(npcId);
+        if (!def)
+        {
+            continue;
+        }
+        const pos = toScreen(def.coordinate.x, def.coordinate.y);
+        const marker = ctx.scene.add.container(pos.x, pos.y);
+        mapLayer.add(marker);
+        if (hasFrame(ctx, 'site', 'site_bg.png'))
+        {
+            marker.add(ctx.scene.add.image(0, 0, 'site', 'site_bg.png'));
+        }
+        const npcFrame = `npc_${npcId}.png`;
+        if (hasFrame(ctx, 'npc', npcFrame))
+        {
+            marker.add(ctx.scene.add.image(0, 0, 'npc', npcFrame));
+        }
+        else if (hasFrame(ctx, 'icon', 'icon_npc.png'))
+        {
+            marker.add(ctx.scene.add.image(0, 0, 'icon', 'icon_npc.png').setScale(0.6));
+        }
+        const hit = ctx.scene.add
+            .circle(0, 0, 28, 0xffffff, 0.001)
+            .setInteractive({ useHandCursor: true });
+        marker.add(hit);
+        hit.on('pointerup', () =>
+        {
+            if (moving)
+            {
+                return;
+            }
+            onNpcTap(npcId);
+        });
+    }
+
+
     // Actor on top of markers (original red pin on current pos) — 1:1, no upscale.
     const actorPos = toScreen(session.map.pos.x, session.map.pos.y);
     if (hasFrame(ctx, 'map', 'map_actor.png'))
@@ -273,13 +324,13 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
     {
         const live = getSession();
         const cfg = getSiteConfig(siteId);
-        if (!live || !cfg || moving)
+        const plan = planTravel(siteId);
+        if (!live || !cfg || !plan || moving)
         {
             return;
         }
-        const dist = mapDistance(live.map.pos, cfg.coordinate);
-        const seconds = Math.max(1, Math.round(travelTimeSeconds(dist)));
-        const timeLabel = formatTravelTime(seconds);
+        const dist = plan.distance;
+        const timeLabel = formatTravelTime(plan.gameSeconds);
 
         // Already standing on site — enter without dialog (same as near-zero dist).
         if (dist < 8)
@@ -298,7 +349,8 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
     {
         const live = getSession();
         const cfg = getSiteConfig(siteId);
-        if (!live || !cfg || !actorImg || moving || destroyed)
+        const plan = planTravel(siteId);
+        if (!live || !cfg || !plan || !actorImg || moving || destroyed)
         {
             return;
         }
@@ -309,10 +361,12 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const to = toScreen(cfg.coordinate.x, cfg.coordinate.y);
         makeLine(from, to);
 
-        // Visual trip length ≈ original dialog time scaled for UX (cap).
-        const dist = mapDistance(live.map.pos, cfg.coordinate);
-        const realSec = travelTimeSeconds(dist);
-        const animMs = Math.min(2200, Math.max(450, realSec * 8));
+        // Original MapNode: accelerate game time for the whole Actor.move.
+        accelerateTime(plan.gameSeconds, plan.realSeconds);
+        const animMs = plan.realSeconds * 1000;
+
+        // Encounter check uses full plan distance (original: distance from last check).
+        const encounter = rollTravelEncounter(plan.distance);
 
         ctx.scene.tweens.add({
             targets: actorImg,
@@ -328,6 +382,23 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
                 }
                 clearPath();
                 markers.get(siteId)?.setHighlight(false);
+
+                if (encounter)
+                {
+                    // Pause arrival until dodge encounter resolves (auto 5s win).
+                    runDodgeEncounter(encounter.monsters, () =>
+                    {
+                        moving = false;
+                        if (!travelTo(siteId))
+                        {
+                            ctx.showToast('无法前往');
+                            return;
+                        }
+                        enterSite(siteId);
+                    });
+                    return;
+                }
+
                 moving = false;
                 if (!travelTo(siteId))
                 {
@@ -335,6 +406,68 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
                     return;
                 }
                 enterSite(siteId);
+            },
+        });
+    }
+
+    function runDodgeEncounter (monsters: number[], onDone: () => void): void
+    {
+        clearBattle();
+        startBattle(monsters, { isDodge: true });
+        const { width, height } = ctx.scene.scale;
+        const overlay = ctx.scene.add.container(0, 0);
+        overlay.setDepth(220);
+        overlay.setName('mapEncounterDodge');
+        ctx.content.add(overlay);
+
+        overlay.add(
+            ctx.scene.add
+                .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
+                .setInteractive(),
+        );
+        overlay.add(
+            ctx.scene.add
+                .text(width / 2, height / 2 - 40, '遭遇僵尸！正在脱离……', {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    color: '#ffffff',
+                })
+                .setOrigin(0.5),
+        );
+        const pctText = ctx.scene.add
+            .text(width / 2, height / 2 + 10, '0%', {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                color: '#ffcc66',
+            })
+            .setOrigin(0.5);
+        overlay.add(pctText);
+
+        let done = false;
+        const timer = ctx.scene.time.addEvent({
+            delay: 100,
+            loop: true,
+            callback: () =>
+            {
+                if (done || destroyed)
+                {
+                    timer.remove(false);
+                    return;
+                }
+                const result = tickBattle(0.1);
+                const pct = Math.floor(getDodgeProgress() * 100);
+                pctText.setText(`${pct}%`);
+                if (result)
+                {
+                    done = true;
+                    timer.remove(false);
+                    overlay.destroy(true);
+                    clearBattle();
+                    ctx.showToast(result.win ? '你甩开了僵尸' : '遭遇失败');
+                    onDone();
+                }
             },
         });
     }
@@ -458,10 +591,12 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
 
         const close = () => overlay.destroy(true);
 
+        // DialogBig: both actions use createCommonBtnBlack (string 5000: 算了 / 前往).
         const cancel = addAtlasButton(ctx.scene, bgCenterX - 100, actionY, {
             atlas: 'ui',
-            frame: 'btn_common_white_normal.png',
-            label: '取消',
+            frame: 'btn_common_black_normal.png',
+            label: '算了',
+            labelColor: '#eee',
             onClick: close,
         });
         overlay.add(cancel);
@@ -469,7 +604,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const ok = addAtlasButton(ctx.scene, bgCenterX + 100, actionY, {
             atlas: 'ui',
             frame: 'btn_common_black_normal.png',
-            label: siteId === HOME_SITE_ID ? '回家' : '出发',
+            label: siteId === HOME_SITE_ID ? '回家' : '前往',
             labelColor: '#eee',
             onClick: () =>
             {
@@ -478,6 +613,88 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
             },
         });
         overlay.add(ok);
+    }
+
+    function onNpcTap (npcId: number): void
+    {
+        const live = getSession();
+        const def = getNpcDef(npcId);
+        if (!live || !def || moving)
+        {
+            return;
+        }
+        const from = live.map.pos;
+        const dist = Math.hypot(def.coordinate.x - from.x, def.coordinate.y - from.y);
+        const name = getNpcCopy(npcId).name;
+        if (dist < 8)
+        {
+            enterNpc(npcId);
+            return;
+        }
+        // Rough travel time using same velocity baseline as sites (~distance map units).
+        const gameSeconds = Math.max(60, Math.round(dist * 8));
+        const timeLabel = formatTravelTime(gameSeconds);
+        showTravelDialog(-1, `${name}家`, getNpcCopy(npcId).des, timeLabel, () =>
+        {
+            startTravelToNpc(npcId, gameSeconds);
+        });
+    }
+
+    function startTravelToNpc (npcId: number, gameSeconds: number): void
+    {
+        const live = getSession();
+        const def = getNpcDef(npcId);
+        if (!live || !def || !actorImg || moving || destroyed)
+        {
+            return;
+        }
+        moving = true;
+        const from = { x: actorImg.x, y: actorImg.y };
+        const to = toScreen(def.coordinate.x, def.coordinate.y);
+        makeLine(from, to);
+        accelerateTime(gameSeconds, 3);
+        const encounter = rollTravelEncounter(Math.hypot(
+            def.coordinate.x - live.map.pos.x,
+            def.coordinate.y - live.map.pos.y,
+        ));
+        ctx.scene.tweens.add({
+            targets: actorImg,
+            x: to.x,
+            y: to.y,
+            duration: 3000,
+            ease: 'Linear',
+            onComplete: () =>
+            {
+                if (destroyed)
+                {
+                    return;
+                }
+                clearPath();
+                const finish = () =>
+                {
+                    moving = false;
+                    mutateSession((s) =>
+                    {
+                        s.map.pos = { ...def.coordinate };
+                        s.isAtHome = false;
+                        s.isAtSite = false;
+                        s.nowSiteId = null;
+                    });
+                    enterNpc(npcId);
+                };
+                if (encounter)
+                {
+                    runDodgeEncounter(encounter.monsters, finish);
+                    return;
+                }
+                finish();
+            },
+        });
+    }
+
+    function enterNpc (npcId: number): void
+    {
+        ctx.forward(NavNode.NPC, npcId);
     }
 
     function enterSite (siteId: number): void
@@ -505,8 +722,8 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         {
             destroyed = true;
             clearPath();
-            mask.destroy();
-            maskShape.destroy();
+            mapLayer.filters?.internal.clear();
+            maskRect.destroy();
         },
     };
 }

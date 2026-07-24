@@ -17,8 +17,8 @@ import {
     ITEM_CELL_PITCH_Y,
     ITEM_CELL_SIZE,
     ITEM_GRID_COLUMNS,
-    resolveItemName,
 } from './itemGrid';
+import { openItemDialog } from '../itemDialog';
 import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
@@ -99,10 +99,12 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
     // Original: rightBtn false; shop is a separate SpriteButton on the title bar.
     ctx.setRightEnabled(false);
 
-    // SectionTableView: 640×750 @ y=10 from bg bottom.
-    // Item grid itself is 5×110=550; center under the frame.
+    // Clip under the title line and leave clear air above the panel bottom border.
+    // Original SectionTableView sits near y=10; we keep a larger inset for readability.
+    const TABLE_BOTTOM_PAD = 96;
     const tableTop = ctx.toScreenY(760);
-    const tableHeight = 750;
+    const tableBottom = Math.min(ctx.bgBottomY - TABLE_BOTTOM_PAD, tableTop + 700);
+    const tableHeight = Math.max(120, tableBottom - tableTop);
     const tableWidth = ITEM_CELL_PITCH_X * ITEM_GRID_COLUMNS;
     const tableLeft = ctx.width / 2 - tableWidth / 2;
 
@@ -137,24 +139,41 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
     const listRoot = ctx.scene.add.container(tableLeft, tableTop);
     ctx.content.add(listRoot);
 
-    // Clip to table bounds (SectionTableView clippingToBounds).
-    const maskG = ctx.scene.make.graphics({ x: 0, y: 0 });
-    maskG.fillStyle(0xffffff);
-    maskG.fillRect(tableLeft, tableTop, tableWidth, tableHeight);
-    const mask = maskG.createGeometryMask();
-    listRoot.setMask(mask);
+    // Phaser 4 GeometryMask is Canvas-only; WebGL needs fixed world-space FilterMask.
+    const maskRect = ctx.scene.add
+        .rectangle(
+            tableLeft + tableWidth / 2,
+            tableTop + tableHeight / 2,
+            tableWidth,
+            tableHeight,
+            0xffffff,
+        )
+        .setVisible(false);
+    listRoot.enableFilters();
+    if (listRoot.filters)
+    {
+        listRoot.filters.internal.addMask(
+            maskRect,
+            false,
+            ctx.scene.cameras.main,
+            'world',
+        );
+    }
 
     let contentH = 0;
-    let dragBaseY = 0;
+    /** Stable scroll offset (≤ 0). Never re-read from listRoot after rebuild. */
+    let scrollOffset = 0;
+    let dragBaseOffset = 0;
     let dragStartPointerY = 0;
     let dragging = false;
     let didDrag = false;
+    let lastStorageKey = '';
 
-    const clampOffset = () =>
+    const applyScroll = () =>
     {
-        const minY = tableTop + Math.min(0, tableHeight - contentH);
-        const maxY = tableTop;
-        listRoot.y = Math.max(minY, Math.min(maxY, listRoot.y));
+        const minOffset = Math.min(0, tableHeight - contentH);
+        scrollOffset = Math.max(minOffset, Math.min(0, scrollOffset));
+        listRoot.y = tableTop + scrollOffset;
     };
 
     const inTable = (x: number, y: number) =>
@@ -172,7 +191,7 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         }
         dragging = true;
         didDrag = false;
-        dragBaseY = listRoot.y;
+        dragBaseOffset = scrollOffset;
         dragStartPointerY = pointer.y;
     };
     const onPointerMove = (pointer: Phaser.Input.Pointer) =>
@@ -188,8 +207,8 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         }
         if (didDrag)
         {
-            listRoot.y = dragBaseY + dy;
-            clampOffset();
+            scrollOffset = dragBaseOffset + dy;
+            applyScroll();
         }
     };
     const onPointerUp = () =>
@@ -207,18 +226,37 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         {
             return;
         }
-        listRoot.y -= dy * 0.5;
-        clampOffset();
+        scrollOffset -= dy * 0.5;
+        applyScroll();
     };
     ctx.scene.input.on('pointerdown', onPointerDown);
     ctx.scene.input.on('pointermove', onPointerMove);
     ctx.scene.input.on('pointerup', onPointerUp);
     ctx.scene.input.on('wheel', onWheel);
-    const rebuild = () =>
+
+    const storageKey = (counts: ItemCounts): string =>
     {
-        listRoot.removeAll(true);
+        const entries = Object.entries(counts)
+            .filter(([, num]) => (num ?? 0) > 0)
+            .map(([id, num]) => `${id}:${num}`)
+            .sort();
+        return entries.join('|');
+    };
+
+    const rebuild = (force = false) =>
+    {
         const live = getSession();
         const counts = live?.storage ?? {};
+        const key = storageKey(counts);
+        // Survival ticks emit session_updated constantly — skip no-op rebuilds
+        // so scroll position is not torn down mid-drag.
+        if (!force && key === lastStorageKey)
+        {
+            return;
+        }
+        lastStorageKey = key;
+
+        listRoot.removeAll(true);
         const groups = groupStorageItems(counts);
 
         let y = 0;
@@ -278,16 +316,21 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         }
         else
         {
-            contentH = y;
+            // Keep last cell fully inside the clipped well with a little trailing air.
+            contentH = y + 24;
         }
 
-        // Pin to top on rebuild (original first open).
-        listRoot.y = tableTop;
-        clampOffset();
+        // If user is mid-drag, keep their base in sync with preserved offset.
+        if (dragging)
+        {
+            dragBaseOffset = scrollOffset;
+            dragStartPointerY = ctx.scene.input.activePointer?.y ?? dragStartPointerY;
+        }
+        applyScroll();
     };
 
-    rebuild();
-    const onSession = () => rebuild();
+    rebuild(true);
+    const onSession = () => rebuild(false);
     gameBusOn('session_updated', onSession);
 
     return {
@@ -299,7 +342,8 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
             ctx.scene.input.off('pointermove', onPointerMove);
             ctx.scene.input.off('pointerup', onPointerUp);
             ctx.scene.input.off('wheel', onWheel);
-            maskG.destroy();
+            listRoot.filters?.internal.clear();
+            maskRect.destroy();
         },
     };
 }
@@ -367,6 +411,9 @@ function addItemCell (
         {
             return;
         }
-        ctx.showToast(`${resolveItemName(itemId)} ×${num}`);
+        openItemDialog(ctx.scene, itemId, {
+            from: 'storage',
+            onToast: (msg) => ctx.showToast(msg),
+        });
     });
 }

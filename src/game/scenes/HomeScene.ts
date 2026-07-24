@@ -17,6 +17,8 @@ import {
 } from '../systems/survivalLoop';
 import { tickTimeClock } from '../systems/timeClock';
 import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
+import { isDogHouseUnlocked, unlockDogHouse } from '../systems/iapStore';
+import type { NightRaidResult } from '../systems/nightRaidSystem';
 
 /**
  * Port of Buried-City MainScene + HomeNode (web vertical slice).
@@ -86,6 +88,7 @@ export class HomeScene extends Scene
     private homeLayer: GameObjects.Container | null = null;
     private boundRefresh: (() => void) | null = null;
     private boundDied: (() => void) | null = null;
+    private boundNightRaid: ((res: NightRaidResult) => void) | null = null;
 
     constructor ()
     {
@@ -140,11 +143,16 @@ export class HomeScene extends Scene
             this.topFrame?.refresh();
             this.showDeathOverlay();
         };
+        this.boundNightRaid = (res) =>
+        {
+            this.showNightRaidDialog(res);
+        };
 
         gameBusOn('session_updated', this.boundRefresh);
         gameBusOn('time_tick', this.boundRefresh);
         gameBusOn('logChanged', this.boundRefresh);
         gameBusOn('player_died', this.boundDied);
+        gameBusOn('night_raid', this.boundNightRaid);
 
         if (session.isDead)
         {
@@ -184,6 +192,11 @@ export class HomeScene extends Scene
         {
             gameBusOff('player_died', this.boundDied);
             this.boundDied = null;
+        }
+        if (this.boundNightRaid)
+        {
+            gameBusOff('night_raid', this.boundNightRaid);
+            this.boundNightRaid = null;
         }
         stopSurvivalLoop();
         clearActiveUpgrades();
@@ -247,6 +260,30 @@ export class HomeScene extends Scene
             if (level < 0)
             {
                 btn.setAlpha(0.55);
+            }
+
+            // Original: dog house locked until IAP 107.
+            if (spot.bid === 12 && !isDogHouseUnlocked())
+            {
+                btn.setAlpha(0.4);
+                btn.setInteractive({ useHandCursor: true });
+                btn.on('pointerup', () =>
+                {
+                    this.promptDogHouseUnlock();
+                });
+                const lock = this.add
+                    .text(px, py + 18, '锁', {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: '16px',
+                        color: '#ffd27a',
+                    })
+                    .setOrigin(0.5)
+                    .setDepth(3);
+                this.homeLayer?.add(btn);
+                this.homeLayer?.add(lock);
+                this.buildButtons.set(spot.bid, btn);
+                return;
             }
 
             btn.setInteractive({ useHandCursor: true });
@@ -337,9 +374,132 @@ export class HomeScene extends Scene
     }
 
 
+    private promptDogHouseUnlock (): void
+    {
+        // Web slice: free unlock (no payment). Mirrors IAP 107 success path.
+        unlockDogHouse();
+        this.showToast('狗舍已解锁（IAP 107）。可建造狗舍。');
+        const live = getSession();
+        if (live)
+        {
+            const { width, height } = this.scale;
+            this.placeHomeContent(live, width, height);
+        }
+    }
+
+    private showNightRaidDialog (res: NightRaidResult): void
+    {
+        if (!res.happened)
+        {
+            return;
+        }
+        const { width, height } = this.scale;
+        const existing = this.children.list.find(
+            (c) => (c as GameObjects.Container).name === 'nightRaidDialog',
+        );
+        existing?.destroy(true);
+
+        const root = this.add.container(0, 0).setDepth(280);
+        root.setName('nightRaidDialog');
+        const dim = this.add
+            .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
+            .setInteractive();
+        root.add(dim);
+
+        const defended = Boolean(res.defend || res.win);
+        const title = '僵尸夜袭！';
+        const body = defended
+            ? '僵尸潮爆发，小镇到处都是暴躁的僵尸。凭借坚固的防御，你的小屋挺过了冲击，没有任何损失。'
+            : '僵尸潮爆发，小镇到处都是暴躁的僵尸。几个僵尸突破了防御，进到家中大肆破坏。';
+        const lost = (res.items ?? [])
+            .map((it) => `${it.itemId}×${it.num}`)
+            .join('  ');
+
+        root.add(
+            this.add
+                .text(width / 2, height / 2 - 120, title, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: '32px',
+                    color: '#f0e6d2',
+                })
+                .setOrigin(0.5),
+        );
+        root.add(
+            this.add
+                .text(width / 2, height / 2 - 40, body, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: '18px',
+                    color: '#dddddd',
+                    align: 'center',
+                    wordWrap: uiWordWrap(width - 80),
+                })
+                .setOrigin(0.5, 0),
+        );
+        if (!defended && lost)
+        {
+            root.add(
+                this.add
+                    .text(width / 2, height / 2 + 80, `你的损失: ${lost}`, {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: '16px',
+                        color: '#ffb0b0',
+                        align: 'center',
+                        wordWrap: uiWordWrap(width - 80),
+                    })
+                    .setOrigin(0.5, 0),
+            );
+        }
+        if (typeof res.homeDef === 'number')
+        {
+            root.add(
+                this.add
+                    .text(
+                        width / 2,
+                        height / 2 + 140,
+                        `防御 ${res.homeDef} / 攻势 ${res.attackStrength ?? '?'}`,
+                        {
+                            fontFamily: UI_FONT_FAMILY,
+                            resolution: UI_TEXT_RESOLUTION,
+                            fontSize: '14px',
+                            color: '#aaaaaa',
+                        },
+                    )
+                    .setOrigin(0.5),
+            );
+        }
+
+        const close = () => root.destroy(true);
+        dim.on('pointerup', close);
+        root.add(
+            this.add
+                .text(width / 2, height / 2 + 180, '知道了', {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: '20px',
+                    color: '#111111',
+                    backgroundColor: '#e0e0e0',
+                    padding: { x: 16, y: 8 },
+                })
+                .setOrigin(0.5)
+                .setInteractive({ useHandCursor: true })
+                .on('pointerup', close),
+        );
+
+        this.topFrame?.refresh();
+    }
+
     private openFacility (bid: number): void
     {
-        // P0 navigation: storage / gate enter stack nodes; others keep build panel.
+        // Radio is the web-slice cheat console (replaces original online board).
+        // Always open it — do not gate behind bid-15 build level, or QA loses /list /get.
+        if (bid === 15)
+        {
+            this.navHost?.forward(NavNode.RADIO, { bid: 15 });
+            return;
+        }
         if (bid === 13)
         {
             this.navHost?.forward(NavNode.STORAGE, { bid: 13 });

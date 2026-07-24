@@ -70,25 +70,20 @@ function placeChromeCaptions (
     storageN: number,
 ): void
 {
-    const titleY = ctx.bgBottomY - 803;
-    const titleX = ctx.width / 2 - ctx.bgWidth / 2 + 111;
-    const rightEdge = ctx.width / 2 + ctx.bgWidth / 2 - CONTENT_LEFT + 20;
+    // Original BattleAndWorkNode._init:
+    // title left after back; txt1 under title (进度); txt2 right (存放物品).
+    const titleX = ctx.toScreenX(111);
+    const rightEdge = ctx.toScreenX(ctx.bgWidth - CONTENT_LEFT + 20);
+    // actionBarBaseHeight - 4 in Cocos local y-up → slightly below title center.
+    const subY = ctx.toScreenY(803 - 22);
 
-    const titleProbe = ctx.scene.add
-        .text(0, 0, siteName, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-        })
-        .setVisible(false);
-    const progressX = titleX + titleProbe.width + 16;
-    titleProbe.destroy();
+    void siteName; // title is owned by nav host setTitle
 
     if (progress)
     {
         ctx.content.add(
             ctx.scene.add
-                .text(progressX, titleY, progress, {
+                .text(titleX, subY, progress, {
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
@@ -100,7 +95,7 @@ function placeChromeCaptions (
     }
     ctx.content.add(
         ctx.scene.add
-            .text(rightEdge, titleY, `存放物品:${storageN}`, {
+            .text(rightEdge, subY, `存放物品:${storageN}`, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
@@ -167,7 +162,9 @@ export function mountBattleNode (ctx: NodeMountContext): NodeMountResult
     const siteName = cfg?.name ?? '战斗';
 
     ctx.setTitle(siteName, { align: 'left' });
-    ctx.setLeftEnabled(false);
+    // Begin / work choose: back allowed (original leftBtn visible).
+    // Process views disable it themselves.
+    ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
 
     const progress =
@@ -387,6 +384,7 @@ function mountBattleBegin (
     // Host update bridge: while begin view is active, poll for process swap.
     let processHandle: NodeMountResult | null = null;
     return {
+        onLeft: () => ctx.back(),
         update: (deltaMs: number) =>
         {
             const bag = ctx.content as unknown as { __battleProcess?: NodeMountResult };
@@ -770,6 +768,8 @@ function mountBattleProcess (
 {
     clearBattle();
     startBattle(monsters);
+    // Original createBattleProcessView: left_btn_enabled false; no escape button.
+    ctx.setLeftEnabled(false);
 
     const digName = `monster_dig_${Math.max(1, Math.min(12, difficulty))}.png`;
     placeDigHeader(ctx, digName, 'dig_monster');
@@ -865,6 +865,8 @@ function mountBattleProcess (
             }
             // Clear process UI (logs/bar) for end summary.
             ctx.content.removeAll(true);
+            // Original re-enables left button after process.
+            ctx.setLeftEnabled(true);
 
             const site = getSite(siteId);
             const cfg = getSiteConfig(siteId);
@@ -879,13 +881,22 @@ function mountBattleProcess (
             const digName = `monster_dig_${Math.max(1, Math.min(12, difficulty))}.png`;
             const belowDig = placeDigHeader(ctx, digName, 'dig_monster');
 
-            // des: 你成功地消灭了僵尸 / 失败
+            // des: 你成功地消灭了僵尸 / 逃离 / 失败
+            let endTitle = '战斗失败';
+            if (win)
+            {
+                endTitle = sum?.isDodge ? '你甩开了僵尸' : '你成功地消灭了僵尸';
+            }
+            else if (sum?.escaped)
+            {
+                endTitle = '你逃离了战斗';
+            }
             ctx.content.add(
                 ctx.scene.add
                     .text(
                         ctx.width / 2,
                         belowDig + 16,
-                        win ? '你成功地消灭了僵尸' : '战斗失败',
+                        endTitle,
                         {
                             fontFamily: UI_FONT_FAMILY,
                             resolution: UI_TEXT_RESOLUTION,
@@ -899,11 +910,27 @@ function mountBattleProcess (
             const left = ctx.width / 2 - ctx.bgWidth / 2 + CONTENT_LEFT;
             let y = ctx.bgBottomY - 400;
 
-            // 消耗: bullets
             const usedBullets = sum?.bulletsUsed ?? 0;
+            const usedTools = sum?.toolsUsed ?? 0;
+            const toolId = sum?.toolItemId ?? 0;
+            const toolName = toolId ? getItemDef(toolId).name : '';
+            let costLine = '消耗: 无';
+            const costParts: string[] = [];
+            if (usedBullets > 0)
+            {
+                costParts.push(`子弹×${usedBullets}`);
+            }
+            if (usedTools > 0 && toolName)
+            {
+                costParts.push(`${toolName}×${usedTools}`);
+            }
+            if (costParts.length > 0)
+            {
+                costLine = `消耗: ${costParts.join('，')}`;
+            }
             ctx.content.add(
                 ctx.scene.add
-                    .text(left, y, usedBullets > 0 ? `消耗: 子弹×${usedBullets}` : '消耗: 无', {
+                    .text(left, y, costLine, {
                         fontFamily: UI_FONT_FAMILY,
                         resolution: UI_TEXT_RESOLUTION,
                         fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
@@ -913,7 +940,6 @@ function mountBattleProcess (
             );
             y += 28;
 
-            // 损失: 生命 N
             const harm = sum?.playerHarm ?? 0;
             ctx.content.add(
                 ctx.scene.add
@@ -925,6 +951,37 @@ function mountBattleProcess (
                     })
                     .setOrigin(0, 0),
             );
+            y += 28;
+
+            if (sum?.brokenWeapons && sum.brokenWeapons.length > 0)
+            {
+                const names = sum.brokenWeapons.map((id) => getItemDef(id).name).join('、');
+                ctx.content.add(
+                    ctx.scene.add
+                        .text(left, y, `损坏: ${names}`, {
+                            fontFamily: UI_FONT_FAMILY,
+                            resolution: UI_TEXT_RESOLUTION,
+                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                            color: '#ff6666',
+                        })
+                        .setOrigin(0, 0),
+                );
+                y += 28;
+            }
+
+            if (sum?.escaped)
+            {
+                ctx.content.add(
+                    ctx.scene.add
+                        .text(left, y, '你逃离了战场。', {
+                            fontFamily: UI_FONT_FAMILY,
+                            resolution: UI_TEXT_RESOLUTION,
+                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                            color: '#ffcc66',
+                        })
+                        .setOrigin(0, 0),
+                );
+            }
 
             const nextRoom = currentRoom(siteId);
             const siteEnded = Boolean(getSite(siteId)?.ended) || !nextRoom;
