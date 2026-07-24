@@ -232,6 +232,7 @@ export function openStatusDialog (
             .setInteractive({ useHandCursor: false });
         stripListRoot.add(dragSurface);
 
+        const cellHits: Array<{ hit: GameObjects.Rectangle; localX: number }> = [];
         let cursorX = 0;
         for (const row of config.quickItems)
         {
@@ -289,14 +290,21 @@ export function openStatusDialog (
             const itemId = row.itemId;
             hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
             {
-                // Ignore if this was mostly a horizontal scroll drag.
-                if (pointer.getDistance() > 8)
+                // Ignore drag, or cells scrolled outside the strip viewport.
+                if (
+                    pointer.getDistance() > 8
+                    || pointer.x < viewLeft
+                    || pointer.x > viewLeft + viewW
+                    || pointer.y < stripTop
+                    || pointer.y > stripTop + viewH
+                )
                 {
                     return;
                 }
                 config.onQuickItemTap?.(itemId);
             });
             stripListRoot.add(hit);
+            cellHits.push({ hit, localX: cellCenterX });
 
             cursorX += cellPitch;
         }
@@ -305,6 +313,33 @@ export function openStatusDialog (
         const minX = viewLeft - Math.max(0, contentW - viewW);
         const maxX = viewLeft;
 
+        const syncCellInput = () =>
+        {
+            if (!stripListRoot)
+            {
+                return;
+            }
+            // Cell local X is relative to stripListRoot; world X = stripListRoot.x + localX.
+            for (const entry of cellHits)
+            {
+                const worldX = stripListRoot.x + entry.localX;
+                const half = cellSize / 2;
+                const visible =
+                    worldX + half > viewLeft && worldX - half < viewLeft + viewW;
+                if (visible)
+                {
+                    if (!entry.hit.input?.enabled)
+                    {
+                        entry.hit.setInteractive({ useHandCursor: true });
+                    }
+                }
+                else if (entry.hit.input?.enabled)
+                {
+                    entry.hit.disableInteractive();
+                }
+            }
+        };
+
         const clampX = () =>
         {
             if (!stripListRoot)
@@ -312,7 +347,9 @@ export function openStatusDialog (
                 return;
             }
             stripListRoot.x = Math.min(maxX, Math.max(minX, stripListRoot.x));
+            syncCellInput();
         };
+        syncCellInput();
 
         let dragging = false;
         let dragBaseX = viewLeft;

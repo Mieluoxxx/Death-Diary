@@ -168,12 +168,37 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
     let dragging = false;
     let didDrag = false;
     let lastStorageKey = '';
+    /** Cell hits toggled with scroll so out-of-view cells don't steal input. */
+    const cellHits: Array<{ hit: Phaser.GameObjects.Rectangle; localY: number }> = [];
+
+    const syncCellInput = () =>
+    {
+        for (const entry of cellHits)
+        {
+            const worldY = listRoot.y + entry.localY;
+            const half = ITEM_CELL_PITCH_Y / 2;
+            const visible =
+                worldY + half > tableTop && worldY - half < tableTop + tableHeight;
+            if (visible)
+            {
+                if (!entry.hit.input?.enabled)
+                {
+                    entry.hit.setInteractive({ useHandCursor: true });
+                }
+            }
+            else if (entry.hit.input?.enabled)
+            {
+                entry.hit.disableInteractive();
+            }
+        }
+    };
 
     const applyScroll = () =>
     {
         const minOffset = Math.min(0, tableHeight - contentH);
         scrollOffset = Math.max(minOffset, Math.min(0, scrollOffset));
         listRoot.y = tableTop + scrollOffset;
+        syncCellInput();
     };
 
     const inTable = (x: number, y: number) =>
@@ -257,8 +282,8 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         lastStorageKey = key;
 
         listRoot.removeAll(true);
+        cellHits.length = 0;
         const groups = groupStorageItems(counts);
-
         let y = 0;
         let any = false;
 
@@ -294,7 +319,7 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
                 const cx = col * ITEM_CELL_PITCH_X + ITEM_CELL_PITCH_X / 2;
                 // ItemSection places cells from top of grid area downward.
                 const cy = gridTop + r * ITEM_CELL_PITCH_Y + ITEM_CELL_PITCH_Y / 2;
-                addItemCell(ctx, listRoot, cx, cy, row.itemId, row.num);
+                addItemCell(ctx, listRoot, cx, cy, row.itemId, row.num, cellHits);
             });
 
             y += sectionH;
@@ -355,6 +380,7 @@ function addItemCell (
     cy: number,
     itemId: number,
     num: number,
+    cellHits?: Array<{ hit: Phaser.GameObjects.Rectangle; localY: number }>,
 ): void
 {
     const cell = ctx.scene.add.container(cx, cy);
@@ -416,4 +442,5 @@ function addItemCell (
             onToast: (msg) => ctx.showToast(msg),
         });
     });
+    cellHits?.push({ hit, localY: cy });
 }
