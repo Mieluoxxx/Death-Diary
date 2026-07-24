@@ -3,10 +3,12 @@ import {
     attrRatio,
     formatClock,
     getSession,
+    type ItemCounts,
     type SessionState,
 } from '../session/sessionStore';
 import { getLanguage } from '../settings/settingsStore';
-import { openStatusDialog } from './dialogSmall';
+import { openStatusDialog, type StatusQuickItem } from './dialogSmall';
+import { openItemDialog } from './itemDialog';
 import { openSettingLayer } from './settingLayer';
 import {
     ATTR_STATUS_ID,
@@ -50,6 +52,53 @@ function sizeStatusIcon (image: GameObjects.Image): GameObjects.Image
     image.setScale(ICON_SCALE);
     return image;
 }
+
+/** Original topFrame getItemsByType prefix filter for attr quick-use. */
+function countsByPrefix (counts: ItemCounts, prefix: string): StatusQuickItem[]
+{
+    const out: StatusQuickItem[] = [];
+    for (const [idText, num] of Object.entries(counts))
+    {
+        if (num <= 0)
+        {
+            continue;
+        }
+        if (!idText.startsWith(prefix))
+        {
+            continue;
+        }
+        const itemId = Number(idText);
+        if (!Number.isFinite(itemId))
+        {
+            continue;
+        }
+        out.push({ itemId, num });
+    }
+    out.sort((a, b) => a.itemId - b.itemId);
+    return out;
+}
+
+function quickItemsForAttr (attr: AttrKeyLocal, session: SessionState): StatusQuickItem[]
+{
+    // Original: at home → storage; outdoors → bag.
+    const bag = session.isAtHome ? session.storage : session.bag;
+    if (attr === 'starve')
+    {
+        return countsByPrefix(bag, '1103');
+    }
+    if (attr === 'infect')
+    {
+        // Medicines except bandage.
+        return countsByPrefix(bag, '1104').filter((row) => row.itemId !== 1104011);
+    }
+    if (attr === 'injury')
+    {
+        // Bandage only.
+        return countsByPrefix(bag, '1104').filter((row) => row.itemId === 1104011);
+    }
+    return [];
+}
+
 
 type AttrFillEntry = {
     fill: GameObjects.Image;
@@ -494,12 +543,26 @@ export function addTopFrame (
             const live = getSession() ?? session;
             const stringId = ATTR_STATUS_ID[def.key];
             const copy = getStatusCopy(stringId, lan);
+            const quickItems = quickItemsForAttr(def.key, live);
             openStatusDialog(scene, {
                 iconFrame: `icon_${def.key}_0.png`,
                 iconAtlas: 'icon',
                 title: copy.title,
                 currentLine: formatCurrentValue(formatAttrValue(def.key, live), lan),
                 description: copy.des,
+                quickItems,
+                onQuickItemTap: (itemId) =>
+                {
+                    // Original: tap strip cell → showItemDialog(..., source 'top').
+                    openItemDialog(scene, itemId, {
+                        from: 'top',
+                        onToast: (msg) =>
+                        {
+                            // Lightweight feedback; status strip refreshes on reopen.
+                            void msg;
+                        },
+                    });
+                },
             });
         });
     });

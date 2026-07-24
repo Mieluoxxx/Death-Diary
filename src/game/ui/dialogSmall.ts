@@ -26,6 +26,11 @@ const ACTION_HEIGHT = 72;
 const LEFT_EDGE = 20;
 const ICON_SCALE = 0.5;
 
+export type StatusQuickItem = {
+    itemId: number;
+    num: number;
+};
+
 export type StatusDialogConfig = {
     iconFrame?: string | null;
     iconAtlas?: 'icon' | 'ui';
@@ -33,6 +38,12 @@ export type StatusDialogConfig = {
     /** Already formatted value line, e.g. "当前:1" */
     currentLine: string;
     description: string;
+    /**
+     * Optional horizontal quick-use strip (original createItemListSliders).
+     * Used by starve / infect / injury attr dialogs.
+     */
+    quickItems?: StatusQuickItem[];
+    onQuickItemTap?: (itemId: number) => void;
 };
 
 export function openStatusDialog (
@@ -151,8 +162,14 @@ export function openStatusDialog (
     root.add(currentText);
 
     // Description only in contentNode (height = dialog - title - action).
+    // Leave a bottom band for the quick-item strip when present (original 100px table).
+    const hasQuickItems = (config.quickItems?.length ?? 0) > 0;
+    const quickStripH = hasQuickItems ? 100 : 0;
     const desPadTop = 5;
-    const desMaxHeight = Math.max(40, contentHeight - desPadTop - 8);
+    const desMaxHeight = Math.max(
+        40,
+        contentHeight - desPadTop - 8 - (hasQuickItems ? quickStripH + 4 : 0),
+    );
     // Line height ≈ fontSize + lineSpacing; cap lines so copy stays in content band.
     const desLineHeight = UI_FONT_SIZE.COMMON_3 + 4;
     const desMaxLines = Math.max(1, Math.floor(desMaxHeight / desLineHeight));
@@ -179,8 +196,206 @@ export function openStatusDialog (
 
     root.add(des);
 
+    // Horizontal item strip (original TableView 400×100 at content bottom).
+    // All items are laid out; overflow scrolls with drag/wheel under a FilterMask.
+    let stripMaskRect: GameObjects.Rectangle | null = null;
+    let stripListRoot: GameObjects.Container | null = null;
+    if (hasQuickItems && config.quickItems)
+    {
+        const stripTop = contentBottomY - quickStripH;
+        const cellSize = 84;
+        const cellPitch = 100;
+        const viewW = 400;
+        const viewH = quickStripH;
+        const viewLeft = bgLeft + 20;
+        const viewCenterX = viewLeft + viewW / 2;
+        const viewCenterY = stripTop + viewH / 2;
+
+        stripListRoot = scene.add.container(viewLeft, stripTop);
+        root.add(stripListRoot);
+
+        stripMaskRect = scene.add
+            .rectangle(viewCenterX, viewCenterY, viewW, viewH, 0xffffff)
+            .setVisible(false);
+        root.add(stripMaskRect);
+        stripListRoot.enableFilters();
+        stripListRoot.filters?.internal.addMask(
+            stripMaskRect,
+            false,
+            scene.cameras.main,
+            'world',
+        );
+
+        // Invisible drag surface so empty strip area also scrolls.
+        const dragSurface = scene.add
+            .rectangle(viewW / 2, viewH / 2, viewW, viewH, 0xffffff, 0.001)
+            .setInteractive({ useHandCursor: false });
+        stripListRoot.add(dragSurface);
+
+        let cursorX = 0;
+        for (const row of config.quickItems)
+        {
+            const cellCenterX = cursorX + cellSize / 2;
+            const cellCenterY = viewH / 2;
+
+            if (scene.textures.exists('ui') && scene.textures.get('ui').has('item_bg.png'))
+            {
+                stripListRoot.add(
+                    scene.add
+                        .image(cellCenterX, cellCenterY, 'ui', 'item_bg.png')
+                        .setDisplaySize(cellSize, cellSize),
+                );
+            }
+            else
+            {
+                stripListRoot.add(
+                    scene.add
+                        .rectangle(cellCenterX, cellCenterY, cellSize, cellSize, 0x3a342c)
+                        .setStrokeStyle(1, 0x222222),
+                );
+            }
+
+            const iconFrame = `icon_item_${row.itemId}.png`;
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
+            {
+                stripListRoot.add(
+                    scene.add
+                        .image(cellCenterX, cellCenterY, 'icon', iconFrame)
+                        .setDisplaySize(cellSize * 0.72, cellSize * 0.72),
+                );
+            }
+
+            stripListRoot.add(
+                scene.add
+                    .text(
+                        cellCenterX + cellSize / 2 - 4,
+                        cellCenterY + cellSize / 2 - 4,
+                        String(row.num),
+                        {
+                            fontFamily: UI_FONT_FAMILY,
+                            resolution: UI_TEXT_RESOLUTION,
+                            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                            color: '#ffffff',
+                            stroke: '#000000',
+                            strokeThickness: 3,
+                        },
+                    )
+                    .setOrigin(1, 1),
+            );
+
+            const hit = scene.add
+                .rectangle(cellCenterX, cellCenterY, cellSize, cellSize, 0xffffff, 0.001)
+                .setInteractive({ useHandCursor: true });
+            const itemId = row.itemId;
+            hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
+            {
+                // Ignore if this was mostly a horizontal scroll drag.
+                if (pointer.getDistance() > 8)
+                {
+                    return;
+                }
+                config.onQuickItemTap?.(itemId);
+            });
+            stripListRoot.add(hit);
+
+            cursorX += cellPitch;
+        }
+
+        const contentW = Math.max(viewW, config.quickItems.length * cellPitch);
+        const minX = viewLeft - Math.max(0, contentW - viewW);
+        const maxX = viewLeft;
+
+        const clampX = () =>
+        {
+            if (!stripListRoot)
+            {
+                return;
+            }
+            stripListRoot.x = Math.min(maxX, Math.max(minX, stripListRoot.x));
+        };
+
+        let dragging = false;
+        let dragBaseX = viewLeft;
+        let dragStartPointerX = 0;
+
+        const onPointerDown = (pointer: Phaser.Input.Pointer) =>
+        {
+            if (
+                pointer.x < viewLeft
+                || pointer.x > viewLeft + viewW
+                || pointer.y < stripTop
+                || pointer.y > stripTop + viewH
+            )
+            {
+                return;
+            }
+            dragging = true;
+            dragBaseX = stripListRoot?.x ?? viewLeft;
+            dragStartPointerX = pointer.x;
+        };
+        const onPointerMove = (pointer: Phaser.Input.Pointer) =>
+        {
+            if (!dragging || !pointer.isDown || !stripListRoot)
+            {
+                return;
+            }
+            stripListRoot.x = dragBaseX + (pointer.x - dragStartPointerX);
+            clampX();
+        };
+        const onPointerUp = () =>
+        {
+            dragging = false;
+        };
+        const onWheel = (
+            pointer: Phaser.Input.Pointer,
+            _over: unknown,
+            _dx: number,
+            dy: number,
+        ) =>
+        {
+            if (
+                !stripListRoot
+                || pointer.x < viewLeft
+                || pointer.x > viewLeft + viewW
+                || pointer.y < stripTop
+                || pointer.y > stripTop + viewH
+            )
+            {
+                return;
+            }
+            // Vertical wheel scrolls the strip sideways (common touchpad path).
+            stripListRoot.x -= dy;
+            clampX();
+        };
+
+        scene.input.on('pointerdown', onPointerDown);
+        scene.input.on('pointermove', onPointerMove);
+        scene.input.on('pointerup', onPointerUp);
+        scene.input.on('wheel', onWheel);
+
+        // Stash cleanup on root so dismiss can unhook listeners.
+        (root as GameObjects.Container & {
+            __stripCleanup?: () => void;
+        }).__stripCleanup = () =>
+        {
+            scene.input.off('pointerdown', onPointerDown);
+            scene.input.off('pointermove', onPointerMove);
+            scene.input.off('pointerup', onPointerUp);
+            scene.input.off('wheel', onWheel);
+            stripListRoot?.filters?.internal.clear();
+            stripMaskRect?.destroy();
+            stripListRoot = null;
+            stripMaskRect = null;
+        };
+    }
+
+
     const dismiss = () =>
     {
+        const withCleanup = root as GameObjects.Container & {
+            __stripCleanup?: () => void;
+        };
+        withCleanup.__stripCleanup?.();
         root.destroy(true);
     };
 

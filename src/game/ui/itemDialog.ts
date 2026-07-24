@@ -72,7 +72,13 @@ function countInSource (itemId: number, from: ItemDialogSource): number
     {
         return session.bag[itemId] ?? 0;
     }
-    // storage / site / top / bottom default to home warehouse for this slice.
+    if (from === 'top')
+    {
+        // Original topFrame: home → storage, outdoors → bag.
+        const bag = session.isAtHome ? session.storage : session.bag;
+        return bag[itemId] ?? 0;
+    }
+    // storage / site / bottom default to home warehouse for this slice.
     return session.storage[itemId] ?? 0;
 }
 
@@ -231,11 +237,21 @@ export function openItemDialog (
 
     const canUse =
         !options.showOnly
-        && (from === 'storage' || from === 'bag')
+        && (from === 'storage' || from === 'bag' || from === 'top')
         && isUsableItem(itemId)
         && count > 0;
 
-    const useFrom: ItemUseSource = from === 'bag' ? 'bag' : 'storage';
+    // top: use from storage at home, bag outdoors (mirrors original topFrame).
+    let useFrom: ItemUseSource = 'storage';
+    if (from === 'bag')
+    {
+        useFrom = 'bag';
+    }
+    else if (from === 'top')
+    {
+        const live = getSession();
+        useFrom = live && !live.isAtHome ? 'bag' : 'storage';
+    }
 
     const onUse = () =>
     {
