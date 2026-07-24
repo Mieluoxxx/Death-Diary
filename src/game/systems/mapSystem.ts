@@ -3,26 +3,27 @@
  * Ports map.js / site.js subset: unlock, genRooms, roomEnd, travel arrive.
  */
 
-import {
-    HOME_SITE_ID,
-    STARTER_SITE_ID,
-    getSiteConfig,
-    mapDistance,
-    travelTimeSeconds,
-    type SiteLoot,
-} from '../data/siteConfig';
 import { rollMonsterList } from '../data/monsterConfig';
 import {
+    getSiteConfig,
+    HOME_SITE_ID,
+    mapDistance,
+    type SiteLoot,
+    STARTER_SITE_ID,
+    travelTimeSeconds,
+} from '../data/siteConfig';
+import {
+    appendSessionLog,
     applyGameTimeToSession,
     getSession,
+    getStageFromHour,
     mutateSession,
-    appendSessionLog,
+    type SessionState,
     type SiteRoom,
     type SiteState,
-    type SessionState,
 } from '../session/sessionStore';
-import { flushBagToStorage } from './inventory';
 import { gameBusEmit } from './gameBus';
+import { flushBagToStorage } from './inventory';
 
 export function defaultMapState (): SessionState['map']
 {
@@ -296,8 +297,55 @@ export type TravelPlan = {
     siteId: number;
     distance: number;
     gameSeconds: number;
+    /** Wall-clock seconds for actor tween (original Actor.move duration). */
+    realSeconds: number;
     name: string;
 };
+
+/** Original RandomBattleConfig.distance — check interval in map units. */
+const RANDOM_BATTLE_DISTANCE = 100;
+const RANDOM_BATTLE_BY_STAGE = {
+    day: { probability: 0.1, difficulty: [1, 3] as const },
+    night: { probability: 0.3, difficulty: [2, 4] as const },
+} as const;
+
+export type TravelEncounter = {
+    difficulty: number;
+    monsters: number[];
+};
+
+/**
+ * Roll roadside encounters over a travel distance.
+ * Original: every RandomBattleConfig.distance units, stage-weighted probability.
+ * Returns the first hit (P0: single overlay), or null.
+ */
+export function rollTravelEncounter (distance: number): TravelEncounter | null
+{
+    const session = getSession();
+    if (!session || distance < RANDOM_BATTLE_DISTANCE)
+    {
+        return null;
+    }
+
+    const stage = getStageFromHour(session.hour);
+    const config = RANDOM_BATTLE_BY_STAGE[stage];
+    const checks = Math.floor(distance / RANDOM_BATTLE_DISTANCE);
+    for (let i = 0; i < checks; i++)
+    {
+        if (Math.random() > config.probability)
+        {
+            continue;
+        }
+        const [minDiff, maxDiff] = config.difficulty;
+        const difficulty =
+            minDiff + Math.floor(Math.random() * (maxDiff - minDiff + 1));
+        // P0 monster packs only cover difficulty 1; clamp for pack lookup.
+        const monsters = rollMonsterList(Math.min(difficulty, 1));
+        appendSessionLog('遭遇僵尸！');
+        return { difficulty, monsters };
+    }
+    return null;
+}
 
 export function planTravel (siteId: number): TravelPlan | null
 {
@@ -312,10 +360,14 @@ export function planTravel (siteId: number): TravelPlan | null
         return null;
     }
     const distance = mapDistance(session.map.pos, cfg.coordinate);
+    const gameSeconds = Math.max(1, Math.round(travelTimeSeconds(distance)));
+    // Keep actor tween short; original scales real duration with velocity.
+    const realSeconds = Math.min(8, Math.max(1.5, gameSeconds / 1800));
     return {
         siteId,
         distance,
-        gameSeconds: Math.max(1, Math.round(travelTimeSeconds(distance))),
+        gameSeconds,
+        realSeconds,
         name: cfg.name,
     };
 }
@@ -352,7 +404,7 @@ export function travelTo (siteId: number, onArrived?: () => void): boolean
 export function fillTempLootFromRoom (siteId: number): SiteLoot[]
 {
     const room = currentRoom(siteId);
-    if (!room || room.type !== 'work')
+    if (room?.type !== 'work')
     {
         return [];
     }

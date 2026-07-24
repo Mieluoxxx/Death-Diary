@@ -5,38 +5,38 @@
  *   empty list → "无"; weapon always has 拳头(HAND); lines show weight/余量/速度.
  */
 
-import { GameObjects } from 'phaser';
+import type { GameObjects } from 'phaser';
 import {
-    HAND_ITEM_ID,
-    getItemDef,
-    itemsForSlot,
     type EquipSlot,
+    getItemDef,
+    HAND_ITEM_ID,
+    itemsForSlot,
 } from '../../data/itemConfig';
 import { getSession } from '../../session/sessionStore';
+import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import {
+    type EquipPos,
     EquipPosMap,
     equipItem,
     getBagCapacity,
     getBagWeight,
     getCount,
     transferItems,
-    type EquipPos,
 } from '../../systems/inventory';
 import { playerOut } from '../../systems/mapSystem';
-import { gameBusOn, gameBusOff } from '../../systems/gameBus';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
-import {
-    mountItemGrid,
-    resolveItemName,
-    transferFailMessage,
-    ITEM_GRID_COLUMNS,
-} from './itemGrid';
 import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
     UI_TEXT_RESOLUTION,
 } from '../uiFont';
+import {
+    ITEM_GRID_COLUMNS,
+    mountItemGrid,
+    resolveItemName,
+    transferFailMessage,
+} from './itemGrid';
 
 const SLOT_KIND: Record<EquipPos, EquipSlot> = {
     0: 'gun',
@@ -315,7 +315,7 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         {
             const lineY = DROP_VPAD + index * LINE_H + LINE_H / 2;
             const line = buildDropLine(itemId, lineY);
-            dropRoot!.add(line);
+            dropRoot?.add(line);
 
             if (index > 0)
             {
@@ -331,11 +331,11 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
                         'frame_tab_line.png',
                     );
                     sep.setDisplaySize(DROP_W - 40, 2);
-                    dropRoot!.add(sep);
+                    dropRoot?.add(sep);
                 }
                 else
                 {
-                    dropRoot!.add(
+                    dropRoot?.add(
                         ctx.scene.add.rectangle(
                             0,
                             DROP_VPAD + index * LINE_H,

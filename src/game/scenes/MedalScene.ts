@@ -1,16 +1,16 @@
 import { Scene } from 'phaser';
-import { addAtlasButton } from '../ui/atlasButton';
 import {
     getCompletedMedalId,
     getMedalMap,
     getNowMedalId,
     getStarFrameForMedal,
     initMedal,
-    markMedalWarned,
     type MedalId,
     type MedalSeriesIndex,
+    markMedalWarned,
 } from '../medal/medalStore';
-import { getLanguage, t, type LangCode } from '../settings/settingsStore';
+import { getLanguage, type LangCode, t } from '../settings/settingsStore';
+import { addAtlasButton } from '../ui/atlasButton';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
 
 /**

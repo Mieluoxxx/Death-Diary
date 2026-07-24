@@ -13,11 +13,22 @@ export type TalentId = 0 | 101 | 102 | 103 | 104;
 export type PlayerAttrs = {
     hp: number;
     hpMax: number;
+    /** Base max before injury/buff (original hpMaxOrigin). */
+    hpMaxOrigin: number;
     injury: number;
     infect: number;
     starve: number;
     vigour: number;
     spirit: number;
+};
+
+/** Active survival buff (one at a time; original BuffManager). */
+export type SessionBuff = {
+    itemId: number;
+    /** Remaining duration in game seconds. */
+    remainingSeconds: number;
+    /** Max-HP bonus for serum buff; 0 for immunity buffs. */
+    value: number;
 };
 
 export type SessionLogEntry = {
@@ -111,19 +122,35 @@ export type SessionState = {
     dogStarveMax: number;
     /** Electric fence (bid 19) fuel/active flag for Yazi auto-defend. */
     electricFenceActive: boolean;
+    /** Medicine gate: blocks infect→infect/spirit band for 24h. */
+    cured: boolean;
+    cureTime: number;
+    /** Bandage gate: blocks injury→infect/spirit band for 24h. */
+    binded: boolean;
+    bindTime: number;
+    /** Weather streak counter (original weather.lastDays). */
+    weatherLastDays: number;
+    /** Active item buff (serum / immunity). */
+    buff: SessionBuff | null;
+    /**
+     * Bonfire (bid 5) fuel units remaining. Active when > 0 → +temp.
+     * Original BonfireBuildAction.fuel.
+     */
+    bonfireFuel: number;
 };
 
 const STORAGE_KEY = 'buried_city_session_v3';
 const MAX_LOG_ENTRIES = 40;
 
 const DEFAULT_ATTRS: PlayerAttrs = {
-    hp: 100,
-    hpMax: 100,
+    hp: 240,
+    hpMax: 240,
+    hpMaxOrigin: 240,
     injury: 0,
     infect: 0,
-    starve: 80,
-    vigour: 80,
-    spirit: 80,
+    starve: 50,
+    vigour: 100,
+    spirit: 100,
 };
 
 const SECONDS_PER_DAY = 24 * 60 * 60;
@@ -303,7 +330,7 @@ function normalizeSession (raw: SessionState): SessionState
         season: raw.season ?? 0,
         weatherId: raw.weatherId ?? 0,
         temperature: raw.temperature ?? 18,
-        attrs: { ...DEFAULT_ATTRS, ...(raw.attrs ?? {}) },
+        attrs: normalizeAttrs(raw.attrs),
         buildLevels,
         storage: raw.storage ?? defaultStorage(),
         bag: raw.bag ?? defaultBag(),
@@ -322,9 +349,65 @@ function normalizeSession (raw: SessionState): SessionState
         dogStarve: typeof raw.dogStarve === 'number' ? raw.dogStarve : 0,
         dogStarveMax: typeof raw.dogStarveMax === 'number' ? raw.dogStarveMax : 50,
         electricFenceActive: Boolean(raw.electricFenceActive),
+        cured: Boolean(raw.cured),
+        cureTime: typeof raw.cureTime === 'number' ? raw.cureTime : 0,
+        binded: Boolean(raw.binded),
+        bindTime: typeof raw.bindTime === 'number' ? raw.bindTime : 0,
+        weatherLastDays: typeof raw.weatherLastDays === 'number' ? raw.weatherLastDays : 0,
+        buff: normalizeBuff(raw.buff),
+        bonfireFuel: typeof raw.bonfireFuel === 'number' ? Math.max(0, raw.bonfireFuel) : 0,
     };
+    // Buff may raise hpMax after attrs hydrate.
+    if (session.buff && session.buff.itemId === 1107012 && session.buff.remainingSeconds > 0)
+    {
+        const origin = session.attrs.hpMaxOrigin;
+        session.attrs.hpMax = Math.max(
+            1,
+            origin + session.buff.value - Math.floor(session.attrs.injury),
+        );
+        session.attrs.hp = Math.min(session.attrs.hp, session.attrs.hpMax);
+    }
     applyGameTimeToSession(session, gameTime);
     return session;
+}
+
+function normalizeAttrs (raw: Partial<PlayerAttrs> | undefined): PlayerAttrs
+{
+    const merged: PlayerAttrs = {
+        ...DEFAULT_ATTRS,
+        ...(raw ?? {}),
+    };
+    if (typeof merged.hpMaxOrigin !== 'number' || !Number.isFinite(merged.hpMaxOrigin))
+    {
+        // Legacy saves without origin: treat current max as origin floor at 100+.
+        merged.hpMaxOrigin = Math.max(100, merged.hpMax || DEFAULT_ATTRS.hpMaxOrigin);
+    }
+    const injury = Math.max(0, merged.injury || 0);
+    merged.injury = injury;
+    merged.hpMax = Math.max(1, merged.hpMaxOrigin - Math.floor(injury));
+    merged.hp = Math.min(merged.hp, merged.hpMax);
+    return merged;
+}
+
+function normalizeBuff (raw: SessionBuff | null | undefined): SessionBuff | null
+{
+    if (!raw || typeof raw !== 'object')
+    {
+        return null;
+    }
+    if (typeof raw.itemId !== 'number' || typeof raw.remainingSeconds !== 'number')
+    {
+        return null;
+    }
+    if (raw.remainingSeconds <= 0)
+    {
+        return null;
+    }
+    return {
+        itemId: raw.itemId,
+        remainingSeconds: raw.remainingSeconds,
+        value: typeof raw.value === 'number' ? raw.value : 0,
+    };
 }
 
 function normalizeEquip (raw: EquipState | undefined): EquipState
@@ -409,6 +492,13 @@ export function createNewSession (role: RoleKey, talent: TalentId): SessionState
         dogStarve: 0,
         dogStarveMax: 50,
         electricFenceActive: false,
+        cured: false,
+        cureTime: 0,
+        binded: false,
+        bindTime: 0,
+        weatherLastDays: 0,
+        buff: null,
+        bonfireFuel: 0,
     });
     activeSession = session;
     persistSession(session);
@@ -571,7 +661,7 @@ export function attrRatio (session: SessionState, attr: keyof PlayerAttrs): numb
     {
         return session.attrs.hp / Math.max(1, session.attrs.hpMax);
     }
-    if (attr === 'hpMax')
+    if (attr === 'hpMax' || attr === 'hpMaxOrigin')
     {
         return 1;
     }

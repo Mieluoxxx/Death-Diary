@@ -7,17 +7,17 @@ import {
     BASE_BAG_WEIGHT,
     BIG_BAG_ID,
     BULLET_ID,
-    FALCON_ID,
-    HAND_ITEM_ID,
-    SMALL_BAG_ID,
-    getItemDef,
-    itemWeight,
     type EquipSlot,
+    FALCON_ID,
+    getItemDef,
+    HAND_ITEM_ID,
+    itemWeight,
+    SMALL_BAG_ID,
 } from '../data/itemConfig';
 import {
     getSession,
-    mutateSession,
     type ItemCounts,
+    mutateSession,
     type SessionState,
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';

@@ -1,22 +1,22 @@
-import { Scene, GameObjects } from 'phaser';
+import type { GameObjects, Scene } from 'phaser';
 import {
     attrRatio,
     formatClock,
     getSession,
     type SessionState,
 } from '../session/sessionStore';
-import { openSettingLayer } from './settingLayer';
+import { getLanguage } from '../settings/settingsStore';
 import { openStatusDialog } from './dialogSmall';
+import { openSettingLayer } from './settingLayer';
 import {
     ATTR_STATUS_ID,
+    type AttrKey,
     formatAttrValue,
     formatCurrentValue,
     formatStatusValue,
     getStatusCopy,
-    type AttrKey,
     type StatusInfoId,
 } from './statusCopy';
-import { getLanguage } from '../settings/settingsStore';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 /**

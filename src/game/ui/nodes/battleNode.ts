@@ -6,10 +6,19 @@
  * Logs use original approach strings from battleSystem (1045/1046/…).
  */
 
-import { GameObjects } from 'phaser';
-import { HAND_ITEM_ID, getItemDef } from '../../data/itemConfig';
+import type { GameObjects } from 'phaser';
+import { getItemDef, HAND_ITEM_ID } from '../../data/itemConfig';
 import { getSiteConfig } from '../../data/siteConfig';
 import { getSession } from '../../session/sessionStore';
+import {
+    type BattleLogEntry,
+    clearBattle,
+    forceEndBattle,
+    getActiveBattle,
+    startBattle,
+    tickBattle,
+} from '../../systems/battleSystem';
+import { EquipPosMap } from '../../systems/inventory';
 import {
     currentRoom,
     fillTempLootFromRoom,
@@ -17,15 +26,7 @@ import {
     roomEnd,
     siteStorageCount,
 } from '../../systems/mapSystem';
-import {
-    clearBattle,
-    forceEndBattle,
-    getActiveBattle,
-    startBattle,
-    tickBattle,
-    type BattleLogEntry,
-} from '../../systems/battleSystem';
-import { EquipPosMap } from '../../systems/inventory';
+import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import {
@@ -34,7 +35,6 @@ import {
     UI_TEXT_RESOLUTION,
     uiWordWrap,
 } from '../uiFont';
-import { addAtlasButton } from '../atlasButton';
 
 const LOG_LINES = 7;
 const LOG_STEP = 50;

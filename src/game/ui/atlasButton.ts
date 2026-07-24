@@ -1,4 +1,4 @@
-import { Scene, GameObjects } from 'phaser';
+import type { GameObjects, Scene } from 'phaser';
 import { uiSpriteBtnTextStyle } from './uiFont';
 
 export type AtlasButton = GameObjects.Container & {

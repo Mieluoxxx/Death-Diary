@@ -20,7 +20,8 @@ import {
 } from '../session/sessionStore';
 import { checkVigourOk } from './buildSystem';
 import { gameBusEmit } from './gameBus';
-import { changeHp, changeSpirit, changeVigour } from './playerAttrs';
+import { changeSpirit } from './playerAttrs';
+import { addBonfireFuel } from './survivalLoop';
 import {
     accelerateWorkTime,
     addTimerCallback,
@@ -262,6 +263,26 @@ export function listFacilityActions (bid: number): FacilityActionView[]
         }];
     }
 
+    // Bonfire / fireplace (5)
+    if (bid === 5 && level >= 0)
+    {
+        const fuel = session.bonfireFuel ?? 0;
+        const rows = costRowsFor([{ itemId: 1101011, num: 1 }]);
+        const okCost = rows.every((r) => r.ok);
+        return [{
+            bid,
+            actionId: 0,
+            iconHint: 'build_5_0.png',
+            isActioning: fuel > 0,
+            percentage: fuel > 0 ? Math.min(100, (fuel / 6) * 100) : 0,
+            hint: fuel > 0 ? `燃烧中 燃料${fuel}/6` : '添加木材生火取暖',
+            hintColor: fuel > 0 ? 'white' : 'gray',
+            costRows: rows,
+            actionLabel: fuel >= 6 ? '燃料已满' : '添柴',
+            actionDisabled: fuel >= 6 || !okCost,
+        }];
+    }
+
     // Minefield (17)
     if (bid === 17 && level >= 0)
     {
@@ -311,6 +332,12 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         return { ok: false, msg: '无存档' };
     }
 
+    // Bonfire add fuel
+    if (bid === 5)
+    {
+        return addBonfireFuel();
+    }
+
     // Bed sleep
     if (bid === 9)
     {
@@ -356,8 +383,7 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
             },
         });
         accelerateWorkTime(gameSeconds);
-        changeVigour(Math.ceil(hours * 4));
-        changeHp(Math.ceil(hours * 2));
+        // HP/vigour recovery is applied hourly by survivalLoop while isInSleep.
         gameBusEmit('facility_changed', { bid });
         gameBusEmit('session_updated');
         return { ok: true, msg: `睡了约${hours}小时` };

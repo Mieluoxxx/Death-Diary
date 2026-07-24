@@ -67,7 +67,7 @@ export const PLAYER_ATTR_EFFECT: AttrEffectTable = {
 export function isValueInRange (value: number, rangeText: string): boolean
 {
     const trimmed = rangeText.trim();
-    const match = trimmed.match(/^([\[(])\s*([^,]+)\s*,\s*([^)\]]+)\s*([)\]])$/);
+    const match = trimmed.match(/^([[(])\s*([^,]+)\s*,\s*([^)\]]+)\s*([)\]])$/);
     if (!match)
     {
         return false;

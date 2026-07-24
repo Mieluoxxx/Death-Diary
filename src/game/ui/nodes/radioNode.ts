@@ -12,13 +12,13 @@
  * - drag + wheel move the container, never draw outside the well
  */
 
-import { mutateSession, type ItemCounts } from '../../session/sessionStore';
 import {
+    RADIO_ITEM_CATALOG,
     radioGroupedListText,
     radioItemIds,
     radioItemName,
-    RADIO_ITEM_CATALOG,
 } from '../../data/radioItemCatalog';
+import { type ItemCounts, mutateSession } from '../../session/sessionStore';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import {
     UI_FONT_FAMILY,

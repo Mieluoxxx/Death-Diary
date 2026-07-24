@@ -1,8 +1,9 @@
 import { AUTO, Game, Scale } from 'phaser';
 import { Boot } from './scenes/Boot';
 import { ChooseScene } from './scenes/ChooseScene';
+import { DeathScene } from './scenes/DeathScene';
+import { EndScene } from './scenes/EndScene';
 import { Game as MainGame } from './scenes/Game';
-import { GameOver } from './scenes/GameOver';
 import { HomeScene } from './scenes/HomeScene';
 import { MainMenu } from './scenes/MainMenu';
 import { MedalScene } from './scenes/MedalScene';
@@ -45,8 +46,9 @@ const config: Phaser.Types.Core.GameConfig = {
         ChooseScene,
         StoryScene,
         HomeScene,
+        DeathScene,
+        EndScene,
         MainGame,
-        GameOver,
     ],
 };
 

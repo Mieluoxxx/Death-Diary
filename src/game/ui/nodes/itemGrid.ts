@@ -2,11 +2,11 @@
  * Item grid — match Cocos ItemCell 84×84 / ItemSection pitch 110×100 / 5 cols.
  */
 
-import { Scene, GameObjects } from 'phaser';
-import { getItemDef } from '../../data/itemConfig';
+import type { GameObjects, Scene } from 'phaser';
 import { itemName as itemNameFromStrings } from '../../data/buildStrings';
-import { listItems, type TransferResult } from '../../systems/inventory';
+import { getItemDef } from '../../data/itemConfig';
 import type { ItemCounts } from '../../session/sessionStore';
+import { listItems, type TransferResult } from '../../systems/inventory';
 import {
     UI_FONT_FAMILY,
     UI_FONT_SIZE,

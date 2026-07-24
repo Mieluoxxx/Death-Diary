@@ -17,6 +17,7 @@ import {
     leaveSite,
     siteStorageCount,
 } from '../../systems/mapSystem';
+import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import {
@@ -25,7 +26,6 @@ import {
     UI_TEXT_RESOLUTION,
     uiWordWrap,
 } from '../uiFont';
-import { addAtlasButton } from '../atlasButton';
 
 const LEFT_EDGE = 40;
 /** BottomFrame contentTopLineHeight */

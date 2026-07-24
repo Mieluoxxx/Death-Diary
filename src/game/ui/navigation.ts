@@ -4,7 +4,7 @@
  * Hosted inside HomeScene — TopFrame stays; bottom content swaps.
  */
 
-import { Scene, GameObjects } from 'phaser';
+import type { GameObjects, Scene } from 'phaser';
 import {
     getSession,
     mutateSession,
@@ -12,17 +12,18 @@ import {
 } from '../session/sessionStore';
 import { gameBusEmit } from '../systems/gameBus';
 import { playerGoHome } from '../systems/mapSystem';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
-import { mountHomeNode } from './nodes/homeNode';
-import { mountStorageNode } from './nodes/storageNode';
+import { mountBattleNode } from './nodes/battleNode';
 import { mountGateNode } from './nodes/gateNode';
 import { mountGateOutNode } from './nodes/gateOutNode';
+import { mountHomeNode } from './nodes/homeNode';
 import { mountMapNode } from './nodes/mapNode';
+import { mountNpcNode } from './nodes/npcNode';
+import { mountRadioNode } from './nodes/radioNode';
 import { mountSiteNode } from './nodes/siteNode';
-import { mountBattleNode } from './nodes/battleNode';
-import { mountWorkLootNode } from './nodes/workLootNode';
 import { mountSiteStorageNode } from './nodes/siteStorageNode';
-
+import { mountStorageNode } from './nodes/storageNode';
+import { mountWorkLootNode } from './nodes/workLootNode';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
 export const NavNode = {
     HOME: 'HomeNode',
     STORAGE: 'StorageNode',
@@ -33,6 +34,8 @@ export const NavNode = {
     SITE_STORAGE: 'SiteStorageNode',
     BATTLE_AND_WORK: 'BattleAndWorkNode',
     WORK_ROOM_STORAGE: 'WorkRoomStorageNode',
+    RADIO: 'RadioNode',
+    NPC: 'NpcNode',
 } as const;
 
 export type NavNodeName = (typeof NavNode)[keyof typeof NavNode];
@@ -98,6 +101,8 @@ const MOUNTERS: Record<string, NodeMounter> = {
     [NavNode.SITE_STORAGE]: mountSiteStorageNode,
     [NavNode.BATTLE_AND_WORK]: mountBattleNode,
     [NavNode.WORK_ROOM_STORAGE]: mountWorkLootNode,
+    [NavNode.RADIO]: mountRadioNode,
+    [NavNode.NPC]: mountNpcNode,
 };
 
 export function createNavigationHost (
@@ -492,4 +497,4 @@ export function contentTopScreenY (
     return bgBottomY - CONTENT_TOP_LOCAL_Y + CONTENT_Y_NUDGE;
 }
 
-export { BG_WIDTH, BG_HEIGHT, BG_BOTTOM_OFFSET, ACTION_BAR_LOCAL_Y, CONTENT_TOP_LOCAL_Y };
+export { ACTION_BAR_LOCAL_Y, BG_BOTTOM_OFFSET, BG_HEIGHT, BG_WIDTH, CONTENT_TOP_LOCAL_Y };

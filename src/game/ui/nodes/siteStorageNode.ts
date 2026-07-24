@@ -3,20 +3,20 @@
  */
 
 import { getSession } from '../../session/sessionStore';
+import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import {
     getBagCapacity,
     getBagWeight,
     transferAll,
     transferItems,
 } from '../../systems/inventory';
-import { gameBusOn, gameBusOff } from '../../systems/gameBus';
+import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
+import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../uiFont';
 import {
     mountItemGrid,
     transferFailMessage,
 } from './itemGrid';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../uiFont';
-import { addAtlasButton } from '../atlasButton';
 
 export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
 {

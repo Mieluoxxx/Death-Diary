@@ -6,23 +6,23 @@
 
 import {
     BULLET_ID,
-    HAND_ITEM_ID,
     getItemDef,
+    HAND_ITEM_ID,
 } from '../data/itemConfig';
 import { getMonsterDef, monsterTypeName } from '../data/monsterConfig';
 import {
+    appendSessionLog,
     getSession,
     mutateSession,
-    appendSessionLog,
 } from '../session/sessionStore';
+import { gameBusEmit } from './gameBus';
 import {
     EquipPosMap,
     getArmorDef,
     getBagCount,
 } from './inventory';
-import { gameBusEmit } from './gameBus';
-import { pauseTimeClock, resumeTimeClock } from './timeClock';
 import { changeAttr } from './playerAttrs';
+import { pauseTimeClock, resumeTimeClock } from './timeClock';
 
 export type BattleLogEntry = {
     text: string;
@@ -55,6 +55,16 @@ export type BattleSumRes = {
     /** Structured logs (color). Also mirrored as plain strings in `log`. */
     entries: BattleLogEntry[];
     log: string[];
+    isDodge?: boolean;
+    escaped?: boolean;
+    toolsUsed?: number;
+    toolItemId?: number;
+    brokenWeapons?: number[];
+};
+
+export type StartBattleOptions = {
+    /** Roadside dodge: 5s progress, no player auto-attack, auto-win. */
+    isDodge?: boolean;
 };
 
 export type BattleState = {
@@ -69,7 +79,12 @@ export type BattleState = {
     sum: BattleSumRes;
     playerCd: number;
     moveAcc: number;
+    isDodge: boolean;
+    dodgeTime: number;
+    dodgePassTime: number;
 };
+
+const DODGE_DURATION_SEC = 5;
 
 let activeBattle: BattleState | null = null;
 
@@ -89,7 +104,10 @@ function targetMonster (battle: BattleState): BattleMonster | undefined
     return battle.monsters.find((m) => !m.dead && m.hp > 0);
 }
 
-export function startBattle (monsterIds: number[]): BattleState
+export function startBattle (
+    monsterIds: number[],
+    options: StartBattleOptions = {},
+): BattleState
 {
     const session = getSession();
     if (!session)
@@ -97,6 +115,7 @@ export function startBattle (monsterIds: number[]): BattleState
         throw new Error('startBattle: no session');
     }
 
+    const isDodge = options.isDodge === true;
     const gunId = session.equip[EquipPosMap.GUN] ?? 0;
     const weaponId = session.equip[EquipPosMap.WEAPON] ?? HAND_ITEM_ID;
     const bullets = getBagCount(BULLET_ID);
@@ -131,6 +150,9 @@ export function startBattle (monsterIds: number[]): BattleState
         finished: false,
         playerCd: 0.1,
         moveAcc: 0,
+        isDodge,
+        dodgeTime: DODGE_DURATION_SEC,
+        dodgePassTime: 0,
         sum: {
             win: false,
             monsterKilled: 0,
@@ -140,6 +162,10 @@ export function startBattle (monsterIds: number[]): BattleState
             gunHits: 0,
             entries: [],
             log: [],
+            isDodge,
+            toolsUsed: 0,
+            toolItemId: 0,
+            brokenWeapons: [],
         },
     };
 
@@ -158,6 +184,17 @@ export function startBattle (monsterIds: number[]): BattleState
     return activeBattle;
 }
 
+/** 0..1 progress for dodge encounters (original battleDodgePercentage / 100). */
+export function getDodgeProgress (): number
+{
+    const battle = activeBattle;
+    if (!battle?.isDodge || battle.dodgeTime <= 0)
+    {
+        return 0;
+    }
+    return Math.min(1, battle.dodgePassTime / battle.dodgeTime);
+}
+
 /**
  * Advance battle by real seconds.
  * Monster move tick ~1s (original scheduleCallback 1s).
@@ -167,9 +204,20 @@ export function tickBattle (realDelta: number): BattleSumRes | null
 {
     const battle = activeBattle;
     const session = getSession();
-    if (!battle || !battle.running || !session || realDelta <= 0)
+    if (!battle?.running || !session || realDelta <= 0)
     {
         return battle?.finished ? battle.sum : null;
+    }
+
+    // Dodge mode: progress only; monsters may still approach, player does not attack.
+    if (battle.isDodge)
+    {
+        battle.dodgePassTime += realDelta;
+        if (battle.dodgePassTime >= battle.dodgeTime)
+        {
+            return endBattle(true);
+        }
+        // Still let monsters shuffle a bit for flavor; no player auto-fire.
     }
 
     // --- Monster movement (1s) ---
@@ -223,7 +271,12 @@ export function tickBattle (realDelta: number): BattleSumRes | null
         }
     }
 
-    // --- Player attacks ---
+    // --- Player attacks (disabled during dodge — original updatePlayer) ---
+    if (battle.isDodge)
+    {
+        return null;
+    }
+
     battle.playerCd -= realDelta;
     if (battle.playerCd <= 0)
     {
@@ -348,6 +401,10 @@ function endBattle (win: boolean): BattleSumRes
             gunHits: 0,
             entries: [],
             log: [],
+            isDodge: false,
+            toolsUsed: 0,
+            toolItemId: 0,
+            brokenWeapons: [],
         };
     }
 
@@ -376,7 +433,10 @@ function endBattle (win: boolean): BattleSumRes
 
     if (win)
     {
-        appendSessionLog('战斗胜利');
+        if (!battle.isDodge)
+        {
+            appendSessionLog('战斗胜利');
+        }
     }
     else
     {

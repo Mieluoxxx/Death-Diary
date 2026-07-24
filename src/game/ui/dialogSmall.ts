@@ -1,7 +1,7 @@
-import { Scene, GameObjects } from 'phaser';
+import type { GameObjects, Scene } from 'phaser';
 import { getLanguage, t } from '../settings/settingsStore';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 import { addAtlasButton } from './atlasButton';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 /**
  * Port of Buried-City DialogSmall used by topFrame status dialogs.

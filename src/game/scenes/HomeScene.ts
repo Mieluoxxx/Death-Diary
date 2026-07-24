@@ -82,7 +82,7 @@ export class HomeScene extends Scene
 {
     private toastText: GameObjects.Text | null = null;
     private topFrame: TopFrameHandle | null = null;
-    private deathOverlay: GameObjects.Container | null = null;
+    // death handled by DeathScene
     private buildPanel: BuildPanelHandle | null = null;
     private navHost: NavHostHandle | null = null;
     private buildButtons = new Map<number, GameObjects.Image | GameObjects.Rectangle>();
@@ -108,7 +108,6 @@ export class HomeScene extends Scene
         const { width, height } = this.scale;
         this.toastText = null;
         this.topFrame = null;
-        this.deathOverlay = null;
         this.buildPanel = null;
 
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
@@ -142,7 +141,10 @@ export class HomeScene extends Scene
         this.boundDied = () =>
         {
             this.topFrame?.refresh();
-            this.showDeathOverlay();
+            this.buildPanel?.destroy();
+            this.buildPanel = null;
+            stopSurvivalLoop();
+            this.scene.start('Death');
         };
         this.boundNightRaid = (res) =>
         {
@@ -157,7 +159,8 @@ export class HomeScene extends Scene
 
         if (session.isDead)
         {
-            this.showDeathOverlay();
+            this.scene.start('Death');
+            return;
         }
 
         // Debug: long-press bottom-left corner skips +3 game hours (dev aid for A-slice).
@@ -167,13 +170,13 @@ export class HomeScene extends Scene
     }
     update (_time: number, deltaMs: number): void
     {
-        // Settings / death / day-end layer → freeze simulation.
+        // Settings / day-end layer → freeze simulation.
         const overlayOpen = this.children.list.some((child) =>
         {
             const name = (child as GameObjects.Container).name;
             return name === 'settingLayer' || name === 'dayLayer';
         });
-        if (overlayOpen || this.deathOverlay)
+        if (overlayOpen)
         {
             return;
         }
@@ -209,7 +212,6 @@ export class HomeScene extends Scene
         // Clear bus so menu does not keep Home listeners if any leaked.
         gameBusClear();
         this.topFrame = null;
-        this.deathOverlay = null;
     }
 
     private placeHomeContent (session: SessionState, width: number, height: number): void
@@ -301,55 +303,6 @@ export class HomeScene extends Scene
         });
     }
 
-    private showDeathOverlay (): void
-    {
-        if (this.deathOverlay)
-        {
-            return;
-        }
-        const { width, height } = this.scale;
-        const overlay = this.add.container(0, 0);
-        overlay.setDepth(300);
-        this.deathOverlay = overlay;
-
-        overlay.add(
-            this.add
-                .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
-                .setInteractive(),
-        );
-        overlay.add(
-            this.add
-                .text(width / 2, height / 2 - 40, '你死了', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '42px',
-                    color: '#f0e6d2',
-                })
-                .setOrigin(0.5),
-        );
-        overlay.add(
-            this.add
-                .text(width / 2, height / 2 + 24, '点击返回主菜单', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '20px',
-                    color: '#cccccc',
-                })
-                .setOrigin(0.5),
-        );
-
-        overlay.on('pointerup', () =>
-        {
-            // Keep session so Continue can show death state; new game overwrites.
-            this.scene.start('MainMenu');
-        });
-        // Hit via dim rectangle
-        const dim = overlay.list[0] as GameObjects.Rectangle;
-        dim.on('pointerup', () =>
-        {
-            this.scene.start('MainMenu');
-        });
-    }
 
     private installDebugSkipHotkey (): void
     {

@@ -1,15 +1,15 @@
-import { Scene, GameObjects } from 'phaser';
+import { GameObjects, type Scene } from 'phaser';
 import {
     getLanguage,
     getMusicOn,
     getSfxOn,
+    LAN_SUPPORTS,
+    LANG_NAMES,
+    type LangCode,
     setLanguage,
     setMusicOn,
     setSfxOn,
-    LANG_NAMES,
-    LAN_SUPPORTS,
     t,
-    type LangCode,
 } from '../settings/settingsStore';
 import { addAtlasButton } from './atlasButton';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from './uiFont';

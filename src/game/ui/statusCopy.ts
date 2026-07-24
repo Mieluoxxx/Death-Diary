@@ -1,6 +1,6 @@
-import { getLanguage, t, type LangCode } from '../settings/settingsStore';
 import type { SessionState } from '../session/sessionStore';
 import { formatClock } from '../session/sessionStore';
+import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 
 /**
  * Port of Buried-City string ids used by topFrame showStatusDialog /

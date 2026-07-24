@@ -11,21 +11,22 @@
  * - Dialog: DialogBig + site_dig + travel time (showSiteDialog / showHomeDialog)
  */
 
-import { GameObjects } from 'phaser';
-import {
-    HOME_SITE_ID,
-    getSiteConfig,
-} from '../../data/siteConfig';
+import type { GameObjects } from 'phaser';
 import { getNpcCopy, getNpcDef } from '../../data/npcConfig';
+import {
+    getSiteConfig,
+    HOME_SITE_ID,
+} from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
-import { accelerateTime } from '../../systems/timeClock';
-import { planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
 import {
     clearBattle,
     getDodgeProgress,
     startBattle,
     tickBattle,
 } from '../../systems/battleSystem';
+import { planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
+import { accelerateTime } from '../../systems/timeClock';
+import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import {
@@ -34,7 +35,6 @@ import {
     UI_TEXT_RESOLUTION,
     uiWordWrap,
 } from '../uiFont';
-import { addAtlasButton } from '../atlasButton';
 
 /** map_bg source size (original). */
 const MAP_W = 584;

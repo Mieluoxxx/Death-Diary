@@ -1,8 +1,15 @@
 /**
- * Port of Buried-City player.changeAttr + band lookups (no memoryUtil encoding).
+ * Port of Buried-City player.changeAttr + band lookups + buff immunity.
  */
 
-import { findAttrBand, type AttrBand, type AttrEffectKey } from '../data/playerAttrEffect';
+import {
+    BUFF_EFFECTS,
+    INFECT_IMMUNE_BUFF_ITEM_ID,
+    MAX_HP_BUFF_ITEM_ID,
+    STARVE_IMMUNE_BUFF_ITEM_ID,
+    VIGOUR_IMMUNE_BUFF_ITEM_ID,
+} from '../data/itemEffects';
+import { type AttrBand, type AttrEffectKey, findAttrBand } from '../data/playerAttrEffect';
 import {
     appendSessionLog,
     formatClock,
@@ -14,9 +21,13 @@ import { gameBusEmit } from './gameBus';
 
 export type MutableAttrKey = keyof PlayerAttrs | 'temperature';
 
+/** Base max before injury/buff (original hpMaxOrigin default 240). */
+export const HP_MAX_ORIGIN_BASE = 240;
+
 const ATTR_MAX: Record<keyof PlayerAttrs, number> = {
-    hp: 100,
-    hpMax: 100,
+    hp: 240,
+    hpMax: 240,
+    hpMaxOrigin: 240,
     injury: 100,
     infect: 100,
     starve: 100,
@@ -70,9 +81,43 @@ function maxFor (session: SessionState, key: MutableAttrKey): number
     }
     if (key === 'hpMax')
     {
-        return ATTR_MAX.hpMax;
+        return ATTR_MAX.hpMax + 200;
     }
     return ATTR_MAX[key];
+}
+
+export function isBuffActive (itemId: number, session: SessionState = getSession()!): boolean
+{
+    if (!session?.buff)
+    {
+        return false;
+    }
+    return session.buff.itemId === itemId && session.buff.remainingSeconds > 0;
+}
+
+export function getBuffHpBonus (session: SessionState = getSession()!): number
+{
+    if (!session?.buff || session.buff.itemId !== MAX_HP_BUFF_ITEM_ID)
+    {
+        return 0;
+    }
+    if (session.buff.remainingSeconds <= 0)
+    {
+        return 0;
+    }
+    return session.buff.value;
+}
+
+/** Original: hpMax = origin + buff - injury. */
+export function recomputeHpMax (session: SessionState): void
+{
+    const origin = session.attrs.hpMaxOrigin ?? HP_MAX_ORIGIN_BASE;
+    const nextMax = Math.max(1, origin + getBuffHpBonus(session) - Math.floor(session.attrs.injury));
+    session.attrs.hpMax = nextMax;
+    if (session.attrs.hp > nextMax)
+    {
+        session.attrs.hp = nextMax;
+    }
 }
 
 export function getAttrBand (key: string, value: number): AttrBand | null
@@ -92,10 +137,27 @@ export function changeAttr (key: MutableAttrKey, delta: number): number
         return 0;
     }
 
-    // hpMax is derived; do not change via generic path except injury path below.
-    if (key === 'hpMax')
+    // hpMax is derived; do not change via generic path.
+    if (key === 'hpMax' || key === 'hpMaxOrigin')
     {
         return 0;
+    }
+
+    // Buff immunity against adverse changes (original changeAttr gates).
+    if (!isAttrChangeGood(key, delta))
+    {
+        if (key === 'infect' && isBuffActive(INFECT_IMMUNE_BUFF_ITEM_ID, session))
+        {
+            return 0;
+        }
+        if (key === 'starve' && isBuffActive(STARVE_IMMUNE_BUFF_ITEM_ID, session))
+        {
+            return 0;
+        }
+        if (key === 'vigour' && isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session))
+        {
+            return 0;
+        }
     }
 
     const before = getAttrValue(session, key);
@@ -111,7 +173,6 @@ export function changeAttr (key: MutableAttrKey, delta: number): number
     setAttrValue(session, key, after);
     const afterBand = getAttrBand(key, after);
 
-    // Bus notifications
     if (key === 'temperature')
     {
         gameBusEmit('temperature_change', applied);
@@ -139,7 +200,6 @@ export function changeAttr (key: MutableAttrKey, delta: number): number
     }
     gameBusEmit('attr_change', { key, delta: applied, value: after });
 
-    // Band-cross log (simplified Chinese; multi-lang later).
     if (beforeBand && afterBand && beforeBand.id !== afterBand.id)
     {
         const direction = afterBand.id > beforeBand.id ? '上升' : '下降';
@@ -156,7 +216,7 @@ export function changeAttr (key: MutableAttrKey, delta: number): number
 
     if (key === 'injury')
     {
-        updateHpMaxFromInjury(session);
+        recomputeHpMax(session);
     }
 
     if (key === 'hp' && session.attrs.hp <= 0)
@@ -166,18 +226,6 @@ export function changeAttr (key: MutableAttrKey, delta: number): number
 
     gameBusEmit('session_updated');
     return applied;
-}
-
-function updateHpMaxFromInjury (session: SessionState): void
-{
-    // Original: hpMax = origin + buff - injury. Slice: origin 100, no buff yet.
-    const origin = 100;
-    const nextMax = Math.max(1, origin - Math.floor(session.attrs.injury));
-    session.attrs.hpMax = nextMax;
-    if (session.attrs.hp > nextMax)
-    {
-        session.attrs.hp = nextMax;
-    }
 }
 
 function markPlayerDead (session: SessionState): void
@@ -208,13 +256,13 @@ function attrDisplayName (key: MutableAttrKey): string
         case 'infect': return '感染';
         case 'temperature': return '体温';
         case 'hpMax': return '生命上限';
+        case 'hpMaxOrigin': return '生命上限基线';
         default: return key;
     }
 }
 
 function bandHint (key: MutableAttrKey, bandId: number): string
 {
-    // Lightweight tier labels for A-slice logs (not full string table).
     if (key === 'starve' || key === 'vigour' || key === 'spirit' || key === 'hp')
     {
         return ['危急', '偏低', '尚可', '良好'][Math.min(3, Math.max(0, bandId - 1))] ?? '';
@@ -235,13 +283,6 @@ export function applyEffectMap (effect: Partial<Record<AttrEffectKey, number>>):
         {
             continue;
         }
-        let value = rawValue;
-        // Original infect→hp uses infect/100 multiplier.
-        if (attrKey === 'hp')
-        {
-            // Caller may already scale; keep as-is unless we detect infect context.
-            // Scaled in survivalLoop for infect band.
-        }
         if (
             attrKey === 'hp'
             || attrKey === 'spirit'
@@ -252,7 +293,7 @@ export function applyEffectMap (effect: Partial<Record<AttrEffectKey, number>>):
             || attrKey === 'temperature'
         )
         {
-            changeAttr(attrKey, value);
+            changeAttr(attrKey, rawValue);
         }
     }
 }
@@ -290,4 +331,52 @@ export function changeInfect (delta: number): number
 export function changeTemperature (delta: number): number
 {
     return changeAttr('temperature', delta);
+}
+
+/** Apply / replace active buff (one at a time, original BuffManager). */
+export function applyBuffItem (itemId: number): boolean
+{
+    const session = getSession();
+    const cfg = BUFF_EFFECTS[itemId];
+    if (!session || !cfg)
+    {
+        return false;
+    }
+    // End previous buff first (MaxHpBuff onEnd).
+    session.buff = null;
+    recomputeHpMax(session);
+
+    session.buff = {
+        itemId,
+        remainingSeconds: cfg.lastTime * 60 * 60,
+        value: cfg.value,
+    };
+    recomputeHpMax(session);
+    // Serum also tops current hp toward new max? Original only updates max; leave hp.
+    return true;
+}
+
+/** Tick buff duration by game seconds; clear when expired. */
+export function tickBuff (gameSeconds: number, session: SessionState = getSession()!): void
+{
+    if (!session?.buff)
+    {
+        return;
+    }
+    session.buff.remainingSeconds -= gameSeconds;
+    if (session.buff.remainingSeconds <= 0)
+    {
+        session.buff = null;
+        recomputeHpMax(session);
+    }
+}
+
+export function isInCure (session: SessionState = getSession()!): boolean
+{
+    return Boolean(session?.cured);
+}
+
+export function isInBind (session: SessionState = getSession()!): boolean
+{
+    return Boolean(session?.binded);
 }
