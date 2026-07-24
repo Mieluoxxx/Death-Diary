@@ -1,4 +1,12 @@
-/* Web original (Cocos) uses empty LabelTTF font → system CJK UI face. */
+/* Prefer bundled CJK face so Linux/WSL still renders Chinese (not tofu □). */
+@font-face {
+    font-family: 'FZDaHei-B02S';
+    src: url('/fonts/fzdh.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 html,
 body {
     margin: 0;
@@ -8,21 +16,12 @@ body {
     color: rgba(255, 255, 255, 0.87);
     /* Match original index.html pure black letterbox */
     background-color: #000000;
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", sans-serif;
+    font-family: "FZDaHei-B02S", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-}
-
-/* Optional native pack face (res/font/fzdh.ttf). Not the default UI stack. */
-@font-face {
-    font-family: 'FZDaHei-B02S';
-    src: url('/fonts/fzdh.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
 }
 
 /*

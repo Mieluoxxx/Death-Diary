@@ -15,7 +15,8 @@ export class Boot extends Scene
 
     create ()
     {
-        // Warm system CJK UI face (web original uses empty LabelTTF family).
+        // Must load FZDaHei (public/fonts/fzdh.ttf) before any Phaser Text,
+        // or CJK becomes tofu on Linux/WSL without system Chinese fonts.
         void ensureUiFontLoaded().finally(() =>
         {
             this.scene.start('Preloader');

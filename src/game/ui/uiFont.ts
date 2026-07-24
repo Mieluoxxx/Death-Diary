@@ -1,28 +1,24 @@
 /**
  * Port of Buried-City uiUtil.fontFamily / fontSize.
  *
- * Original web build (localhost:4444) sets fontFamily.normal to "" when
- * `cc.sys.isNative` is false, so LabelTTF uses the browser system Chinese
- * UI face (PingFang SC on macOS, Microsoft YaHei on Windows).
+ * Web Cocos used empty LabelTTF family → system CJK UI face.
+ * On Linux/WSL those faces (PingFang / YaHei / Heiti) are often missing,
+ * so Phaser Text renders CJK as tofu boxes (□).
  *
- * Native packs use TTF family "FZDaHei-B02S" (res/font/fzdh.ttf). That face
- * is still bundled under public/fonts for optional native-look mode, but the
- * default Phaser UI stack matches the web original so side-by-side with
- * Cocos web stays consistent.
- *
- * Size tiers match uiUtil.fontSize (design 640×1136).
- * createSpriteBtn always does `fontSize -= 4` after picking the tier.
+ * Default stack leads with the bundled native pack face
+ * `FZDaHei-B02S` (public/fonts/fzdh.ttf via style.css @font-face),
+ * then system CJK fallbacks.
  */
 
-/** CSS / Phaser font-family matching web original (empty → system CJK UI). */
-export const UI_FONT_FAMILY =
-    '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", sans-serif';
+/** Bundled face from public/fonts/fzdh.ttf (@font-face in style.css). */
+export const UI_FONT_FACE_NAME = 'FZDaHei-B02S';
 
 /**
- * Optional native pack face (public/fonts/fzdh.ttf via @font-face).
- * Not used by default UI; kept for native-parity experiments.
+ * CSS / Phaser font-family.
+ * Prefer bundled TTF so Linux/WSL/headless Chromium still draw CJK.
  */
-export const UI_FONT_FACE_NAME = 'FZDaHei-B02S';
+export const UI_FONT_FAMILY =
+    `"${UI_FONT_FACE_NAME}", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif`;
 
 export const UI_FONT_SIZE = {
     /** uiUtil.fontSize.COMMON_1 */
@@ -43,7 +39,6 @@ export const UI_TEXT_RESOLUTION =
     typeof window !== 'undefined'
         ? Math.min(window.devicePixelRatio || 1, 2)
         : 1;
-
 
 /**
  * Effective label size after uiUtil.createSpriteBtn's `fontSize -= 4`.
@@ -102,8 +97,8 @@ export function uiWordWrap (width: number): {
 }
 
 /**
- * System UI faces need no async load. Kept so Boot can still await a stable
- * first frame before Preloader draws text.
+ * Ensure the bundled CJK face is loaded before Preloader draws text.
+ * Falls back after timeout so Boot never hangs if the TTF fails.
  */
 export async function ensureUiFontLoaded (timeoutMs = 4000): Promise<boolean>
 {
@@ -114,22 +109,21 @@ export async function ensureUiFontLoaded (timeoutMs = 4000): Promise<boolean>
 
     try
     {
-        // Warm the first family in the stack (PingFang SC on Apple).
-        const primaryFace = 'PingFang SC';
+        const face = UI_FONT_FACE_NAME;
         const loads = [20, 24, 28, 32].map((px) =>
-            document.fonts.load(`${px}px "${primaryFace}"`),
+            document.fonts.load(`${px}px "${face}"`),
         );
         await Promise.race([
             Promise.all(loads).then(() => true),
             new Promise<boolean>((resolve) =>
             {
-                window.setTimeout(() => resolve(true), timeoutMs);
+                window.setTimeout(() => resolve(document.fonts.check(`24px "${face}"`)), timeoutMs);
             }),
         ]);
-        return true;
+        return document.fonts.check(`24px "${face}"`);
     }
     catch
     {
-        return true;
+        return false;
     }
 }
