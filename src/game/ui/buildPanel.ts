@@ -11,7 +11,7 @@
  * Upgrade row + craft/facility action list are fully wired.
  */
 
-import { Scene, GameObjects } from 'phaser';
+import type { GameObjects, Scene } from 'phaser';
 import {
     buildLevelName,
 } from '../data/buildStrings';
@@ -27,16 +27,16 @@ import {
     startBuildUpgrade,
 } from '../systems/buildSystem';
 import {
+    type CraftActionView,
     clickCraftAction,
     listCraftActions,
-    type CraftActionView,
 } from '../systems/craftSystem';
 import {
     clickFacilityAction,
-    listFacilityActions,
     type FacilityActionView,
+    listFacilityActions,
 } from '../systems/facilityAction';
-import { gameBusOn, gameBusOff } from '../systems/gameBus';
+import { gameBusOff, gameBusOn } from '../systems/gameBus';
 import { addAtlasButton } from './atlasButton';
 import {
     UI_FONT_FAMILY,
@@ -279,7 +279,7 @@ export function openBuildPanel (
     }
 
     // Action button "建造/升级"
-    let actionBtnLabel = '升级';
+    const actionBtnLabel = '升级';
     let actionBtn: ReturnType<typeof addAtlasButton> | GameObjects.Container | null = null;
     const actionX = BG_WIDTH / 2 - 10 - 79;
     if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
@@ -724,6 +724,8 @@ function mountCraftRow (
     }
 
     // Prefer produce icon; stove/trap fall back to build_action frames.
+    // icon_item is 84²; build_action / build_* slots are 110×73 (same as build_icon_bg).
+    // Scale item icons to ~slot width; keep action frames at 1.0 to fill the slot.
     const iconFrame = `icon_item_${action.produceItemId}.png`;
     const trapFrame = `build_action_${action.bid}_0.png`;
     if (
@@ -732,7 +734,8 @@ function mountCraftRow (
         && scene.textures.get('icon').has(iconFrame)
     )
     {
-        row.add(scene.add.image(iconX, iconY, 'icon', iconFrame).setScale(0.55));
+        // 84 * 0.9 ≈ 76 — sits inside 110×73 slot without looking tiny.
+        row.add(scene.add.image(iconX, iconY, 'icon', iconFrame).setScale(0.9));
     }
     else if (scene.textures.exists('build') && scene.textures.get('build').has(trapFrame))
     {
@@ -740,9 +743,7 @@ function mountCraftRow (
     }
     else if (scene.textures.exists('build') && scene.textures.get('build').has(`build_${action.bid}_0.png`))
     {
-        row.add(
-            scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`).setScale(0.85),
-        );
+        row.add(scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`));
     }
 
     const textLeft = -BG_WIDTH / 2 + 140;
@@ -864,18 +865,27 @@ function mountFacilityRow (
     {
         row.add(scene.add.image(iconX, iconY, 'ui', 'build_icon_bg.png'));
     }
+    // iconHint is typically build_action_* (110×73) — full size matches build_icon_bg.
+    // Fallback build_{bid}_0 is the same atlas size.
     if (scene.textures.exists('build') && scene.textures.get('build').has(action.iconHint))
     {
         row.add(scene.add.image(iconX, iconY, 'build', action.iconHint));
     }
     else if (
         scene.textures.exists('build')
-        && scene.textures.get('build').has(`build_${action.bid}_0.png`)
+        && scene.textures.get('build').has(`build_action_${action.bid}_0.png`)
     )
     {
         row.add(
-            scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`).setScale(0.85),
+            scene.add.image(iconX, iconY, 'build', `build_action_${action.bid}_0.png`),
         );
+    }
+    else if (
+        scene.textures.exists('build')
+        && scene.textures.get('build').has(`build_${action.bid}_0.png`)
+    )
+    {
+        row.add(scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`));
     }
 
     const textLeft = -BG_WIDTH / 2 + 140;

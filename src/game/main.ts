@@ -1,13 +1,14 @@
-import { Boot } from './scenes/Boot';
-import { GameOver } from './scenes/GameOver';
-import { Game as MainGame } from './scenes/Game';
-import { MainMenu } from './scenes/MainMenu';
-import { ChooseScene } from './scenes/ChooseScene';
-import { StoryScene } from './scenes/StoryScene';
-import { MedalScene } from './scenes/MedalScene';
-import { HomeScene } from './scenes/HomeScene';
 import { AUTO, Game, Scale } from 'phaser';
+import { Boot } from './scenes/Boot';
+import { ChooseScene } from './scenes/ChooseScene';
+import { Game as MainGame } from './scenes/Game';
+import { GameOver } from './scenes/GameOver';
+import { HomeScene } from './scenes/HomeScene';
+import { MainMenu } from './scenes/MainMenu';
+import { MedalScene } from './scenes/MedalScene';
+import { ShopScene } from './scenes/ShopScene';
 import { Preloader } from './scenes/Preloader';
+import { StoryScene } from './scenes/StoryScene';
 
 /**
  * Buried-City design: 640×1136 FIXED_HEIGHT / FIT.
@@ -40,6 +41,7 @@ const config: Phaser.Types.Core.GameConfig = {
         Preloader,
         MainMenu,
         MedalScene,
+        ShopScene,
         ChooseScene,
         StoryScene,
         HomeScene,

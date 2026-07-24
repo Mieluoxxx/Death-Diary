@@ -10,20 +10,20 @@
  */
 
 import { getSession, type ItemCounts } from '../../session/sessionStore';
-import { gameBusOn, gameBusOff } from '../../systems/gameBus';
+import { gameBusOff, gameBusOn } from '../../systems/gameBus';
+import { openItemDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
+import {
+    UI_FONT_FAMILY,
+    UI_FONT_SIZE,
+    UI_TEXT_RESOLUTION,
+} from '../uiFont';
 import {
     ITEM_CELL_PITCH_X,
     ITEM_CELL_PITCH_Y,
     ITEM_CELL_SIZE,
     ITEM_GRID_COLUMNS,
 } from './itemGrid';
-import { openItemDialog } from '../itemDialog';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from '../uiFont';
 
 /** Original blackList.storageDisplay — hidden in warehouse. */
 const STORAGE_DISPLAY_HIDE = new Set([
@@ -99,11 +99,11 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
     // Original: rightBtn false; shop is a separate SpriteButton on the title bar.
     ctx.setRightEnabled(false);
 
-    // Clip under the title line and leave clear air above the panel bottom border.
-    // Original SectionTableView sits near y=10; we keep a larger inset for readability.
-    const TABLE_BOTTOM_PAD = 96;
-    const tableTop = ctx.toScreenY(760);
-    const tableBottom = Math.min(ctx.bgBottomY - TABLE_BOTTOM_PAD, tableTop + 700);
+    // Original table sat at y=10; use 20 so icons stay inside the bottom frame edge.
+    const TABLE_BOTTOM_LOCAL = 20;
+    const TABLE_TOP_LOCAL = 760;
+    const tableTop = ctx.toScreenY(TABLE_TOP_LOCAL);
+    const tableBottom = ctx.toScreenY(TABLE_BOTTOM_LOCAL);
     const tableHeight = Math.max(120, tableBottom - tableTop);
     const tableWidth = ITEM_CELL_PITCH_X * ITEM_GRID_COLUMNS;
     const tableLeft = ctx.width / 2 - tableWidth / 2;

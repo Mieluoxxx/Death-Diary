@@ -18,14 +18,29 @@ export type GameBusEventMap = {
     stage_change: 'day' | 'night';
     season_change: 0 | 1 | 2 | 3;
     weather_change: number;
-    player_died: void;
-    session_updated: void;
+    player_died: undefined;
+    session_updated: undefined;
+    /** Midnight home raid / DayLayer payload. */
+    night_raid: {
+        happened: boolean;
+        defend?: boolean;
+        win?: boolean;
+        defendKind?: 'bomb' | 'electric';
+        homeDef?: number;
+        attackStrength?: number;
+        items?: Array<{ itemId: number; num: number }>;
+        sitesRaided?: number[];
+    };
+    craft_changed: { bid: number };
+    craft_progress: { bid: number; percentage: number };
+    facility_changed: { bid: number };
+    facility_progress: { bid: number; percentage: number };
     build_upgrade_started: { bid: number; nextLevel: number; createTime: number };
     build_upgrade_progress: { bid: number; percentage: number };
     build_upgraded: { bid: number; level: number };
     nav_changed: { nodeName: string };
-    battle_started: void;
-    battle_tick: void;
+    battle_started: undefined;
+    battle_tick: undefined;
     battle_ended: {
         win: boolean;
         monsterKilled: number;

@@ -4,8 +4,8 @@
  * `day` / `hour` / `minute` / `season` are derived for UI.
  */
 
-import { HAND_ITEM_ID, BULLET_ID } from '../data/itemConfig';
-import { HOME_SITE_ID, STARTER_SITE_ID, getSiteConfig } from '../data/siteConfig';
+import { BULLET_ID, HAND_ITEM_ID } from '../data/itemConfig';
+import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
 
 export type RoleKey = 'STRANGER' | 'LUO' | 'YAZI';
 export type TalentId = 0 | 101 | 102 | 103 | 104;
@@ -58,6 +58,8 @@ export type SiteState = {
 export type MapState = {
     pos: { x: number; y: number };
     unlocked: number[];
+    /** NPC homes unlocked on the map (optional; older saves omit). */
+    unlockedNpcs?: number[];
     sites: Record<number, SiteState>;
 };
 
@@ -96,6 +98,19 @@ export type SessionState = {
     isAtHome: boolean;
     isInSleep: boolean;
     isDead: boolean;
+    /**
+     * Luo minefield charge (original player.isBombActive).
+     * Consumed on successful night-raid auto-defend.
+     */
+    isBombActive: boolean;
+    /**
+     * Dog hunger (original Dog.starve). Active when > 0 → +10 home def.
+     * Full after feed ≈ 50 (original encode of 0b110010).
+     */
+    dogStarve: number;
+    dogStarveMax: number;
+    /** Electric fence (bid 19) fuel/active flag for Yazi auto-defend. */
+    electricFenceActive: boolean;
 };
 
 const STORAGE_KEY = 'buried_city_session_v3';
@@ -303,6 +318,10 @@ function normalizeSession (raw: SessionState): SessionState
         isAtHome: raw.isAtHome !== false,
         isInSleep: Boolean(raw.isInSleep),
         isDead: Boolean(raw.isDead),
+        isBombActive: Boolean(raw.isBombActive),
+        dogStarve: typeof raw.dogStarve === 'number' ? raw.dogStarve : 0,
+        dogStarveMax: typeof raw.dogStarveMax === 'number' ? raw.dogStarveMax : 50,
+        electricFenceActive: Boolean(raw.electricFenceActive),
     };
     applyGameTimeToSession(session, gameTime);
     return session;
@@ -386,6 +405,10 @@ export function createNewSession (role: RoleKey, talent: TalentId): SessionState
         isAtHome: true,
         isInSleep: false,
         isDead: false,
+        isBombActive: false,
+        dogStarve: 0,
+        dogStarveMax: 50,
+        electricFenceActive: false,
     });
     activeSession = session;
     persistSession(session);

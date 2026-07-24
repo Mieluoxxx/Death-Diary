@@ -4,14 +4,15 @@
  * Registers:
  *  - every hour: updateByTime + temperature + band effects
  *  - day/night edges: stage logs (weather/NPC/medal deferred)
- *  - every midnight: season check + day log (night raid deferred)
+ *  - every midnight: season check + day log + night raid
  *
  * Call startSurvivalLoop() after startTimeClock() when entering Home.
  * Call stopSurvivalLoop() when leaving the in-game scene to MainMenu.
  */
 
-import { CHANGE_BY_TIME, TEMPERATURE_BY_SEASON } from '../data/playerConfig';
 import { findAttrBand } from '../data/playerAttrEffect';
+import { CHANGE_BY_TIME, TEMPERATURE_BY_SEASON } from '../data/playerConfig';
+import { checkDay as medalCheckDay } from '../medal/medalStore';
 import {
     appendSessionLog,
     clockPartsFromGameTime,
@@ -19,26 +20,27 @@ import {
     getSession,
     type SessionState,
 } from '../session/sessionStore';
-import { checkDay as medalCheckDay } from '../medal/medalStore';
 import { gameBusEmit } from './gameBus';
+import { clearCraftRuntime } from './craftSystem';
+import { runNightRaid } from './nightRaidSystem';
 import {
     changeAttr,
+    changeHp,
     changeStarve,
     changeVigour,
-    changeHp,
     getAttrBand,
 } from './playerAttrs';
 import {
-    STAGE_DAY_HOUR,
-    STAGE_NIGHT_HOUR,
     addTimerCallback,
     alignIntervalStart,
     everyGameInterval,
     getCurrentStage,
     isTimeClockRunning,
+    REPEAT_FOREVER,
+    STAGE_DAY_HOUR,
+    STAGE_NIGHT_HOUR,
     startTimeClock,
     stopTimeClock,
-    REPEAT_FOREVER,
 } from './timeClock';
 
 const SECONDS_PER_HOUR = 60 * 60;
@@ -96,6 +98,8 @@ export function stopSurvivalLoop (): void
 {
     survivalActive = false;
     stopTimeClock();
+    clearCraftRuntime();
+
 }
 
 function scheduleDailyHour (hour: number, onFire: () => void): void
@@ -108,7 +112,7 @@ function scheduleDailyHour (hour: number, onFire: () => void): void
     const now = session.gameTime;
     const parts = clockPartsFromGameTime(now);
     // Anchor: most recent occurrence of `hour:00` at or before now.
-    let anchorDayIndex = parts.day - 1;
+    const anchorDayIndex = parts.day - 1;
     let anchor = anchorDayIndex * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR;
     if (anchor > now)
     {
@@ -155,15 +159,23 @@ function runDailySurvivalTick (): void
         return;
     }
 
-    // Night raid deferred (P1). Season check + log.
-    const parts = clockPartsFromGameTime(session.gameTime);
+    // Original player.start day-by-day: underAttackInNight then season/day log.
+    runNightRaid();
+
+    const live = getSession();
+    if (!live || live.isDead)
+    {
+        return;
+    }
+
+    const parts = clockPartsFromGameTime(live.gameTime);
     appendSessionLog(
         `新的一天开始了（第${parts.day}天）。`,
-        `第${parts.day}天 ${formatClock(session)}`,
+        `第${parts.day}天 ${formatClock(live)}`,
     );
     gameBusEmit('logChanged', {
-        text: session.lastLog,
-        timeLabel: session.logs[session.logs.length - 1]?.timeLabel ?? '',
+        text: live.lastLog,
+        timeLabel: live.logs[live.logs.length - 1]?.timeLabel ?? '',
     });
     gameBusEmit('session_updated');
 }
@@ -196,13 +208,23 @@ function onStageEdge (stage: 'day' | 'night'): void
 }
 
 /**
- * Port of player.updateByTime (without dog / weather / sleep recovery for A).
- * Sleep recovery is included if isInSleep (bed not wired yet — flag only).
+ * Port of player.updateByTime (dog starve + weather/sleep subset).
+ * Sleep recovery is included if isInSleep (bed not fully wired — flag only).
  */
 function updateByTime (session: SessionState): void
 {
     const c = CHANGE_BY_TIME;
     changeStarve(c[0][0]);
+
+    // Original: dog.changeStarve(c[1][0]) each hour.
+    if (typeof session.dogStarve === 'number')
+    {
+        const next = Math.max(0, Math.min(session.dogStarveMax ?? 50, session.dogStarve + c[1][0]));
+        if (next !== session.dogStarve)
+        {
+            session.dogStarve = next;
+        }
+    }
 
     const stage = getCurrentStage();
     if (stage === 'day')

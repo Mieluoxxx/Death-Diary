@@ -1,8 +1,8 @@
-import { GameObjects, Scene } from 'phaser';
-import { addAtlasButton, type AtlasButton } from '../ui/atlasButton';
-import { openSettingLayer } from '../ui/settingLayer';
-import { getLanguage, t, type LangCode } from '../settings/settingsStore';
+import { type GameObjects, Scene } from 'phaser';
 import { hasSession } from '../session/sessionStore';
+import { getLanguage, type LangCode, t } from '../settings/settingsStore';
+import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
+import { openSettingLayer } from '../ui/settingLayer';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
 
 /**
@@ -103,7 +103,10 @@ export class MainMenu extends Scene
         // bottom row: rate / cart / medal / contact
         const bottomY = height - 106;
         this.placeIconBtn(106, bottomY, 'btn_rate.png');
-        this.placeIconBtn(bgCenterX - 72, bottomY, 'btn_cart.png');
+        this.placeIconBtn(bgCenterX - 72, bottomY, 'btn_cart.png', () =>
+        {
+            this.scene.start('Shop');
+        });
         this.placeIconBtn(bgCenterX + 72, bottomY, 'icon_medal.png', () =>
         {
             this.scene.start('Medal');

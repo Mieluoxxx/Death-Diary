@@ -1,7 +1,8 @@
-import { Scene, GameObjects } from 'phaser';
-import { addAtlasButton, type AtlasButton } from '../ui/atlasButton';
-import { getLanguage, t, type LangCode } from '../settings/settingsStore';
+import { GameObjects, Scene } from 'phaser';
 import { createNewSession, type RoleKey as SessionRole, type TalentId as SessionTalent } from '../session/sessionStore';
+import { getLanguage, type LangCode, t } from '../settings/settingsStore';
+import { isRoleLuoUnlocked, isRoleYaziUnlocked, isTalentIapUnlocked } from '../systems/iapStore';
+import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
 
 /**
@@ -10,8 +11,7 @@ import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
  * Design: 640×1136 FIXED_HEIGHT.
  * Cocos bottom-left y → Phaser top-left: phaserY = height - cocosY.
  *
- * Web slice: Stranger unlocked; Luo / Yazi locked; only Survivor talent free.
- * Shop / IAP deferred — locked taps show dialog only.
+ * Roles / talents unlock via main-menu shop IAP (108/109, 101–104).
  */
 
 type TalentId = 0 | 101 | 102 | 103 | 104;
@@ -123,7 +123,7 @@ export class ChooseScene extends Scene
 
     private buildRoleSlides (): RoleSlide[]
     {
-        // Web slice: only Stranger unlocked (matches original free role).
+        // Stranger free; Luo/Yazi via IAP 108/109 (shop).
         return [
             {
                 key: 'STRANGER',
@@ -137,14 +137,14 @@ export class ChooseScene extends Scene
                 digId: ROLE_NPC_ID.LUO,
                 nameKey: 'role_luo_name',
                 desKey: 'role_luo_des',
-                unlocked: false,
+                unlocked: isRoleLuoUnlocked(),
             },
             {
                 key: 'YAZI',
                 digId: ROLE_NPC_ID.YAZI,
                 nameKey: 'role_yazi_name',
                 desKey: 'role_yazi_des',
-                unlocked: false,
+                unlocked: isRoleYaziUnlocked(),
             },
             {
                 key: 'LOCKED',
@@ -507,7 +507,7 @@ export class ChooseScene extends Scene
 
         TALENT_IDS.forEach((talentId, index) =>
         {
-            const unlocked = talentId === 0;
+            const unlocked = isTalentIapUnlocked(talentId);
             let cocosX: number;
             let cocosY: number;
 
@@ -681,14 +681,18 @@ export class ChooseScene extends Scene
         };
 
         makeDialogBtn(width / 2 - 90, t('cancel', lan), closeDialog);
-        // Shop deferred — dismiss only
-        makeDialogBtn(width / 2 + 90, t('unlockIt', lan), closeDialog);
+        // Jump to shop for unlock (original unlockIt → ShopScene)
+        makeDialogBtn(width / 2 + 90, t('unlockIt', lan), () =>
+        {
+            closeDialog();
+            this.scene.start('Shop');
+        });
     }
 
     private confirm (): void
     {
         const slide = this.roleSlides[this.chosenRoleIndex];
-        if (!slide || !slide.unlocked)
+        if (!slide?.unlocked)
         {
             return;
         }
