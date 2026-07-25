@@ -404,6 +404,31 @@ export function playerGoHome (): void
     gameBusEmit('session_updated');
 }
 
+/** Finish an already-timed journey by placing the player at its destination. */
+export function arriveAt (siteId: number): boolean
+{
+    const session = getSession();
+    const cfg = getSiteConfig(siteId);
+    if (!session || !cfg)
+    {
+        return false;
+    }
+    if (!session.map.unlocked.includes(siteId) && siteId !== HOME_SITE_ID)
+    {
+        return false;
+    }
+
+    if (siteId === HOME_SITE_ID)
+    {
+        playerGoHome();
+    }
+    else
+    {
+        enterSite(siteId);
+    }
+    return true;
+}
+
 export function enterSite (siteId: number): void
 {
     ensureSite(siteId);
@@ -530,16 +555,12 @@ export function travelTo (siteId: number, onArrived?: () => void): boolean
         applyGameTimeToSession(live, live.gameTime + jump);
     });
 
-    if (siteId === HOME_SITE_ID)
+    const arrived = arriveAt(plan.siteId);
+    if (arrived)
     {
-        playerGoHome();
+        onArrived?.();
     }
-    else
-    {
-        enterSite(siteId);
-    }
-    onArrived?.();
-    return true;
+    return arrived;
 }
 
 export function fillTempLootFromRoom (siteId: number): SiteLoot[]

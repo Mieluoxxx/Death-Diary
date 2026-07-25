@@ -24,7 +24,7 @@ import {
     startBattle,
     tickBattle,
 } from '../../systems/battleSystem';
-import { planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
+import { arriveAt, planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
 import { accelerateTime } from '../../systems/timeClock';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
@@ -389,7 +389,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
                     runDodgeEncounter(encounter.monsters, () =>
                     {
                         moving = false;
-                        if (!travelTo(siteId))
+                        if (!arriveAt(siteId))
                         {
                             ctx.showToast('无法前往');
                             return;
@@ -400,7 +400,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
                 }
 
                 moving = false;
-                if (!travelTo(siteId))
+                if (!arriveAt(siteId))
                 {
                     ctx.showToast('无法前往');
                     return;
