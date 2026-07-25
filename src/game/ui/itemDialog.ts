@@ -4,88 +4,42 @@
  */
 
 import type { GameObjects, Scene } from 'phaser';
-import { itemName } from '../data/buildStrings';
-import { isUsableItem } from '../data/itemEffects';
+import { ITEM_STRINGS, itemName } from '../data/buildStrings';
 import { getItemDef } from '../data/itemConfig';
-import { getSession } from '../session/sessionStore';
-import { useItem, type ItemUseSource } from '../systems/itemUse';
+import type { ItemDetailModel } from './itemDetailContext';
 import { addAtlasButton } from './atlasButton';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 const DIALOG_FRAME = 'dialog_big_bg.png';
 const FALLBACK_FRAME = 'dialog_small_2_bg.png';
-const DIALOG_WIDTH = 520;
-const DIALOG_HEIGHT = 560;
-const TITLE_HEIGHT = 100;
-const ACTION_HEIGHT = 80;
-const LEFT_EDGE = 24;
+const DIALOG_WIDTH = 448;
+const DIALOG_HEIGHT = 625;
+const TITLE_HEIGHT = 90;
+const ACTION_HEIGHT = 72;
+const LEFT_EDGE = 20;
 
-export type ItemDialogSource = 'storage' | 'bag' | 'site' | 'top' | 'bottom';
-
-export type ItemDialogOptions = {
-    from?: ItemDialogSource;
-    showOnly?: boolean;
-    onToast?: (msg: string) => void;
-    onClose?: () => void;
-};
+export type { ItemDetailModel } from './itemDetailContext';
 
 function itemDescription (itemId: number): string
 {
-    // Prefer named copy table when present; fall back to generic weight line.
-    // ITEM_STRINGS only exposes title via itemName today — use inline des lookup.
-    try
+    const copy = ITEM_STRINGS[String(itemId)];
+    if (copy?.des)
     {
-        // Dynamic require avoided; use getItemDef name + weight as baseline.
-        const def = getItemDef(itemId);
-        const parts = [`重量 ${def.weight}`];
-        if (def.slot)
-        {
-            parts.push(`槽位 ${def.slot}`);
-        }
-        if (def.effectWeapon)
-        {
-            parts.push(`攻击 ${def.effectWeapon.atk}`);
-        }
-        if (def.effectArm)
-        {
-            parts.push(`防御 ${def.effectArm.def}`);
-        }
-        if (def.effectTool)
-        {
-            parts.push(`工作 ${def.effectTool.workingTime}s`);
-        }
-        return parts.join(' · ');
+        return copy.des;
     }
-    catch
+
+    const def = getItemDef(itemId);
+    const parts = [`重量 ${def.weight}`];
+    if (def.slot)
     {
-        return '';
+        parts.push(`槽位 ${def.slot}`);
     }
+    return parts.join(' · ');
 }
 
-function countInSource (itemId: number, from: ItemDialogSource): number
-{
-    const session = getSession();
-    if (!session)
-    {
-        return 0;
-    }
-    if (from === 'bag')
-    {
-        return session.bag[itemId] ?? 0;
-    }
-    if (from === 'top')
-    {
-        // Original topFrame: home → storage, outdoors → bag.
-        const bag = session.isAtHome ? session.storage : session.bag;
-        return bag[itemId] ?? 0;
-    }
-    // storage / site / bottom default to home warehouse for this slice.
-    return session.storage[itemId] ?? 0;
-}
 
-export function openItemDialog (
+export function openItemDetailDialog (
     scene: Scene,
-    itemId: number,
-    options: ItemDialogOptions = {},
+    model: ItemDetailModel,
 ): GameObjects.Container
 {
     const existing = scene.children.list.find(
@@ -96,9 +50,8 @@ export function openItemDialog (
         existing.destroy(true);
     }
 
-    const from = options.from ?? 'storage';
+    const { itemId, quantity: count, primaryAction } = model;
     const title = itemName(itemId);
-    const count = countInSource(itemId, from);
     const description = itemDescription(itemId) || getItemDef(itemId).name;
     const { width, height } = scene.scale;
 
@@ -111,11 +64,13 @@ export function openItemDialog (
         .setInteractive();
     root.add(dim);
 
+    // Original Dialog: centered in the 839px gameplay field above 29px bottom chrome.
+    const cocosBgBottom = 29 + (839 - DIALOG_HEIGHT) / 2;
+    const bgBottomY = height - cocosBgBottom;
+    const bgTopY = bgBottomY - DIALOG_HEIGHT;
     const bgCenterX = width / 2;
-    const bgCenterY = height / 2;
+    const bgCenterY = bgTopY + DIALOG_HEIGHT / 2;
     const bgLeft = bgCenterX - DIALOG_WIDTH / 2;
-    const bgTopY = bgCenterY - DIALOG_HEIGHT / 2;
-    const bgBottomY = bgCenterY + DIALOG_HEIGHT / 2;
 
     let panel: GameObjects.Image | GameObjects.Rectangle;
     if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME))
@@ -168,7 +123,7 @@ export function openItemDialog (
 
     root.add(
         scene.add
-            .text(titleX, titleTopY + 40, `当前:${count}`, {
+            .text(titleX, titleTopY + 40, `库存:${count}`, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
@@ -179,10 +134,10 @@ export function openItemDialog (
 
     const digFrame = `dig_item_${itemId}.png`;
     let desY = contentTopY + 8;
-    if (scene.textures.exists('dig') && scene.textures.get('dig').has(digFrame))
+    if (scene.textures.exists('dig_item') && scene.textures.get('dig_item').has(digFrame))
     {
         const dig = scene.add
-            .image(bgCenterX, contentTopY + 70, 'dig', digFrame)
+            .image(bgCenterX, contentTopY + 70, 'dig_item', digFrame)
             .setOrigin(0.5, 0);
         const maxW = textWidth;
         if (dig.width > maxW)
@@ -219,7 +174,7 @@ export function openItemDialog (
     const dismiss = () =>
     {
         root.destroy(true);
-        options.onClose?.();
+        model.onClose?.();
     };
 
     dim.on('pointerup', (pointer: Phaser.Input.Pointer) =>
@@ -235,35 +190,22 @@ export function openItemDialog (
         }
     });
 
-    const canUse =
-        !options.showOnly
-        && (from === 'storage' || from === 'bag' || from === 'top')
-        && isUsableItem(itemId)
-        && count > 0;
-
-    // top: use from storage at home, bag outdoors (mirrors original topFrame).
-    let useFrom: ItemUseSource = 'storage';
-    if (from === 'bag')
+    const onPrimaryAction = () =>
     {
-        useFrom = 'bag';
-    }
-    else if (from === 'top')
-    {
-        const live = getSession();
-        useFrom = live && !live.isAtHome ? 'bag' : 'storage';
-    }
-
-    const onUse = () =>
-    {
-        const result = useItem(itemId, useFrom);
+        if (!primaryAction)
+        {
+            return;
+        }
+        const result = primaryAction.run();
+        if (result.msg)
+        {
+            model.onToast?.(result.msg);
+        }
         if (result.ok)
         {
-            options.onToast?.(result.msg);
+            // 原版先关闭详情框，再让来源列表按最新库存重绘。
             dismiss();
-        }
-        else
-        {
-            options.onToast?.(result.msg);
+            model.onUseSuccess?.();
         }
     };
 
@@ -271,26 +213,26 @@ export function openItemDialog (
         scene.textures.exists('ui')
         && scene.textures.get('ui').has('btn_common_black_normal.png');
 
-    if (canUse && hasBtnAtlas)
+    if (primaryAction && hasBtnAtlas)
     {
         root.add(
             addAtlasButton(scene, bgCenterX - 90, actionCenterY, {
                 atlas: 'ui',
                 frame: 'btn_common_black_normal.png',
-                label: '使用',
+                label: '返回',
                 labelColor: '#f5f0e6',
                 labelSizeTier: 'COMMON_2',
-                onClick: onUse,
+                onClick: dismiss,
             }),
         );
         root.add(
             addAtlasButton(scene, bgCenterX + 90, actionCenterY, {
                 atlas: 'ui',
                 frame: 'btn_common_black_normal.png',
-                label: '关闭',
+                label: primaryAction.label,
                 labelColor: '#f5f0e6',
                 labelSizeTier: 'COMMON_2',
-                onClick: dismiss,
+                onClick: onPrimaryAction,
             }),
         );
     }
@@ -307,32 +249,32 @@ export function openItemDialog (
             }),
         );
     }
-    else if (canUse)
+    else if (primaryAction)
     {
         const useBtn = scene.add
             .rectangle(bgCenterX - 90, actionCenterY, 140, 45, 0x222222)
             .setInteractive({ useHandCursor: true });
         const useText = scene.add
-            .text(bgCenterX - 90, actionCenterY, '使用', {
+            .text(bgCenterX - 90, actionCenterY, '返回', {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: '20px',
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);
-        useBtn.on('pointerup', onUse);
+        useBtn.on('pointerup', dismiss);
         const closeBtn = scene.add
             .rectangle(bgCenterX + 90, actionCenterY, 140, 45, 0x222222)
             .setInteractive({ useHandCursor: true });
         const closeText = scene.add
-            .text(bgCenterX + 90, actionCenterY, '关闭', {
+            .text(bgCenterX + 90, actionCenterY, primaryAction.label, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: '20px',
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);
-        closeBtn.on('pointerup', dismiss);
+        closeBtn.on('pointerup', onPrimaryAction);
         root.add([useBtn, useText, closeBtn, closeText]);
     }
     else

@@ -8,7 +8,8 @@ import {
 } from '../session/sessionStore';
 import { getLanguage } from '../settings/settingsStore';
 import { openStatusDialog, type StatusQuickItem } from './dialogSmall';
-import { openItemDialog } from './itemDialog';
+import { createItemDetailModel, topStatusItemContainer } from './itemDetailContext';
+import { openItemDetailDialog } from './itemDialog';
 import { openSettingLayer } from './settingLayer';
 import { mountScrollViewport } from './scrollViewport';
 import {
@@ -541,30 +542,33 @@ export function addTopFrame (
     {
         placeAttrCell(index, def.key, def.reverse, () =>
         {
-            const live = getSession() ?? session;
-            const stringId = ATTR_STATUS_ID[def.key];
-            const copy = getStatusCopy(stringId, lan);
-            const quickItems = quickItemsForAttr(def.key, live);
-            openStatusDialog(scene, {
-                iconFrame: `icon_${def.key}_0.png`,
-                iconAtlas: 'icon',
-                title: copy.title,
-                currentLine: formatCurrentValue(formatAttrValue(def.key, live), lan),
-                description: copy.des,
-                quickItems,
-                onQuickItemTap: (itemId) =>
-                {
-                    // Original: tap strip cell → showItemDialog(..., source 'top').
-                    openItemDialog(scene, itemId, {
-                        from: 'top',
-                        onToast: (msg) =>
-                        {
-                            // Lightweight feedback; status strip refreshes on reopen.
-                            void msg;
-                        },
-                    });
-                },
-            });
+            /** 按当前会话重建状态框，避免快捷物品条保留打开时的数量快照。 */
+            const openAttrStatusDialog = (): void =>
+            {
+                const live = getSession() ?? session;
+                const stringId = ATTR_STATUS_ID[def.key];
+                const copy = getStatusCopy(stringId, lan);
+                const quickItems = quickItemsForAttr(def.key, live);
+                openStatusDialog(scene, {
+                    iconFrame: `icon_${def.key}_0.png`,
+                    iconAtlas: 'icon',
+                    title: copy.title,
+                    currentLine: formatCurrentValue(formatAttrValue(def.key, live), lan),
+                    description: copy.des,
+                    quickItems,
+                    onQuickItemTap: (itemId) =>
+                    {
+                        openItemDetailDialog(scene, createItemDetailModel(
+                            itemId,
+                            topStatusItemContainer(),
+                            {
+                                onUseSuccess: openAttrStatusDialog,
+                            },
+                        ));
+                    },
+                });
+            };
+            openAttrStatusDialog();
         });
     });
 
