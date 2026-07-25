@@ -13,29 +13,20 @@ import {
 } from '../systems/deathSystem';
 import { stopSurvivalLoop } from '../systems/survivalLoop';
 import { addAtlasButton } from '../ui/atlasButton';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from '../ui/uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
 
 const BG_WIDTH = 596;
 const BG_BOTTOM_OFFSET = 18;
 const BG_HEIGHT = 839;
 
-export class DeathScene extends Scene
-{
-    constructor ()
-    {
+export class DeathScene extends Scene {
+    constructor() {
         super('Death');
     }
 
-    create (): void
-    {
+    create(): void {
         const session = getSession();
-        if (!session)
-        {
+        if (!session) {
             this.scene.start('MainMenu');
             return;
         }
@@ -50,14 +41,9 @@ export class DeathScene extends Scene
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
 
         // Top strip stays empty black — original keeps top frame gone after die/stop.
-        if (this.textures.exists('ui') && this.textures.get('ui').has('frame_bg_bottom.png'))
-        {
-            this.add
-                .image(bgCenterX, bgBottomY, 'ui', 'frame_bg_bottom.png')
-                .setOrigin(0.5, 1);
-        }
-        else
-        {
+        if (this.textures.exists('ui') && this.textures.get('ui').has('frame_bg_bottom.png')) {
+            this.add.image(bgCenterX, bgBottomY, 'ui', 'frame_bg_bottom.png').setOrigin(0.5, 1);
+        } else {
             this.add
                 .rectangle(bgCenterX, bgBottomY - BG_HEIGHT / 2, BG_WIDTH, BG_HEIGHT, 0x1a1a1a)
                 .setOrigin(0.5);
@@ -73,21 +59,18 @@ export class DeathScene extends Scene
             })
             .setOrigin(0.5);
 
-        if (this.textures.exists('ui') && this.textures.get('ui').has('frame_line.png'))
-        {
+        if (this.textures.exists('ui') && this.textures.get('ui').has('frame_line.png')) {
             this.add.image(bgCenterX, bgBottomY - 770, 'ui', 'frame_line.png');
         }
 
         // dig_death illustration
         let digBottom = contentTopY + 20;
-        if (this.textures.exists('ui') && this.textures.get('ui').has('dig_death.png'))
-        {
+        if (this.textures.exists('ui') && this.textures.get('ui').has('dig_death.png')) {
             const dig = this.add
                 .image(bgCenterX, contentTopY + 10, 'ui', 'dig_death.png')
                 .setOrigin(0.5, 0);
             const maxW = BG_WIDTH - 48;
-            if (dig.width > maxW)
-            {
+            if (dig.width > maxW) {
                 dig.setScale(maxW / dig.width);
             }
             digBottom = dig.y + dig.displayHeight + 16;
@@ -95,19 +78,14 @@ export class DeathScene extends Scene
 
         const duration = formatSurvivalDuration(session);
         this.add
-            .text(
-                bgCenterX,
-                digBottom,
-                `在勉强生存了${duration}后，你终于倒下了`,
-                {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                    color: '#ffffff',
-                    align: 'center',
-                    wordWrap: uiWordWrap(BG_WIDTH - 80),
-                },
-            )
+            .text(bgCenterX, digBottom, `在勉强生存了${duration}后，你终于倒下了`, {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                color: '#ffffff',
+                align: 'center',
+                wordWrap: uiWordWrap(BG_WIDTH - 80),
+            })
             .setOrigin(0.5, 0);
 
         const kitCount = countFirstAidKits(session);
@@ -115,8 +93,7 @@ export class DeathScene extends Scene
         const btnY = bgBottomY - 100;
 
         // Original: with kit → revive only; without → accept death (+ optional pay deferred).
-        if (hasKit)
-        {
+        if (hasKit) {
             this.add
                 .text(bgCenterX, btnY - 48, `你有${kitCount}个急救包`, {
                     fontFamily: UI_FONT_FAMILY,
@@ -126,18 +103,14 @@ export class DeathScene extends Scene
                 })
                 .setOrigin(0.5, 1);
 
-            this.addWhiteButton(bgCenterX, btnY, '复活', () =>
-            {
-                if (!consumeFirstAidKit())
-                {
+            this.addWhiteButton(bgCenterX, btnY, '复活', () => {
+                if (!consumeFirstAidKit()) {
                     return;
                 }
                 relivePlayer();
                 this.scene.start('Home');
             });
-        }
-        else
-        {
+        } else {
             this.add
                 .text(bgCenterX, btnY - 48, '你有0个急救包', {
                     fontFamily: UI_FONT_FAMILY,
@@ -148,25 +121,22 @@ export class DeathScene extends Scene
                 .setOrigin(0.5, 1);
 
             // Accept death → EndScene. (IAP buy-first-aid deferred.)
-            this.addWhiteButton(bgCenterX, btnY, '接受死亡', () =>
-            {
+            this.addWhiteButton(bgCenterX, btnY, '接受死亡', () => {
                 this.scene.start('End');
             });
         }
     }
 
-    private addWhiteButton (
+    private addWhiteButton(
         x: number,
         y: number,
         label: string,
         onClick: () => void,
-    ): GameObjects.Container | GameObjects.Rectangle
-    {
+    ): GameObjects.Container | GameObjects.Rectangle {
         if (
-            this.textures.exists('ui')
-            && this.textures.get('ui').has('btn_common_white_normal.png')
-        )
-        {
+            this.textures.exists('ui') &&
+            this.textures.get('ui').has('btn_common_white_normal.png')
+        ) {
             return addAtlasButton(this, x, y, {
                 atlas: 'ui',
                 frame: 'btn_common_white_normal.png',

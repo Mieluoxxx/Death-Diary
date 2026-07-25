@@ -6,11 +6,7 @@
  */
 
 import { gameBusEmit } from './gameBus';
-import {
-    accelerateWorkTime,
-    addTimerCallback,
-    type TimerCallbackHandle,
-} from './timeClock';
+import { accelerateWorkTime, addTimerCallback, type TimerCallbackHandle } from './timeClock';
 
 export type ProgressKind = 'facility' | 'craft' | 'build_upgrade';
 
@@ -43,27 +39,22 @@ export type StartTimedProgressOpts = {
 /** Active jobs keyed by channel identity. */
 const jobs = new Map<string, TimedProgressJob>();
 
-export function progressKey (channel: ProgressChannel): string
-{
+export function progressKey(channel: ProgressChannel): string {
     const action = channel.actionId ?? -1;
     return `${channel.kind}:${channel.id}:${action}`;
 }
 
-export function getTimedProgressJob (channel: ProgressChannel): TimedProgressJob | null
-{
+export function getTimedProgressJob(channel: ProgressChannel): TimedProgressJob | null {
     return jobs.get(progressKey(channel)) ?? null;
 }
 
-export function isTimedProgressActive (channel: ProgressChannel): boolean
-{
+export function isTimedProgressActive(channel: ProgressChannel): boolean {
     return Boolean(jobs.get(progressKey(channel))?.isActioning);
 }
 
-export function timedProgressPercentage (channel: ProgressChannel): number
-{
+export function timedProgressPercentage(channel: ProgressChannel): number {
     const job = jobs.get(progressKey(channel));
-    if (!job?.isActioning || job.totalTime <= 0)
-    {
+    if (!job?.isActioning || job.totalTime <= 0) {
         return 0;
     }
     return Math.min(100, (job.pastTime / job.totalTime) * 100);
@@ -73,12 +64,10 @@ export function timedProgressPercentage (channel: ProgressChannel): number
  * Start a timed job that emits `progress` each process tick and `progress_done` on end.
  * Replaces any existing job on the same channel.
  */
-export function startTimedProgress (opts: StartTimedProgressOpts): TimedProgressJob
-{
+export function startTimedProgress(opts: StartTimedProgressOpts): TimedProgressJob {
     const key = progressKey(opts.channel);
     const existing = jobs.get(key);
-    if (existing?.handle)
-    {
+    if (existing?.handle) {
         // Leave previous timer running if still registered; mark idle so UI drops it.
         existing.isActioning = false;
         existing.handle = null;
@@ -95,8 +84,7 @@ export function startTimedProgress (opts: StartTimedProgressOpts): TimedProgress
     jobs.set(key, job);
 
     const handle = addTimerCallback(duration, {
-        process: (dt) =>
-        {
+        process: (dt) => {
             job.pastTime += dt;
             const percentage = Math.min(100, (job.pastTime / job.totalTime) * 100);
             gameBusEmit('progress', {
@@ -105,8 +93,7 @@ export function startTimedProgress (opts: StartTimedProgressOpts): TimedProgress
             });
             opts.onTick?.(job, percentage);
         },
-        end: () =>
-        {
+        end: () => {
             job.isActioning = false;
             job.handle = null;
             job.pastTime = 0;
@@ -121,8 +108,7 @@ export function startTimedProgress (opts: StartTimedProgressOpts): TimedProgress
     });
     job.handle = handle;
 
-    if (opts.accelerate !== false)
-    {
+    if (opts.accelerate !== false) {
         accelerateWorkTime(duration);
     }
 
@@ -135,12 +121,10 @@ export function startTimedProgress (opts: StartTimedProgressOpts): TimedProgress
     return job;
 }
 
-export function clearTimedProgress (channel: ProgressChannel): void
-{
+export function clearTimedProgress(channel: ProgressChannel): void {
     const key = progressKey(channel);
     const job = jobs.get(key);
-    if (!job)
-    {
+    if (!job) {
         return;
     }
     job.isActioning = false;

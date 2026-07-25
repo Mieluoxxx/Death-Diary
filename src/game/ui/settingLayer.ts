@@ -41,11 +41,10 @@ export type SettingLayerOptions = {
  *  - Extra "返回菜单" → MainMenu (session kept for Continue)
  *  - Confirm only closes the overlay
  */
-export function openSettingLayer (
+export function openSettingLayer(
     scene: Scene,
     opts: SettingLayerOptions = {},
-): GameObjects.Container
-{
+): GameObjects.Container {
     const fromGame = Boolean(opts.fromGame);
     const { width, height } = scene.scale;
     const root = scene.add.container(0, 0);
@@ -65,12 +64,23 @@ export function openSettingLayer (
     let selector: GameObjects.Container | null = null;
     let selectorKind: SelectorKind = null;
 
-    const labelStyle = { fontFamily: UI_FONT_FAMILY, resolution: UI_TEXT_RESOLUTION, fontSize: '20px', color: '#ffffff' };
+    const labelStyle = {
+        fontFamily: UI_FONT_FAMILY,
+        resolution: UI_TEXT_RESOLUTION,
+        fontSize: '20px',
+        color: '#ffffff',
+    };
     const py = (cocosY: number) => height - cocosY;
 
-    const musicLabel = scene.add.text(width / 2, py(980), t('music', pendingLan), labelStyle).setOrigin(0.5);
-    const sfxLabel = scene.add.text(width / 2, py(860), t('sfx', pendingLan), labelStyle).setOrigin(0.5);
-    const lanLabel = scene.add.text(width / 2, py(720), t('language', pendingLan), labelStyle).setOrigin(0.5);
+    const musicLabel = scene.add
+        .text(width / 2, py(980), t('music', pendingLan), labelStyle)
+        .setOrigin(0.5);
+    const sfxLabel = scene.add
+        .text(width / 2, py(860), t('sfx', pendingLan), labelStyle)
+        .setOrigin(0.5);
+    const lanLabel = scene.add
+        .text(width / 2, py(720), t('language', pendingLan), labelStyle)
+        .setOrigin(0.5);
     root.add([musicLabel, sfxLabel, lanLabel]);
 
     type SettingBtn = GameObjects.Container & { setTitle: (s: string) => void };
@@ -82,43 +92,43 @@ export function openSettingLayer (
         title: string,
         withScroll: boolean,
         onClick: () => void,
-    ): SettingBtn =>
-    {
+    ): SettingBtn => {
         const c = scene.add.container(x, y) as SettingBtn;
         let bg: GameObjects.Image | GameObjects.Rectangle;
 
-        if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_language_bg.png'))
-        {
+        if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_language_bg.png')) {
             bg = scene.add.image(0, 0, 'ui', 'btn_language_bg.png');
             c.add(bg);
-            if (withScroll && scene.textures.get('ui').has('btn_language_scroll.png'))
-            {
-                c.add(scene.add.image((bg.width / 2) - 18, 0, 'ui', 'btn_language_scroll.png'));
+            if (withScroll && scene.textures.get('ui').has('btn_language_scroll.png')) {
+                c.add(scene.add.image(bg.width / 2 - 18, 0, 'ui', 'btn_language_scroll.png'));
             }
-        }
-        else
-        {
+        } else {
             bg = scene.add.rectangle(0, 0, 272, 60, 0xe8e0d0);
             c.add(bg);
         }
 
         const label = scene.add
-            .text(0, 0, title, { fontFamily: UI_FONT_FAMILY, resolution: UI_TEXT_RESOLUTION, fontSize: '20px', color: '#111111' })
+            .text(0, 0, title, {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: '20px',
+                color: '#111111',
+            })
             .setOrigin(0.5);
         c.add(label);
 
-        const hit = scene.add.rectangle(0, 0, 272, 60, 0x000000, 0).setInteractive({ useHandCursor: true });
+        const hit = scene.add
+            .rectangle(0, 0, 272, 60, 0x000000, 0)
+            .setInteractive({ useHandCursor: true });
         c.add(hit);
         hit.on('pointerdown', () => bg.setAlpha(0.5));
         hit.on('pointerout', () => bg.setAlpha(1));
-        hit.on('pointerup', () =>
-        {
+        hit.on('pointerup', () => {
             bg.setAlpha(1);
             onClick();
         });
 
-        c.setTitle = (s: string) =>
-        {
+        c.setTitle = (s: string) => {
             label.setText(s);
         };
 
@@ -126,20 +136,16 @@ export function openSettingLayer (
         return c;
     };
 
-    const closeSelector = () =>
-    {
-        if (selector)
-        {
+    const closeSelector = () => {
+        if (selector) {
             selector.destroy(true);
             selector = null;
             selectorKind = null;
         }
     };
 
-    const previewHostLanguage = (lan: LangCode) =>
-    {
-        if (fromGame)
-        {
+    const previewHostLanguage = (lan: LangCode) => {
+        if (fromGame) {
             return;
         }
         const host = scene as MenuHostScene;
@@ -149,8 +155,7 @@ export function openSettingLayer (
     let confirmLabel: GameObjects.Text;
     let backToMenuLabel: GameObjects.Text | null = null;
 
-    const refreshSettingCopy = () =>
-    {
+    const refreshSettingCopy = () => {
         musicLabel.setText(t('music', pendingLan));
         sfxLabel.setText(t('sfx', pendingLan));
         lanLabel.setText(t('language', pendingLan));
@@ -162,10 +167,8 @@ export function openSettingLayer (
         previewHostLanguage(pendingLan);
     };
 
-    const openAudioSelector = (kind: 'music' | 'sfx') =>
-    {
-        if (selectorKind === kind)
-        {
+    const openAudioSelector = (kind: 'music' | 'sfx') => {
+        if (selectorKind === kind) {
             closeSelector();
             return;
         }
@@ -177,27 +180,28 @@ export function openSettingLayer (
         selector = scene.add.container(width / 2, anchorY + 60);
         root.add(selector);
 
-        makeSettingBtn(selector, 0, 0, nowOn ? t('off', pendingLan) : t('on', pendingLan), false, () =>
-        {
-            if (kind === 'music')
-            {
-                musicOn = !musicOn;
-                setMusicOn(musicOn);
-            }
-            else
-            {
-                sfxOn = !sfxOn;
-                setSfxOn(sfxOn);
-            }
-            refreshSettingCopy();
-            closeSelector();
-        });
+        makeSettingBtn(
+            selector,
+            0,
+            0,
+            nowOn ? t('off', pendingLan) : t('on', pendingLan),
+            false,
+            () => {
+                if (kind === 'music') {
+                    musicOn = !musicOn;
+                    setMusicOn(musicOn);
+                } else {
+                    sfxOn = !sfxOn;
+                    setSfxOn(sfxOn);
+                }
+                refreshSettingCopy();
+                closeSelector();
+            },
+        );
     };
 
-    const openLanguageSelector = () =>
-    {
-        if (selectorKind === 'language')
-        {
+    const openLanguageSelector = () => {
+        if (selectorKind === 'language') {
             closeSelector();
             return;
         }
@@ -208,10 +212,8 @@ export function openSettingLayer (
         selector = scene.add.container(width / 2, py(670) + 30);
         root.add(selector);
 
-        others.forEach((code, i) =>
-        {
-            makeSettingBtn(selector!, 0, 30 + i * 62, LANG_NAMES[code], false, () =>
-            {
+        others.forEach((code, i) => {
+            makeSettingBtn(selector!, 0, 30 + i * 62, LANG_NAMES[code], false, () => {
                 pendingLan = code;
                 refreshSettingCopy();
                 closeSelector();
@@ -235,29 +237,21 @@ export function openSettingLayer (
         true,
         () => openAudioSelector('sfx'),
     );
-    const lanBtn = makeSettingBtn(
-        root,
-        width / 2,
-        py(670),
-        LANG_NAMES[pendingLan],
-        true,
-        () => openLanguageSelector(),
+    const lanBtn = makeSettingBtn(root, width / 2, py(670), LANG_NAMES[pendingLan], true, () =>
+        openLanguageSelector(),
     );
 
     // In-game only: 返回菜单 (Cocos y = 320)
-    if (fromGame)
-    {
+    if (fromGame) {
         const homeBtn = addAtlasButton(scene, width / 2, py(320), {
             atlas: 'ui',
             frame: 'btn_big_white_normal.png',
             label: t('backToMenu', pendingLan),
             labelSizeTier: 'COMMON_1',
-            onClick: () =>
-            {
+            onClick: () => {
                 closeSelector();
                 // Persist pending language if changed, then leave game.
-                if (pendingLan !== savedLan)
-                {
+                if (pendingLan !== savedLan) {
                     setLanguage(pendingLan);
                 }
                 root.destroy(true);
@@ -265,13 +259,12 @@ export function openSettingLayer (
             },
         });
         root.add(homeBtn);
-        backToMenuLabel = homeBtn.list.find((child) => child instanceof GameObjects.Text) as
-            | GameObjects.Text
-            | null;
+        backToMenuLabel = homeBtn.list.find(
+            (child) => child instanceof GameObjects.Text,
+        ) as GameObjects.Text | null;
     }
 
-    dim.on('pointerup', () =>
-    {
+    dim.on('pointerup', () => {
         closeSelector();
     });
 
@@ -280,21 +273,17 @@ export function openSettingLayer (
         frame: 'btn_big_white_normal.png',
         label: t('confirm', pendingLan),
         labelSizeTier: 'COMMON_1',
-        onClick: () =>
-        {
+        onClick: () => {
             closeSelector();
-            if (pendingLan !== savedLan)
-            {
+            if (pendingLan !== savedLan) {
                 setLanguage(pendingLan);
             }
 
-            if (fromGame)
-            {
+            if (fromGame) {
                 // Stay in game — only dismiss overlay (original closeSettings fromGame).
                 // If language changed, rebuild Home so top bar / labels refresh.
                 root.destroy(true);
-                if (pendingLan !== savedLan)
-                {
+                if (pendingLan !== savedLan) {
                     scene.scene.restart();
                 }
                 return;
@@ -306,12 +295,14 @@ export function openSettingLayer (
     });
     root.add(confirm);
 
-    confirmLabel = confirm.list.find((child) => child instanceof GameObjects.Text) as GameObjects.Text;
-    if (!confirmLabel)
-    {
+    confirmLabel = confirm.list.find(
+        (child) => child instanceof GameObjects.Text,
+    ) as GameObjects.Text;
+    if (!confirmLabel) {
         confirmLabel = scene.add
             .text(0, 0, t('confirm', pendingLan), {
-                fontFamily: UI_FONT_FAMILY, resolution: UI_TEXT_RESOLUTION,
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
                 fontSize: '28px',
                 color: '#111',
             })

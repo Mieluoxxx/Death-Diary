@@ -26,32 +26,29 @@ export type PayDialogResult = {
     unlocked: boolean;
 };
 
-function productIcon (
-    purchaseId: PermanentIapId,
-): { atlas: 'icon' | 'npc'; frame: string; scale: number }
-{
-    if (purchaseId === 108)
-    {
+function productIcon(purchaseId: PermanentIapId): {
+    atlas: 'icon' | 'npc';
+    frame: string;
+    scale: number;
+} {
+    if (purchaseId === 108) {
         return { atlas: 'npc', frame: 'npc_dig_1.png', scale: 0.35 };
     }
-    if (purchaseId === 109)
-    {
+    if (purchaseId === 109) {
         return { atlas: 'npc', frame: 'npc_dig_4.png', scale: 0.35 };
     }
     return { atlas: 'icon', frame: `icon_iap_${purchaseId}.png`, scale: 0.45 };
 }
 
-export function openPayDialog (
+export function openPayDialog(
     scene: Scene,
     purchaseId: PermanentIapId,
     onResult?: (result: PayDialogResult) => void,
-): GameObjects.Container
-{
+): GameObjects.Container {
     const existing = scene.children.list.find(
         (child) => (child as GameObjects.Container).name === 'payDialog',
     );
-    if (existing)
-    {
+    if (existing) {
         existing.destroy(true);
     }
 
@@ -74,12 +71,9 @@ export function openPayDialog (
     const bgCenterY = bgTopY + DIALOG_HEIGHT / 2;
     const bgLeft = bgCenterX - DIALOG_WIDTH / 2;
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME)) {
         root.add(scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME));
-    }
-    else
-    {
+    } else {
         root.add(
             scene.add
                 .rectangle(bgCenterX, bgCenterY, DIALOG_WIDTH, DIALOG_HEIGHT, 0xe8e0d0)
@@ -103,10 +97,9 @@ export function openPayDialog (
     // Title icon
     let titleTextX = textLeft;
     if (
-        scene.textures.exists(iconInfo.atlas)
-        && scene.textures.get(iconInfo.atlas).has(iconInfo.frame)
-    )
-    {
+        scene.textures.exists(iconInfo.atlas) &&
+        scene.textures.get(iconInfo.atlas).has(iconInfo.frame)
+    ) {
         const icon = scene.add
             .image(textLeft, titleTopY + TITLE_HEIGHT / 2, iconInfo.atlas, iconInfo.frame)
             .setOrigin(0, 0.5)
@@ -142,11 +135,10 @@ export function openPayDialog (
     );
 
     if (
-        purchaseId === 106
-        && scene.textures.exists('icon')
-        && scene.textures.get('icon').has('icon_sale.png')
-    )
-    {
+        purchaseId === 106 &&
+        scene.textures.exists('icon') &&
+        scene.textures.get('icon').has('icon_sale.png')
+    ) {
         root.add(
             scene.add
                 .image(bgLeft + DIALOG_WIDTH - 28, titleTopY + 24, 'icon', 'icon_sale.png')
@@ -169,8 +161,7 @@ export function openPayDialog (
     root.add(desText);
     cursorY += desText.height + 12;
 
-    if (effect.length > 0)
-    {
+    if (effect.length > 0) {
         root.add(
             scene.add
                 .text(textLeft, cursorY, effect, {
@@ -198,21 +189,18 @@ export function openPayDialog (
         .setVisible(false);
     root.add(contentMaskShape);
 
-    const dismiss = (unlocked: boolean) =>
-    {
+    const dismiss = (unlocked: boolean) => {
         root.destroy(true);
         onResult?.({ purchaseId, unlocked });
     };
 
-    dim.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-    {
+    dim.on('pointerup', (pointer: Phaser.Input.Pointer) => {
         const inside =
-            pointer.x >= bgLeft
-            && pointer.x <= bgLeft + DIALOG_WIDTH
-            && pointer.y >= bgTopY
-            && pointer.y <= bgBottomY;
-        if (!inside)
-        {
+            pointer.x >= bgLeft &&
+            pointer.x <= bgLeft + DIALOG_WIDTH &&
+            pointer.y >= bgTopY &&
+            pointer.y <= bgBottomY;
+        if (!inside) {
             dismiss(false);
         }
     });
@@ -223,15 +211,11 @@ export function openPayDialog (
     const backLabel = t('return', lan);
     const buyLabel = t('unlock', lan);
 
-    const makeBtn = (
-        x: number,
-        label: string,
-        enabled: boolean,
-        onClick: () => void,
-    ) =>
-    {
-        if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_black_normal.png'))
-        {
+    const makeBtn = (x: number, label: string, enabled: boolean, onClick: () => void) => {
+        if (
+            scene.textures.exists('ui') &&
+            scene.textures.get('ui').has('btn_common_black_normal.png')
+        ) {
             const btn = addAtlasButton(scene, x, btnY, {
                 atlas: 'ui',
                 frame: 'btn_common_black_normal.png',
@@ -256,16 +240,14 @@ export function openPayDialog (
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);
-        if (enabled)
-        {
+        if (enabled) {
             bg.on('pointerup', onClick);
         }
         root.add([bg, text]);
     };
 
     makeBtn(backX, backLabel, true, () => dismiss(false));
-    makeBtn(buyX, buyLabel, !already, () =>
-    {
+    makeBtn(buyX, buyLabel, !already, () => {
         // Web: free unlock, same as paid success path.
         unlockIap(purchaseId);
         dismiss(true);

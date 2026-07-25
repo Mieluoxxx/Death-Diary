@@ -20,14 +20,9 @@ import {
     validateStorageItems,
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';
-import {
-    accelerateWorkTime,
-    addTimerCallback,
-    type TimerCallbackHandle,
-} from './timeClock';
+import { accelerateWorkTime, addTimerCallback, type TimerCallbackHandle } from './timeClock';
 
-export enum BuildUpgradeType
-{
+export enum BuildUpgradeType {
     UPGRADABLE = 1,
     MAX_LEVEL = 2,
     CONDITION = 3,
@@ -55,71 +50,56 @@ const activeUpgrades = new Map<
     }
 >();
 
-function getConfigs (bid: number): BuildLevelConfig[] | null
-{
+function getConfigs(bid: number): BuildLevelConfig[] | null {
     return BUILD_CONFIG[bid] ?? null;
 }
 
-function normalizeCondition (
-    condition: BuildLevelConfig['condition'],
-): BuildLevelCondition | null
-{
-    if (!condition)
-    {
+function normalizeCondition(condition: BuildLevelConfig['condition']): BuildLevelCondition | null {
+    if (!condition) {
         return null;
     }
-    if (Array.isArray(condition))
-    {
+    if (Array.isArray(condition)) {
         return condition[0] ?? null;
     }
     return condition;
 }
 
-export function isBuildMaxLevel (bid: number): boolean
-{
+export function isBuildMaxLevel(bid: number): boolean {
     const session = getSession();
     const configs = getConfigs(bid);
-    if (!session || !configs)
-    {
+    if (!session || !configs) {
         return true;
     }
     const level = getBuildLevel(bid);
     // Luo still: distiller id 6 max at level 0.
-    if (session.role === 'LUO' && bid === 6)
-    {
+    if (session.role === 'LUO' && bid === 6) {
         return level >= 0;
     }
     return level >= configs.length - 1;
 }
 
-export function canUpgradeBuild (bid: number): UpgradeCheckResult
-{
+export function canUpgradeBuild(bid: number): UpgradeCheckResult {
     const session = getSession();
     const configs = getConfigs(bid);
-    if (!session || !configs)
-    {
+    if (!session || !configs) {
         return { type: BuildUpgradeType.MAX_LEVEL };
     }
 
-    if (isBuildMaxLevel(bid))
-    {
+    if (isBuildMaxLevel(bid)) {
         return { type: BuildUpgradeType.MAX_LEVEL };
     }
 
     const level = getBuildLevel(bid);
     const nextLevel = level + 1;
     const nextConfig = configs[nextLevel];
-    if (!nextConfig)
-    {
+    if (!nextConfig) {
         return { type: BuildUpgradeType.MAX_LEVEL };
     }
 
     const condition = normalizeCondition(nextConfig.condition);
-    if (condition)
-    {
+    if (condition) {
         const have = getBuildLevel(condition.bid);
-        if (have < condition.level)
-        {
+        if (have < condition.level) {
             return {
                 type: BuildUpgradeType.CONDITION,
                 nextLevel,
@@ -130,8 +110,7 @@ export function canUpgradeBuild (bid: number): UpgradeCheckResult
     }
 
     const cost = nextConfig.cost ?? [];
-    if (cost.length > 0 && !validateStorageItems(cost))
-    {
+    if (cost.length > 0 && !validateStorageItems(cost)) {
         return {
             type: BuildUpgradeType.COST,
             nextLevel,
@@ -148,31 +127,25 @@ export function canUpgradeBuild (bid: number): UpgradeCheckResult
     };
 }
 
-export function isBuildUpgrading (bid: number): boolean
-{
+export function isBuildUpgrading(bid: number): boolean {
     return activeUpgrades.has(bid);
 }
 
-export function getUpgradeProgress (bid: number): number
-{
+export function getUpgradeProgress(bid: number): number {
     const job = activeUpgrades.get(bid);
-    if (!job || job.totalTime <= 0)
-    {
+    if (!job || job.totalTime <= 0) {
         return 0;
     }
     return Math.min(100, (job.pastTime / job.totalTime) * 100);
 }
 
-export function hasAnyActiveUpgrade (): boolean
-{
+export function hasAnyActiveUpgrade(): boolean {
     return activeUpgrades.size > 0;
 }
 
-export function checkVigourOk (): boolean
-{
+export function checkVigourOk(): boolean {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return false;
     }
     return session.attrs.vigour > LOW_VIGOUR_THRESHOLD;
@@ -182,37 +155,32 @@ export function checkVigourOk (): boolean
  * Start facility upgrade. Returns false if not allowed.
  * Deducts materials immediately; level rises when timer ends.
  */
-export function startBuildUpgrade (
+export function startBuildUpgrade(
     bid: number,
     hooks?: {
         onProgress?: (percentage: number) => void;
         onComplete?: () => void;
         onFail?: (reason: string) => void;
     },
-): boolean
-{
-    if (isBuildUpgrading(bid) || hasAnyActiveUpgrade())
-    {
+): boolean {
+    if (isBuildUpgrading(bid) || hasAnyActiveUpgrade()) {
         hooks?.onFail?.('busy');
         return false;
     }
 
-    if (!checkVigourOk())
-    {
+    if (!checkVigourOk()) {
         hooks?.onFail?.('vigour');
         return false;
     }
 
     const check = canUpgradeBuild(bid);
-    if (check.type !== BuildUpgradeType.UPGRADABLE || !check.nextConfig)
-    {
+    if (check.type !== BuildUpgradeType.UPGRADABLE || !check.nextConfig) {
         hooks?.onFail?.(BuildUpgradeType[check.type] ?? 'blocked');
         return false;
     }
 
     const cost = check.nextConfig.cost ?? [];
-    if (cost.length > 0 && !costStorageItems(cost))
-    {
+    if (cost.length > 0 && !costStorageItems(cost)) {
         hooks?.onFail?.('cost');
         return false;
     }
@@ -223,12 +191,10 @@ export function startBuildUpgrade (
 
     let pastTime = 0;
     const handle = addTimerCallback(createTime, {
-        process: (deltaGameSeconds) =>
-        {
+        process: (deltaGameSeconds) => {
             pastTime += deltaGameSeconds;
             const job = activeUpgrades.get(bid);
-            if (job)
-            {
+            if (job) {
                 job.pastTime = pastTime;
             }
             const percentage = Math.min(100, (pastTime / createTime) * 100);
@@ -238,18 +204,13 @@ export function startBuildUpgrade (
                 percentage,
             });
         },
-        end: () =>
-        {
+        end: () => {
             activeUpgrades.delete(bid);
             setBuildLevel(bid, nextLevel);
             const session = getSession();
             const name = buildLevelName(bid, nextLevel);
-            if (session)
-            {
-                appendSessionLog(
-                    `${name} 升级完成`,
-                    `第${session.day}天 ${formatClock(session)}`,
-                );
+            if (session) {
+                appendSessionLog(`${name} 升级完成`, `第${session.day}天 ${formatClock(session)}`);
                 gameBusEmit('logChanged', {
                     text: session.lastLog,
                     timeLabel: session.logs[session.logs.length - 1]?.timeLabel ?? '',
@@ -274,31 +235,26 @@ export function startBuildUpgrade (
     return true;
 }
 
-export function getNextUpgradeCost (bid: number): BuildCostItem[]
-{
+export function getNextUpgradeCost(bid: number): BuildCostItem[] {
     const check = canUpgradeBuild(bid);
     return check.nextConfig?.cost ?? [];
 }
 
-export function getNextUpgradeMinutes (bid: number): number
-{
+export function getNextUpgradeMinutes(bid: number): number {
     const check = canUpgradeBuild(bid);
     return check.nextConfig?.createTime ?? 0;
 }
 
-export function digBuildFrame (bid: number, level: number): string
-{
+export function digBuildFrame(bid: number, level: number): string {
     const safeLevel = Math.max(0, level);
     return `dig_build_${bid}_${safeLevel}.png`;
 }
 
-export function homeBuildFrame (bid: number, level: number): string
-{
+export function homeBuildFrame(bid: number, level: number): string {
     const safeLevel = Math.max(0, level);
     return `icon_start_build_${bid}_${safeLevel}.png`;
 }
 
-export function clearActiveUpgrades (): void
-{
+export function clearActiveUpgrades(): void {
     activeUpgrades.clear();
 }

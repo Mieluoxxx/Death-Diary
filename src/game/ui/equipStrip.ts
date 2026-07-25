@@ -4,25 +4,11 @@
  */
 
 import type { GameObjects } from 'phaser';
-import {
-    type EquipSlot,
-    getItemDef,
-    HAND_ITEM_ID,
-    itemsForSlot,
-} from '../data/itemConfig';
+import { type EquipSlot, getItemDef, HAND_ITEM_ID, itemsForSlot } from '../data/itemConfig';
 import { getSession } from '../session/sessionStore';
-import {
-    type EquipPos,
-    EquipPosMap,
-    equipItem,
-    getCount,
-} from '../systems/inventory';
+import { type EquipPos, EquipPosMap, equipItem, getCount } from '../systems/inventory';
 import type { NodeMountContext } from './navigation';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from './uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
 import { resolveItemName } from './nodes/itemGrid';
 
 const SLOT_KIND: Record<EquipPos, EquipSlot> = {
@@ -67,11 +53,7 @@ export type EquipStripOptions = {
     onChanged?: () => void;
 };
 
-export function mountEquipStrip (
-    ctx: NodeMountContext,
-    opts: EquipStripOptions,
-): EquipStripHandle
-{
+export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions): EquipStripHandle {
     const padding = (EQUIP_W - TAB_COUNT * TAB_BG_W) / (TAB_COUNT + 1);
     const equipCx = ctx.width / 2;
     const equipCy = opts.topY + EQUIP_H / 2;
@@ -89,16 +71,15 @@ export function mountEquipStrip (
     let dropRoot: GameObjects.Container | null = null;
     let selectedCap: GameObjects.Image | GameObjects.Rectangle | null = null;
 
-    ([0, 1, 2, 3] as EquipPos[]).forEach((pos, i) =>
-    {
+    ([0, 1, 2, 3] as EquipPos[]).forEach((pos, i) => {
         const x = equipLeft + padding * (i + 1) + TAB_BG_W * (i + 0.5);
         let bg: GameObjects.Image | GameObjects.Rectangle;
-        if (ctx.scene.textures.exists('ui') && ctx.scene.textures.get('ui').has('build_icon_bg.png'))
-        {
+        if (
+            ctx.scene.textures.exists('ui') &&
+            ctx.scene.textures.get('ui').has('build_icon_bg.png')
+        ) {
             bg = ctx.scene.add.image(x, equipCy, 'ui', 'build_icon_bg.png');
-        }
-        else
-        {
+        } else {
             bg = ctx.scene.add.rectangle(x, equipCy, TAB_BG_W, TAB_BG_H, 0x3a3a3a);
         }
         ctx.content.add(bg);
@@ -111,76 +92,59 @@ export function mountEquipStrip (
         hit.on('pointerup', () => onTabClick(pos));
     });
 
-    const onTabClick = (pos: EquipPos): void =>
-    {
-        if (openPos === pos)
-        {
+    const onTabClick = (pos: EquipPos): void => {
+        if (openPos === pos) {
             closeDropDown();
             return;
         }
         openDropDown(pos);
     };
 
-    const closeDropDown = (): void =>
-    {
+    const closeDropDown = (): void => {
         openPos = null;
         dropRoot?.destroy(true);
         dropRoot = null;
-        if (selectedCap)
-        {
+        if (selectedCap) {
             selectedCap.setVisible(false);
         }
     };
 
-    const refreshEquipIcons = (): void =>
-    {
+    const refreshEquipIcons = (): void => {
         const live = getSession();
-        if (!live)
-        {
+        if (!live) {
             return;
         }
-        for (const slot of slotIcons)
-        {
+        for (const slot of slotIcons) {
             const id = live.equip[slot.pos] ?? 0;
-            if (slot.icon)
-            {
+            if (slot.icon) {
                 slot.icon.destroy();
                 slot.icon = null;
             }
 
             let frame = EMPTY_SLOT_FRAME[slot.pos];
-            if (id === HAND_ITEM_ID)
-            {
+            if (id === HAND_ITEM_ID) {
                 frame = 'icon_tab_hand.png';
-            }
-            else if (id)
-            {
+            } else if (id) {
                 frame = `icon_tab_${id}.png`;
             }
 
-            if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has(frame))
-            {
+            if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has(frame)) {
                 const img = ctx.scene.add.image(slot.x, equipCy, 'gate', frame);
                 ctx.content.add(img);
                 slot.icon = img;
             }
         }
-        if (dropRoot)
-        {
+        if (dropRoot) {
             ctx.content.bringToTop(dropRoot);
         }
-        if (selectedCap?.visible)
-        {
+        if (selectedCap?.visible) {
             ctx.content.bringToTop(selectedCap);
-            for (const slot of slotIcons)
-            {
-                if (slot.icon)
-                {
+            for (const slot of slotIcons) {
+                if (slot.icon) {
                     ctx.content.bringToTop(slot.icon);
                 }
             }
-            if (dropRoot)
-            {
+            if (dropRoot) {
                 ctx.content.bringToTop(dropRoot);
             }
         }
@@ -188,8 +152,7 @@ export function mountEquipStrip (
 
     const posOrOpen = (): EquipPos => openPos ?? EquipPosMap.WEAPON;
 
-    const buildDropLine = (itemId: number, y: number): GameObjects.Container =>
-    {
+    const buildDropLine = (itemId: number, y: number): GameObjects.Container => {
         const line = ctx.scene.add.container(0, y);
         const left = -DROP_W / 2;
 
@@ -199,16 +162,14 @@ export function mountEquipStrip (
         line.add(hit);
         hit.on('pointerover', () => hit.setFillStyle(0x555555, 0.55));
         hit.on('pointerout', () => hit.setFillStyle(0x555555, 0.001));
-        hit.on('pointerup', () =>
-        {
+        hit.on('pointerup', () => {
             equipItem(posOrOpen(), itemId);
             closeDropDown();
             refreshEquipIcons();
             opts.onChanged?.();
         });
 
-        if (itemId === 0)
-        {
+        if (itemId === 0) {
             line.add(
                 ctx.scene.add
                     .text(0, 0, '无', {
@@ -228,53 +189,33 @@ export function mountEquipStrip (
                 ? 'icon_tab_content_hand.png'
                 : `icon_tab_content_${itemId}.png`;
 
-        if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has(contentIcon))
-        {
-            line.add(
-                ctx.scene.add
-                    .image(left + 4, 0, 'gate', contentIcon)
-                    .setOrigin(0, 0.5),
-            );
-        }
-        else if (
-            itemId !== HAND_ITEM_ID
-            && ctx.scene.textures.exists('icon')
-            && ctx.scene.textures.get('icon').has(`icon_item_${itemId}.png`)
-        )
-        {
+        if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has(contentIcon)) {
+            line.add(ctx.scene.add.image(left + 4, 0, 'gate', contentIcon).setOrigin(0, 0.5));
+        } else if (
+            itemId !== HAND_ITEM_ID &&
+            ctx.scene.textures.exists('icon') &&
+            ctx.scene.textures.get('icon').has(`icon_item_${itemId}.png`)
+        ) {
             const icon = ctx.scene.add
                 .image(left + ICON_STRIP_W / 2, 0, 'icon', `icon_item_${itemId}.png`)
                 .setOrigin(0.5);
             const maxDim = Math.max(icon.width, icon.height, 1);
             icon.setScale(70 / maxDim);
             line.add(icon);
-        }
-        else if (
-            itemId === HAND_ITEM_ID
-            && ctx.scene.textures.exists('gate')
-            && ctx.scene.textures.get('gate').has('icon_tab_hand.png')
-        )
-        {
-            line.add(
-                ctx.scene.add
-                    .image(left + 55, 0, 'gate', 'icon_tab_hand.png')
-                    .setOrigin(0.5),
-            );
+        } else if (
+            itemId === HAND_ITEM_ID &&
+            ctx.scene.textures.exists('gate') &&
+            ctx.scene.textures.get('gate').has('icon_tab_hand.png')
+        ) {
+            line.add(ctx.scene.add.image(left + 55, 0, 'gate', 'icon_tab_hand.png').setOrigin(0.5));
         }
 
         const textX = left + ICON_STRIP_W + 8;
         const def = getItemDef(itemId);
-        const name =
-            itemId === HAND_ITEM_ID ? '拳头' : (def.name || resolveItemName(itemId));
+        const name = itemId === HAND_ITEM_ID ? '拳头' : def.name || resolveItemName(itemId);
         const weight = itemId === HAND_ITEM_ID ? 0 : def.weight;
-        const bagNum =
-            itemId === HAND_ITEM_ID
-                ? 0
-                : getCount(getSession()?.bag ?? {}, itemId);
-        const speed =
-            itemId === HAND_ITEM_ID
-                ? 1
-                : (def.effectWeapon?.atkCD ?? 0);
+        const bagNum = itemId === HAND_ITEM_ID ? 0 : getCount(getSession()?.bag ?? {}, itemId);
+        const speed = itemId === HAND_ITEM_ID ? 1 : (def.effectWeapon?.atkCD ?? 0);
         const topY = -LINE_H / 2 + 10;
         line.add(
             ctx.scene.add
@@ -307,8 +248,7 @@ export function mountEquipStrip (
                 .setOrigin(0, 0),
         );
 
-        if (def.effectWeapon || itemId === HAND_ITEM_ID)
-        {
+        if (def.effectWeapon || itemId === HAND_ITEM_ID) {
             line.add(
                 ctx.scene.add
                     .text(DROP_W / 2 - 16, topY + 30, `速度:${speed}`, {
@@ -324,26 +264,20 @@ export function mountEquipStrip (
         return line;
     };
 
-    const openDropDown = (pos: EquipPos): void =>
-    {
+    const openDropDown = (pos: EquipPos): void => {
         closeDropDown();
         openPos = pos;
 
         const session = getSession();
-        if (!session)
-        {
+        if (!session) {
             return;
         }
 
-        let list = itemsForSlot(SLOT_KIND[pos]).filter(
-            (id) => getCount(session.bag, id) > 0,
-        );
-        if (pos === EquipPosMap.WEAPON)
-        {
+        let list = itemsForSlot(SLOT_KIND[pos]).filter((id) => getCount(session.bag, id) > 0);
+        if (pos === EquipPosMap.WEAPON) {
             list = [HAND_ITEM_ID, ...list];
         }
-        if (list.length === 0)
-        {
+        if (list.length === 0) {
             list = [0];
         }
         const dropH = LINE_H * list.length + 2 * DROP_VPAD;
@@ -355,11 +289,10 @@ export function mountEquipStrip (
         ctx.content.bringToTop(dropRoot);
 
         if (
-            ctx.scene.textures.exists('gate')
-            && ctx.scene.textures.get('gate').has('frame_tab_content.png')
-            && typeof (ctx.scene.add as { nineslice?: unknown }).nineslice === 'function'
-        )
-        {
+            ctx.scene.textures.exists('gate') &&
+            ctx.scene.textures.get('gate').has('frame_tab_content.png') &&
+            typeof (ctx.scene.add as { nineslice?: unknown }).nineslice === 'function'
+        ) {
             const panel = (ctx.scene.add as Phaser.GameObjects.GameObjectFactory).nineslice(
                 0,
                 0,
@@ -374,20 +307,16 @@ export function mountEquipStrip (
             );
             panel.setOrigin(0.5, 0);
             dropRoot.add(panel);
-        }
-        else if (
-            ctx.scene.textures.exists('gate')
-            && ctx.scene.textures.get('gate').has('frame_tab_content.png')
-        )
-        {
+        } else if (
+            ctx.scene.textures.exists('gate') &&
+            ctx.scene.textures.get('gate').has('frame_tab_content.png')
+        ) {
             const panel = ctx.scene.add
                 .image(0, 0, 'gate', 'frame_tab_content.png')
                 .setOrigin(0.5, 0)
                 .setDisplaySize(DROP_W, dropH);
             dropRoot.add(panel);
-        }
-        else
-        {
+        } else {
             dropRoot.add(
                 ctx.scene.add
                     .rectangle(0, dropH / 2, DROP_W, dropH, 0x222222, 0.98)
@@ -396,56 +325,44 @@ export function mountEquipStrip (
         }
 
         const tabSlot = slotIcons.find((s) => s.pos === pos);
-        if (tabSlot)
-        {
+        if (tabSlot) {
             const capY = equipCy + TAB_BG_H / 2;
-            if (!selectedCap)
-            {
+            if (!selectedCap) {
                 if (
-                    ctx.scene.textures.exists('gate')
-                    && ctx.scene.textures.get('gate').has('frame_tab_head.png')
-                )
-                {
+                    ctx.scene.textures.exists('gate') &&
+                    ctx.scene.textures.get('gate').has('frame_tab_head.png')
+                ) {
                     selectedCap = ctx.scene.add
                         .image(tabSlot.x, capY, 'gate', 'frame_tab_head.png')
                         .setOrigin(0.5, 0);
-                }
-                else
-                {
+                } else {
                     selectedCap = ctx.scene.add
                         .rectangle(tabSlot.x, capY, TAB_BG_W, 24, 0x222222)
                         .setOrigin(0.5, 0);
                 }
                 ctx.content.add(selectedCap);
-            }
-            else
-            {
+            } else {
                 selectedCap.setPosition(tabSlot.x, capY);
             }
             selectedCap.setVisible(true);
             ctx.content.bringToTop(selectedCap);
-            for (const slot of slotIcons)
-            {
-                if (slot.icon)
-                {
+            for (const slot of slotIcons) {
+                if (slot.icon) {
                     ctx.content.bringToTop(slot.icon);
                 }
             }
             ctx.content.bringToTop(dropRoot);
         }
 
-        list.forEach((itemId, index) =>
-        {
+        list.forEach((itemId, index) => {
             const lineY = DROP_VPAD + index * LINE_H + LINE_H / 2;
             dropRoot?.add(buildDropLine(itemId, lineY));
 
-            if (index > 0)
-            {
+            if (index > 0) {
                 if (
-                    ctx.scene.textures.exists('gate')
-                    && ctx.scene.textures.get('gate').has('frame_tab_line.png')
-                )
-                {
+                    ctx.scene.textures.exists('gate') &&
+                    ctx.scene.textures.get('gate').has('frame_tab_line.png')
+                ) {
                     const sep = ctx.scene.add.image(
                         0,
                         DROP_VPAD + index * LINE_H,
@@ -454,9 +371,7 @@ export function mountEquipStrip (
                     );
                     sep.setDisplaySize(DROP_W - 40, 2);
                     dropRoot?.add(sep);
-                }
-                else
-                {
+                } else {
                     dropRoot?.add(
                         ctx.scene.add.rectangle(
                             0,
@@ -479,13 +394,11 @@ export function mountEquipStrip (
         height: EQUIP_H,
         refresh: refreshEquipIcons,
         closeDropDown,
-        destroy: () =>
-        {
+        destroy: () => {
             closeDropDown();
             selectedCap?.destroy();
             selectedCap = null;
-            for (const slot of slotIcons)
-            {
+            for (const slot of slotIcons) {
                 slot.icon?.destroy();
                 slot.bg.destroy();
             }

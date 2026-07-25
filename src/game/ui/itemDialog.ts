@@ -19,34 +19,25 @@ const LEFT_EDGE = 20;
 
 export type { ItemDetailModel } from './itemDetailContext';
 
-function itemDescription (itemId: number): string
-{
+function itemDescription(itemId: number): string {
     const copy = ITEM_STRINGS[String(itemId)];
-    if (copy?.des)
-    {
+    if (copy?.des) {
         return copy.des;
     }
 
     const def = getItemDef(itemId);
     const parts = [`重量 ${def.weight}`];
-    if (def.slot)
-    {
+    if (def.slot) {
         parts.push(`槽位 ${def.slot}`);
     }
     return parts.join(' · ');
 }
 
-
-export function openItemDetailDialog (
-    scene: Scene,
-    model: ItemDetailModel,
-): GameObjects.Container
-{
+export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): GameObjects.Container {
     const existing = scene.children.list.find(
         (child) => (child as GameObjects.Container).name === 'itemDialog',
     );
-    if (existing)
-    {
+    if (existing) {
         existing.destroy(true);
     }
 
@@ -73,17 +64,12 @@ export function openItemDetailDialog (
     const bgLeft = bgCenterX - DIALOG_WIDTH / 2;
 
     let panel: GameObjects.Image | GameObjects.Rectangle;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME)) {
         panel = scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME).setOrigin(0.5);
-    }
-    else if (scene.textures.exists('ui') && scene.textures.get('ui').has(FALLBACK_FRAME))
-    {
+    } else if (scene.textures.exists('ui') && scene.textures.get('ui').has(FALLBACK_FRAME)) {
         panel = scene.add.image(bgCenterX, bgCenterY, 'ui', FALLBACK_FRAME).setOrigin(0.5);
         panel.setDisplaySize(DIALOG_WIDTH, DIALOG_HEIGHT);
-    }
-    else
-    {
+    } else {
         panel = scene.add
             .rectangle(bgCenterX, bgCenterY, DIALOG_WIDTH, DIALOG_HEIGHT, 0xe8e0d0)
             .setStrokeStyle(2, 0x333333);
@@ -98,8 +84,7 @@ export function openItemDetailDialog (
 
     const iconFrame = `icon_item_${itemId}.png`;
     let titleX = textLeft;
-    if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
-    {
+    if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame)) {
         const icon = scene.add
             .image(textLeft, titleTopY + 28, 'icon', iconFrame)
             .setOrigin(0, 0.5)
@@ -134,21 +119,17 @@ export function openItemDetailDialog (
 
     const digFrame = `dig_item_${itemId}.png`;
     let desY = contentTopY + 8;
-    if (scene.textures.exists('dig_item') && scene.textures.get('dig_item').has(digFrame))
-    {
+    if (scene.textures.exists('dig_item') && scene.textures.get('dig_item').has(digFrame)) {
         const dig = scene.add
             .image(bgCenterX, contentTopY + 70, 'dig_item', digFrame)
             .setOrigin(0.5, 0);
         const maxW = textWidth;
-        if (dig.width > maxW)
-        {
+        if (dig.width > maxW) {
             dig.setScale(maxW / dig.width);
         }
         root.add(dig);
         desY = dig.y + dig.displayHeight + 12;
-    }
-    else if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
-    {
+    } else if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame)) {
         // Soft fallback art when dig atlas missing.
         const big = scene.add
             .image(bgCenterX, contentTopY + 20, 'icon', iconFrame)
@@ -171,38 +152,31 @@ export function openItemDetailDialog (
             .setOrigin(0, 0),
     );
 
-    const dismiss = () =>
-    {
+    const dismiss = () => {
         root.destroy(true);
         model.onClose?.();
     };
 
-    dim.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-    {
+    dim.on('pointerup', (pointer: Phaser.Input.Pointer) => {
         const inside =
-            pointer.x >= bgLeft
-            && pointer.x <= bgLeft + DIALOG_WIDTH
-            && pointer.y >= bgTopY
-            && pointer.y <= bgBottomY;
-        if (!inside)
-        {
+            pointer.x >= bgLeft &&
+            pointer.x <= bgLeft + DIALOG_WIDTH &&
+            pointer.y >= bgTopY &&
+            pointer.y <= bgBottomY;
+        if (!inside) {
             dismiss();
         }
     });
 
-    const onPrimaryAction = () =>
-    {
-        if (!primaryAction)
-        {
+    const onPrimaryAction = () => {
+        if (!primaryAction) {
             return;
         }
         const result = primaryAction.run();
-        if (result.msg)
-        {
+        if (result.msg) {
             model.onToast?.(result.msg);
         }
-        if (result.ok)
-        {
+        if (result.ok) {
             // 原版先关闭详情框，再让来源列表按最新库存重绘。
             dismiss();
             model.onUseSuccess?.();
@@ -210,11 +184,9 @@ export function openItemDetailDialog (
     };
 
     const hasBtnAtlas =
-        scene.textures.exists('ui')
-        && scene.textures.get('ui').has('btn_common_black_normal.png');
+        scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_black_normal.png');
 
-    if (primaryAction && hasBtnAtlas)
-    {
+    if (primaryAction && hasBtnAtlas) {
         root.add(
             addAtlasButton(scene, bgCenterX - 90, actionCenterY, {
                 atlas: 'ui',
@@ -235,9 +207,7 @@ export function openItemDetailDialog (
                 onClick: onPrimaryAction,
             }),
         );
-    }
-    else if (hasBtnAtlas)
-    {
+    } else if (hasBtnAtlas) {
         root.add(
             addAtlasButton(scene, bgCenterX, actionCenterY, {
                 atlas: 'ui',
@@ -248,9 +218,7 @@ export function openItemDetailDialog (
                 onClick: dismiss,
             }),
         );
-    }
-    else if (primaryAction)
-    {
+    } else if (primaryAction) {
         const useBtn = scene.add
             .rectangle(bgCenterX - 90, actionCenterY, 140, 45, 0x222222)
             .setInteractive({ useHandCursor: true });
@@ -276,9 +244,7 @@ export function openItemDetailDialog (
             .setOrigin(0.5);
         closeBtn.on('pointerup', onPrimaryAction);
         root.add([useBtn, useText, closeBtn, closeText]);
-    }
-    else
-    {
+    } else {
         const fallback = scene.add
             .rectangle(bgCenterX, actionCenterY, 158, 45, 0x222222)
             .setInteractive({ useHandCursor: true });

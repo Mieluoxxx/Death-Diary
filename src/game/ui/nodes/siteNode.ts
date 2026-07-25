@@ -12,31 +12,18 @@
  */
 
 import { getSiteConfig } from '../../data/siteConfig';
-import {
-    getSite,
-    leaveSite,
-    siteStorageCount,
-} from '../../systems/mapSystem';
+import { getSite, leaveSite, siteStorageCount } from '../../systems/mapSystem';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
-import {
-    formatSiteProgress,
-    mountSiteChromeCaptions,
-} from '../siteChrome';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from '../uiFont';
+import { formatSiteProgress, mountSiteChromeCaptions } from '../siteChrome';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
 
 const LEFT_EDGE = 40;
 /** BottomFrame contentTopLineHeight */
 const CONTENT_TOP = 770;
 
-export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
     const siteId = Number(ctx.userData);
     const cfg = getSiteConfig(siteId);
     const site = getSite(siteId);
@@ -66,18 +53,14 @@ export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
     const digFrame = `site_dig_${siteId}.png`;
     let digBottom = digTop + 200;
 
-    if (ctx.scene.textures.exists('site') && ctx.scene.textures.get('site').has(digFrame))
-    {
-        const dig = ctx.scene.add
-            .image(ctx.width / 2, digTop, 'site', digFrame)
-            .setOrigin(0.5, 0);
+    if (ctx.scene.textures.exists('site') && ctx.scene.textures.get('site').has(digFrame)) {
+        const dig = ctx.scene.add.image(ctx.width / 2, digTop, 'site', digFrame).setOrigin(0.5, 0);
         ctx.content.add(dig);
         digBottom = dig.y + dig.displayHeight;
     }
 
     // des: under dig by 40, white COMMON_2, width = rightEdge - leftEdge
-    if (cfg)
-    {
+    if (cfg) {
         ctx.content.add(
             ctx.scene.add
                 .text(ctx.width / 2, digBottom + 40, cfg.des, {
@@ -102,19 +85,17 @@ export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
         atlas: 'ui',
         frame: 'btn_common_white_normal.png',
         label: '物品存放点',
-        onClick: () =>
-        {
+        onClick: () => {
             ctx.forward(NavNode.SITE_STORAGE, siteId);
         },
     });
     ctx.content.add(storageBtn);
 
     if (
-        site?.haveNewItems
-        && ctx.scene.textures.exists('map')
-        && ctx.scene.textures.get('map').has('map_actor.png')
-    )
-    {
+        site?.haveNewItems &&
+        ctx.scene.textures.exists('map') &&
+        ctx.scene.textures.get('map').has('map_actor.png')
+    ) {
         ctx.content.add(
             ctx.scene.add
                 .image(leftBtnX + 70, btnY - 18, 'map', 'map_actor.png')
@@ -128,10 +109,8 @@ export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
         frame: 'btn_common_white_normal.png',
         label: '进入副本',
         enabled: !siteEnded,
-        onClick: () =>
-        {
-            if (siteEnded)
-            {
+        onClick: () => {
+            if (siteEnded) {
                 return;
             }
             ctx.forward(NavNode.BATTLE_AND_WORK, siteId);
@@ -140,8 +119,7 @@ export function mountSiteNode (ctx: NodeMountContext): NodeMountResult
     ctx.content.add(enterBtn);
 
     return {
-        onLeft: () =>
-        {
+        onLeft: () => {
             leaveSite();
             ctx.back();
         },

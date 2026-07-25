@@ -14,38 +14,30 @@ import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './
 
 const LAYER_NAME = 'dayLayer';
 
-function pickBgFrame (res: NightRaidResult): { atlas: 'day' | 'day2'; frame: string }
-{
-    if (!res.happened)
-    {
+function pickBgFrame(res: NightRaidResult): { atlas: 'day' | 'day2'; frame: string } {
+    if (!res.happened) {
         return { atlas: 'day', frame: 'day_scene_peace.png' };
     }
-    if (res.defend)
-    {
-        if (res.defendKind === 'electric')
-        {
+    if (res.defend) {
+        if (res.defendKind === 'electric') {
             return { atlas: 'day2', frame: 'day_scene_win_electric.png' };
         }
         return { atlas: 'day', frame: 'day_scene_win_bomb.png' };
     }
-    if (res.win)
-    {
+    if (res.win) {
         return { atlas: 'day', frame: 'day_scene_win.png' };
     }
     return { atlas: 'day', frame: 'day_scene_lose.png' };
 }
 
-function nextDisplayDay (): number
-{
+function nextDisplayDay(): number {
     const session = getSession();
     return session?.day ?? 1;
 }
 
-function itemLabel (itemId: number): string
-{
+function itemLabel(itemId: number): string {
     const def = getItemDef(itemId);
-    if (def.name && !def.name.startsWith('物品'))
-    {
+    if (def.name && !def.name.startsWith('物品')) {
         return def.name;
     }
     return `物品${itemId}`;
@@ -55,23 +47,18 @@ function itemLabel (itemId: number): string
  * Show the day-end layer. Ensures day/day2 atlases are loaded first.
  * Dismiss: pointer up on full-screen hit → destroy + resumeTimeClock.
  */
-export async function openDayLayer (
+export async function openDayLayer(
     scene: Scene,
     res: NightRaidResult,
-): Promise<GameObjects.Container>
-{
+): Promise<GameObjects.Container> {
     const existing = scene.children.list.find(
         (child) => (child as GameObjects.Container).name === LAYER_NAME,
     );
-    if (existing)
-    {
+    if (existing) {
         existing.destroy(true);
     }
 
-    await Promise.all([
-        loadAtlas(scene, 'day'),
-        loadAtlas(scene, 'day2'),
-    ]);
+    await Promise.all([loadAtlas(scene, 'day'), loadAtlas(scene, 'day2')]);
 
     const { width, height } = scene.scale;
     const root = scene.add.container(0, 0);
@@ -85,15 +72,10 @@ export async function openDayLayer (
 
     const { atlas, frame } = pickBgFrame(res);
     let bg: GameObjects.Image | GameObjects.Rectangle;
-    if (scene.textures.exists(atlas) && scene.textures.get(atlas).has(frame))
-    {
+    if (scene.textures.exists(atlas) && scene.textures.get(atlas).has(frame)) {
         bg = scene.add.image(width / 2, height / 2, atlas, frame).setAlpha(0);
-    }
-    else
-    {
-        bg = scene.add
-            .rectangle(width / 2, height / 2, 640, 1136, 0x1a1a1a)
-            .setAlpha(0);
+    } else {
+        bg = scene.add.rectangle(width / 2, height / 2, 640, 1136, 0x1a1a1a).setAlpha(0);
     }
     root.add(bg);
 
@@ -116,8 +98,7 @@ export async function openDayLayer (
 
     const fadeTargets: GameObjects.GameObject[] = [];
 
-    if (!res.happened)
-    {
+    if (!res.happened) {
         const peace = scene.add
             .text(width / 2, toY(624), '今天晚上很平静。', {
                 fontFamily: UI_FONT_FAMILY,
@@ -131,9 +112,7 @@ export async function openDayLayer (
             .setAlpha(0);
         root.add(peace);
         fadeTargets.push(peace);
-    }
-    else if (res.win || res.defend)
-    {
+    } else if (res.win || res.defend) {
         const ok = scene.add
             .text(
                 width / 2,
@@ -152,9 +131,7 @@ export async function openDayLayer (
             .setAlpha(0);
         root.add(ok);
         fadeTargets.push(ok);
-    }
-    else
-    {
+    } else {
         // Match Buried-City DayScene lose layout (cocos y-up):
         // - "你的损失:" at (64, 550), bottom-left anchor
         // - narrative body bottom = title.y + titleH/2 + 40
@@ -202,14 +179,12 @@ export async function openDayLayer (
         const itemScale = 0.8;
         const rowStep = Math.max(56, Math.round(64 * itemScale) + 12);
 
-        for (const it of items)
-        {
+        for (const it of items) {
             const iconFrame = `icon_item_${it.itemId}.png`;
             let cellW = 0;
             let rowMidY = cursorY;
 
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
-            {
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame)) {
                 const icon = scene.add
                     .image(cursorX, cursorY, 'icon', iconFrame)
                     .setOrigin(0, 0)
@@ -234,22 +209,19 @@ export async function openDayLayer (
             fadeTargets.push(label);
 
             // If no icon, still advance past the text baseline using label height.
-            if (cellW === 0)
-            {
+            if (cellW === 0) {
                 rowMidY = cursorY + label.height / 2;
                 label.setY(rowMidY);
             }
 
             cursorX += cellW + label.width + 24;
-            if (cursorX > rowMaxX - 100)
-            {
+            if (cursorX > rowMaxX - 100) {
                 cursorX = bgLeft + 64;
                 cursorY += rowStep;
             }
         }
 
-        if (items.length === 0)
-        {
+        if (items.length === 0) {
             const empty = scene.add
                 .text(bgLeft + 64, cursorY, '（仓库空无一物）', {
                     fontFamily: UI_FONT_FAMILY,
@@ -265,10 +237,8 @@ export async function openDayLayer (
     }
 
     let canDismiss = false;
-    const dismiss = () =>
-    {
-        if (!canDismiss)
-        {
+    const dismiss = () => {
+        if (!canDismiss) {
             return;
         }
         root.destroy(true);
@@ -281,29 +251,25 @@ export async function openDayLayer (
         targets: dim,
         fillAlpha: 200 / 255,
         duration: 800,
-        onComplete: () =>
-        {
+        onComplete: () => {
             scene.tweens.add({
                 targets: bg,
                 alpha: 1,
                 duration: 800,
-                onComplete: () =>
-                {
+                onComplete: () => {
                     scene.tweens.add({
                         targets: dayLabel,
                         alpha: 1,
                         duration: 700,
                     });
-                    for (const target of fadeTargets)
-                    {
+                    for (const target of fadeTargets) {
                         scene.tweens.add({
                             targets: target,
                             alpha: 1,
                             duration: 700,
                         });
                     }
-                    scene.time.delayedCall(700, () =>
-                    {
+                    scene.time.delayedCall(700, () => {
                         canDismiss = true;
                     });
                 },

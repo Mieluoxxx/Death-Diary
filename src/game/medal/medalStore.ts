@@ -6,10 +6,7 @@
 
 export type MedalSeriesIndex = 1 | 2 | 3;
 
-export type MedalId =
-    | '101' | '102' | '103'
-    | '201' | '202' | '203'
-    | '301' | '302' | '303';
+export type MedalId = '101' | '102' | '103' | '201' | '202' | '203' | '301' | '302' | '303';
 
 export type MedalEntry = {
     aim: number;
@@ -85,52 +82,40 @@ export const MEDAL_CONFIG: MedalMap = {
 const STORAGE_KEY = 'medal';
 const ONE_GAME_KEY = 'medalForOneGame';
 
-function cloneConfig (): MedalMap
-{
+function cloneConfig(): MedalMap {
     return JSON.parse(JSON.stringify(MEDAL_CONFIG)) as MedalMap;
 }
 
-function isMedalId (value: string): value is MedalId
-{
+function isMedalId(value: string): value is MedalId {
     return value in MEDAL_CONFIG;
 }
 
-function loadMap (): MedalMap
-{
-    try
-    {
+function loadMap(): MedalMap {
+    try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw)
-        {
+        if (!raw) {
             return cloneConfig();
         }
         const parsed = JSON.parse(raw) as Partial<Record<string, Partial<MedalEntry>>>;
         const map = cloneConfig();
-        for (const medalId of Object.keys(MEDAL_CONFIG) as MedalId[])
-        {
+        for (const medalId of Object.keys(MEDAL_CONFIG) as MedalId[]) {
             const saved = parsed[medalId];
-            if (!saved)
-            {
+            if (!saved) {
                 continue;
             }
-            if (typeof saved.aimCompleted === 'number')
-            {
+            if (typeof saved.aimCompleted === 'number') {
                 map[medalId].aimCompleted = saved.aimCompleted;
             }
-            if (saved.completed === 0 || saved.completed === 1)
-            {
+            if (saved.completed === 0 || saved.completed === 1) {
                 map[medalId].completed = saved.completed;
             }
-            if (typeof saved.warned === 'boolean')
-            {
+            if (typeof saved.warned === 'boolean') {
                 map[medalId].warned = saved.warned;
             }
             // aim + effect always from config (original Medal.init)
         }
         return map;
-    }
-    catch
-    {
+    } catch {
         return cloneConfig();
     }
 }
@@ -138,41 +123,30 @@ function loadMap (): MedalMap
 let medalMap: MedalMap | null = null;
 let completedForOneGame: MedalSeriesIndex[] = [];
 
-export function initMedal (): MedalMap
-{
-    if (!medalMap)
-    {
+export function initMedal(): MedalMap {
+    if (!medalMap) {
         medalMap = loadMap();
     }
-    try
-    {
+    try {
         const raw = localStorage.getItem(ONE_GAME_KEY);
         completedForOneGame = raw ? (JSON.parse(raw) as MedalSeriesIndex[]) : [];
-    }
-    catch
-    {
+    } catch {
         completedForOneGame = [];
     }
     return medalMap;
 }
 
-export function getMedalMap (): MedalMap
-{
+export function getMedalMap(): MedalMap {
     return initMedal();
 }
 
-export function saveMedal (): void
-{
-    if (!medalMap)
-    {
+export function saveMedal(): void {
+    if (!medalMap) {
         return;
     }
-    try
-    {
+    try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(medalMap));
-    }
-    catch
-    {
+    } catch {
         // ignore quota / private mode
     }
 }
@@ -181,22 +155,18 @@ export function saveMedal (): void
  * Active tier for a series (1=days, 2=kills, 3=secret).
  * Original: walk 03→01; stop on first incomplete after completed lower tiers.
  */
-export function getNowMedalId (seriesIndex: MedalSeriesIndex): MedalId
-{
+export function getNowMedalId(seriesIndex: MedalSeriesIndex): MedalId {
     const map = getMedalMap();
     let medalInfoIndex = Number(`${seriesIndex}03`);
     const endIndex = Number(`${seriesIndex}01`);
-    for (let medalIdNumber = medalInfoIndex; medalIdNumber >= endIndex; medalIdNumber -= 1)
-    {
+    for (let medalIdNumber = medalInfoIndex; medalIdNumber >= endIndex; medalIdNumber -= 1) {
         const key = String(medalIdNumber);
-        if (isMedalId(key) && map[key].completed)
-        {
+        if (isMedalId(key) && map[key].completed) {
             medalInfoIndex = medalIdNumber - 1;
         }
     }
     const candidate = String(medalInfoIndex);
-    if (isMedalId(candidate) && map[candidate])
-    {
+    if (isMedalId(candidate) && map[candidate]) {
         return candidate;
     }
     const fallback = String(medalInfoIndex + 1);
@@ -204,17 +174,14 @@ export function getNowMedalId (seriesIndex: MedalSeriesIndex): MedalId
 }
 
 /** Highest completed tier id in a series, or null if none. */
-export function getCompletedMedalId (seriesIndex: MedalSeriesIndex): MedalId | null
-{
+export function getCompletedMedalId(seriesIndex: MedalSeriesIndex): MedalId | null {
     const map = getMedalMap();
     let medalInfoIndex = Number(`${seriesIndex}03`);
     const endIndex = Number(`${seriesIndex}01`);
     let found: MedalId | null = null;
-    for (let medalIdNumber = medalInfoIndex; medalIdNumber >= endIndex; medalIdNumber -= 1)
-    {
+    for (let medalIdNumber = medalInfoIndex; medalIdNumber >= endIndex; medalIdNumber -= 1) {
         const key = String(medalIdNumber);
-        if (isMedalId(key) && map[key].completed)
-        {
+        if (isMedalId(key) && map[key].completed) {
             found = key;
             medalInfoIndex = medalIdNumber;
         }
@@ -223,55 +190,42 @@ export function getCompletedMedalId (seriesIndex: MedalSeriesIndex): MedalId | n
 }
 
 /** Star frame: original star_(3-level) with special case when grade-1 completed. */
-export function getStarFrameForMedal (medalId: MedalId, completed: boolean): string
-{
+export function getStarFrameForMedal(medalId: MedalId, completed: boolean): string {
     const level = Number(String(medalId).slice(-1));
-    if (level === 1 && completed)
-    {
+    if (level === 1 && completed) {
         return 'star_3.png';
     }
     return `star_${3 - level}.png`;
 }
 
-export function markMedalWarned (medalId: MedalId): void
-{
+export function markMedalWarned(medalId: MedalId): void {
     const map = getMedalMap();
-    if (map[medalId])
-    {
+    if (map[medalId]) {
         map[medalId].warned = true;
         saveMedal();
     }
 }
 
-function checkCompleted (medalInfo: MedalEntry, seriesIndex: MedalSeriesIndex): void
-{
-    if (medalInfo.completed === 1)
-    {
+function checkCompleted(medalInfo: MedalEntry, seriesIndex: MedalSeriesIndex): void {
+    if (medalInfo.completed === 1) {
         return;
     }
-    if (medalInfo.aimCompleted >= medalInfo.aim)
-    {
+    if (medalInfo.aimCompleted >= medalInfo.aim) {
         medalInfo.completed = 1;
         completedForOneGame.push(seriesIndex);
-        try
-        {
+        try {
             localStorage.setItem(ONE_GAME_KEY, JSON.stringify(completedForOneGame));
-        }
-        catch
-        {
+        } catch {
             // ignore
         }
     }
 }
 
-export function checkDay (day: number): void
-{
+export function checkDay(day: number): void {
     const map = getMedalMap();
-    for (const medalId of ['101', '102', '103'] as MedalId[])
-    {
+    for (const medalId of ['101', '102', '103'] as MedalId[]) {
         const info = map[medalId];
-        if (info.completed !== 1)
-        {
+        if (info.completed !== 1) {
             info.aimCompleted += Number(day);
             checkCompleted(info, 1);
         }
@@ -279,14 +233,11 @@ export function checkDay (day: number): void
     saveMedal();
 }
 
-export function checkMonsterKilled (num: number): void
-{
+export function checkMonsterKilled(num: number): void {
     const map = getMedalMap();
-    for (const medalId of ['201', '202', '203'] as MedalId[])
-    {
+    for (const medalId of ['201', '202', '203'] as MedalId[]) {
         const info = map[medalId];
-        if (info.completed !== 1)
-        {
+        if (info.completed !== 1) {
             info.aimCompleted += Number(num);
             checkCompleted(info, 2);
         }
@@ -294,14 +245,11 @@ export function checkMonsterKilled (num: number): void
     saveMedal();
 }
 
-export function checkSecretRoomEnd (num: number): void
-{
+export function checkSecretRoomEnd(num: number): void {
     const map = getMedalMap();
-    for (const medalId of ['301', '302', '303'] as MedalId[])
-    {
+    for (const medalId of ['301', '302', '303'] as MedalId[]) {
         const info = map[medalId];
-        if (info.completed !== 1)
-        {
+        if (info.completed !== 1) {
             info.aimCompleted += Number(num);
             checkCompleted(info, 3);
         }

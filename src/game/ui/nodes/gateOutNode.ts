@@ -5,12 +5,7 @@
 
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from '../uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
 
 const TIPS = [
     '门外一片死寂，风里带着灰尘和焦味。',
@@ -18,8 +13,7 @@ const TIPS = [
     '天空阴沉，远处偶尔传来不明声响。',
 ];
 
-export function mountGateOutNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
     // Original: empty title, no chrome buttons, hide frame_line.
     ctx.setTitle('');
     ctx.setLeftEnabled(false);
@@ -28,16 +22,14 @@ export function mountGateOutNode (ctx: NodeMountContext): NodeMountResult
     const bgCenterX = ctx.width / 2;
     const bgCenterY = ctx.bgBottomY - ctx.bgHeight / 2;
 
-    if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has('gate_out_bg.png'))
-    {
+    if (
+        ctx.scene.textures.exists('gate') &&
+        ctx.scene.textures.get('gate').has('gate_out_bg.png')
+    ) {
         ctx.content.add(
-            ctx.scene.add
-                .image(bgCenterX, bgCenterY, 'gate', 'gate_out_bg.png')
-                .setOrigin(0.5),
+            ctx.scene.add.image(bgCenterX, bgCenterY, 'gate', 'gate_out_bg.png').setOrigin(0.5),
         );
-    }
-    else
-    {
+    } else {
         ctx.content.add(
             ctx.scene.add
                 .rectangle(bgCenterX, bgCenterY, ctx.bgWidth, ctx.bgHeight, 0x111111)
@@ -77,10 +69,8 @@ export function mountGateOutNode (ctx: NodeMountContext): NodeMountResult
     );
 
     let done = false;
-    const goMap = () =>
-    {
-        if (done)
-        {
+    const goMap = () => {
+        if (done) {
             return;
         }
         done = true;
@@ -96,8 +86,7 @@ export function mountGateOutNode (ctx: NodeMountContext): NodeMountResult
     const timer = ctx.scene.time.delayedCall(3000, goMap);
 
     return {
-        destroy: () =>
-        {
+        destroy: () => {
             timer.remove(false);
         },
     };

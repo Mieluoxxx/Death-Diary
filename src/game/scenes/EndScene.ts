@@ -13,28 +13,20 @@ import { getSession } from '../session/sessionStore';
 import { survivalClockParts } from '../systems/deathSystem';
 import { stopSurvivalLoop } from '../systems/survivalLoop';
 import { addAtlasButton } from '../ui/atlasButton';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from '../ui/uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../ui/uiFont';
 
 /** Design size of end_bg.png (matches game resolution). */
 const END_BG_W = 640;
 const END_BG_H = 1136;
 
-export class EndScene extends Scene
-{
-    constructor ()
-    {
+export class EndScene extends Scene {
+    constructor() {
         super('End');
     }
 
-    async create (): Promise<void>
-    {
+    async create(): Promise<void> {
         const session = getSession();
-        if (!session)
-        {
+        if (!session) {
             this.scene.start('MainMenu');
             return;
         }
@@ -44,12 +36,9 @@ export class EndScene extends Scene
         const { width, height } = this.scale;
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
 
-        try
-        {
+        try {
             await loadAtlas(this, 'end');
-        }
-        catch
-        {
+        } catch {
             // Fall through with solid bg.
         }
 
@@ -57,8 +46,7 @@ export class EndScene extends Scene
         const bgCenterX = width / 2;
         const bgCenterY = height / 2;
 
-        if (this.textures.exists('end') && this.textures.get('end').has('end_bg.png'))
-        {
+        if (this.textures.exists('end') && this.textures.get('end').has('end_bg.png')) {
             const bg = this.add.image(bgCenterX, bgCenterY, 'end', 'end_bg.png');
             // end_bg is exactly 640×1136 — FIT canvas is the same; no extra scale.
             // If window letterboxes via Scale.FIT, scene coords stay design space.
@@ -66,8 +54,7 @@ export class EndScene extends Scene
             const scaleY = bg.displayHeight / END_BG_H;
 
             /** Map Cocos-local (x right, y up from bg bottom-left) → Phaser screen. */
-            const toScreen = (localX: number, localYUp: number) =>
-            {
+            const toScreen = (localX: number, localYUp: number) => {
                 const x = bg.x - bg.displayWidth / 2 + localX * scaleX;
                 const y = bg.y + bg.displayHeight / 2 - localYUp * scaleY;
                 return { x, y };
@@ -103,27 +90,21 @@ export class EndScene extends Scene
             // Original home btn at center-x of panel band: leftEdge + (right-left)/4*2, y=432
             // leftEdge=42, rightEdge=598 → x = 42 + 556/2 = 320
             const homePos = toScreen(320, 432);
-            if (this.textures.get('end').has('btn_home.png'))
-            {
+            if (this.textures.get('end').has('btn_home.png')) {
                 const home = this.add
                     .image(homePos.x, homePos.y, 'end', 'btn_home.png')
                     .setInteractive({ useHandCursor: true });
                 home.setScale(scaleX, scaleY);
                 home.on('pointerdown', () => home.setAlpha(0.7));
                 home.on('pointerout', () => home.setAlpha(1));
-                home.on('pointerup', () =>
-                {
+                home.on('pointerup', () => {
                     home.setAlpha(1);
                     this.scene.start('MainMenu');
                 });
-            }
-            else
-            {
+            } else {
                 this.addMenuButton(homePos.x, homePos.y);
             }
-        }
-        else
-        {
+        } else {
             this.add
                 .text(bgCenterX, bgCenterY - 160, '你存活了', {
                     fontFamily: UI_FONT_FAMILY,
@@ -151,13 +132,11 @@ export class EndScene extends Scene
         }
     }
 
-    private addMenuButton (x: number, y: number): void
-    {
+    private addMenuButton(x: number, y: number): void {
         if (
-            this.textures.exists('ui')
-            && this.textures.get('ui').has('btn_common_white_normal.png')
-        )
-        {
+            this.textures.exists('ui') &&
+            this.textures.get('ui').has('btn_common_white_normal.png')
+        ) {
             addAtlasButton(this, x, y, {
                 atlas: 'ui',
                 frame: 'btn_common_white_normal.png',

@@ -39,12 +39,9 @@ export type NightRaidResult = {
     sitesRaided?: number[];
 };
 
-function rollStrength (day: number): number
-{
-    for (const band of MOONLIGHTING_CONFIG.strength)
-    {
-        if (day >= band.dayMin && day <= band.dayMax)
-        {
+function rollStrength(day: number): number {
+    for (const band of MOONLIGHTING_CONFIG.strength) {
+        if (day >= band.dayMin && day <= band.dayMax) {
             const span = band.strengthMax - band.strengthMin;
             return band.strengthMin + Math.floor(Math.random() * (span + 1));
         }
@@ -52,45 +49,36 @@ function rollStrength (day: number): number
     return 5;
 }
 
-function isDogActive (session: SessionState): boolean
-{
+function isDogActive(session: SessionState): boolean {
     return (session.dogStarve ?? 0) > 0;
 }
 
 /** Fence bid=11: (level+1)*10 + dog +10. Luo/Yazi only dog (special buildings handled earlier). */
-function homeDefense (session: SessionState): number
-{
+function homeDefense(session: SessionState): number {
     let homeDef = 0;
-    if (session.role !== 'LUO' && session.role !== 'YAZI')
-    {
+    if (session.role !== 'LUO' && session.role !== 'YAZI') {
         const fenceLevel = session.buildLevels[11] ?? -1;
-        if (fenceLevel >= 0)
-        {
+        if (fenceLevel >= 0) {
             homeDef += (fenceLevel + 1) * 10;
         }
     }
-    if (isDogActive(session))
-    {
+    if (isDogActive(session)) {
         homeDef += 10;
     }
     return homeDef;
 }
 
-function isElectricFenceActive (session: SessionState): boolean
-{
+function isElectricFenceActive(session: SessionState): boolean {
     const level = session.buildLevels[19] ?? -1;
-    if (level < 0)
-    {
+    if (level < 0) {
         return false;
     }
     // Original: ElectricFenceBuild.isActive → power plant WorkSite.isActive.
     // Session flag is set when plant is considered powered; also require WORK_SITE unlocked.
-    if (!session.electricFenceActive)
-    {
+    if (!session.electricFenceActive) {
         return false;
     }
-    return session.map.unlocked.includes(WORK_SITE_ID)
-        || Boolean(session.map.sites[WORK_SITE_ID]);
+    return session.map.unlocked.includes(WORK_SITE_ID) || Boolean(session.map.sites[WORK_SITE_ID]);
 }
 
 /**
@@ -98,53 +86,42 @@ function isElectricFenceActive (session: SessionState): boolean
  * Original: produceValue = attackStrength/5 - 1 + 3; each item costs item.value.
  * Honors blackList.storageLost; max ~5 per type; max ~6 distinct types.
  */
-function stealFromStorage (
-    storage: ItemCounts,
-    attackStrength: number,
-): NightRaidLostItem[]
-{
+function stealFromStorage(storage: ItemCounts, attackStrength: number): NightRaidLostItem[] {
     let produceValue = attackStrength / 5 - 1 + 3;
     const lost = new Map<number, number>();
     const dynamicBlack = new Set<number>(STORAGE_LOST_SET);
 
-    while (produceValue > 0)
-    {
+    while (produceValue > 0) {
         let ids = Object.keys(storage)
             .map(Number)
             .filter((id) => (storage[id] ?? 0) > 0 && !dynamicBlack.has(id));
 
-        if (ids.length === 0)
-        {
+        if (ids.length === 0) {
             break;
         }
 
         // Once 6 distinct types taken, only continue on those types.
-        if (lost.size >= 6)
-        {
+        if (lost.size >= 6) {
             const haveIds = new Set(lost.keys());
             ids = ids.filter((id) => haveIds.has(id));
-            if (ids.length === 0)
-            {
+            if (ids.length === 0) {
                 break;
             }
         }
 
         const itemId = ids[Math.floor(Math.random() * ids.length)]!;
-        if ((storage[itemId] ?? 0) <= 0)
-        {
+        if ((storage[itemId] ?? 0) <= 0) {
             break;
         }
 
         storage[itemId] = (storage[itemId] ?? 0) - 1;
-        if (storage[itemId]! <= 0)
-        {
+        if (storage[itemId]! <= 0) {
             delete storage[itemId];
         }
 
         const nextCount = (lost.get(itemId) ?? 0) + 1;
         lost.set(itemId, nextCount);
-        if (nextCount >= 5)
-        {
+        if (nextCount >= 5) {
             dynamicBlack.add(itemId);
         }
 
@@ -154,14 +131,12 @@ function stealFromStorage (
     return [...lost.entries()].map(([itemId, num]) => ({ itemId, num }));
 }
 
-function attackResult (
+function attackResult(
     storage: ItemCounts,
     attackStrength: number,
     def: number,
-): { win: boolean; items: NightRaidLostItem[] }
-{
-    if (attackStrength > def)
-    {
+): { win: boolean; items: NightRaidLostItem[] } {
+    if (attackStrength > def) {
         return {
             win: false,
             items: stealFromStorage(storage, attackStrength),
@@ -175,37 +150,29 @@ function attackResult (
  * Always returns a result for DayLayer (peace when not happened).
  * Pauses the time clock when a raid UI should show — caller dismisses + resume.
  */
-export function runNightRaid (): NightRaidResult
-{
+export function runNightRaid(): NightRaidResult {
     const session = getSession();
-    if (!session || session.isDead)
-    {
+    if (!session || session.isDead) {
         return { happened: false };
     }
 
     // Original: day < 2 forces no raid (display day 0–1).
     let rand = Math.random();
-    if (session.day < 2)
-    {
+    if (session.day < 2) {
         rand = 1;
     }
 
     let result: NightRaidResult;
 
-    if (rand > MOONLIGHTING_CONFIG.probability)
-    {
+    if (rand > MOONLIGHTING_CONFIG.probability) {
         result = { happened: false };
-    }
-    else
-    {
+    } else {
         // Log: 一些僵尸正试图进入你的房子！
         appendSessionLog('一些僵尸正试图进入你的房子！');
 
         // 1) Minefield (Luo bomb charge)
-        if (session.isBombActive)
-        {
-            mutateSession((live) =>
-            {
+        if (session.isBombActive) {
+            mutateSession((live) => {
                 live.isBombActive = false;
             });
             result = {
@@ -217,8 +184,7 @@ export function runNightRaid (): NightRaidResult
             };
         }
         // 2) Electric fence (Yazi) when plant active
-        else if (isElectricFenceActive(session))
-        {
+        else if (isElectricFenceActive(session)) {
             result = {
                 happened: true,
                 defend: true,
@@ -226,31 +192,25 @@ export function runNightRaid (): NightRaidResult
                 defendKind: 'electric',
                 items: [],
             };
-        }
-        else
-        {
+        } else {
             const attackStrength = rollStrength(session.day);
             const homeDef = homeDefense(session);
             let items: NightRaidLostItem[] = [];
             let win = true;
             const sitesRaided: number[] = [];
 
-            mutateSession((live) =>
-            {
+            mutateSession((live) => {
                 const home = attackResult(live.storage, attackStrength, homeDef);
                 win = home.win;
                 items = home.items;
 
                 // Also raid open site storages (original site.config.def).
-                for (const [idText, site] of Object.entries(live.map.sites))
-                {
-                    if (site.closed)
-                    {
+                for (const [idText, site] of Object.entries(live.map.sites)) {
+                    if (site.closed) {
                         continue;
                     }
                     const hasItems = Object.values(site.storage).some((n) => n > 0);
-                    if (!hasItems)
-                    {
+                    if (!hasItems) {
                         continue;
                     }
                     const siteId = Number(idText);
@@ -281,14 +241,12 @@ export function runNightRaid (): NightRaidResult
 }
 
 /** Debug / tests: force a raid with given strength (skips probability). */
-export function debugForceNightRaid (opts?: {
+export function debugForceNightRaid(opts?: {
     attackStrength?: number;
     forceLose?: boolean;
-}): NightRaidResult
-{
+}): NightRaidResult {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return { happened: false };
     }
 
@@ -297,8 +255,7 @@ export function debugForceNightRaid (opts?: {
     let items: NightRaidLostItem[] = [];
     let win = true;
 
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         const home = attackResult(live.storage, attackStrength, homeDef);
         win = home.win;
         items = home.items;

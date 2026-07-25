@@ -39,32 +39,25 @@ export type ItemDetailOptions = {
     onUseSuccess?: () => void;
 };
 
-function countsFor (container: ItemDetailContainer): ItemCounts | null
-{
+function countsFor(container: ItemDetailContainer): ItemCounts | null {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return null;
     }
-    if (container.kind === 'storage')
-    {
+    if (container.kind === 'storage') {
         return session.storage;
     }
-    if (container.kind === 'bag')
-    {
+    if (container.kind === 'bag') {
         return session.bag;
     }
-    if (container.kind === 'temp')
-    {
+    if (container.kind === 'temp') {
         return session.tempLoot;
     }
     return session.map.sites[container.siteId]?.storage ?? null;
 }
 
-function useSourceFor (container: ItemDetailContainer): ItemUseSource | null
-{
-    if (container.kind === 'storage' || container.kind === 'bag')
-    {
+function useSourceFor(container: ItemDetailContainer): ItemUseSource | null {
+    if (container.kind === 'storage' || container.kind === 'bag') {
         return container.kind;
     }
     return null;
@@ -74,29 +67,26 @@ function useSourceFor (container: ItemDetailContainer): ItemUseSource | null
  * Compose a detail model from a concrete holder and its allowed capabilities.
  * UI entry points resolve aliases such as the top status strip before this call.
  */
-export function createItemDetailModel (
+export function createItemDetailModel(
     itemId: number,
     container: ItemDetailContainer,
     options: ItemDetailOptions = {},
-): ItemDetailModel
-{
+): ItemDetailModel {
     const quantity = countsFor(container)?.[itemId] ?? 0;
     const useSource = useSourceFor(container);
-    const canUse = options.allowUse !== false
-        && useSource !== null
-        && quantity > 0
-        && isUsableItem(itemId);
+    const canUse =
+        options.allowUse !== false && useSource !== null && quantity > 0 && isUsableItem(itemId);
 
     return {
         itemId,
         quantity,
         ...(canUse && useSource !== null
             ? {
-                primaryAction: {
-                    label: isFoodItem(itemId) ? '吃' : '使用',
-                    run: () => useItem(itemId, useSource),
-                },
-            }
+                  primaryAction: {
+                      label: isFoodItem(itemId) ? '吃' : '使用',
+                      run: () => useItem(itemId, useSource),
+                  },
+              }
             : {}),
         onToast: options.onToast,
         onClose: options.onClose,
@@ -105,12 +95,11 @@ export function createItemDetailModel (
 }
 
 /** Compose a read-only model for items owned by a non-player inventory. */
-export function createReadOnlyItemDetailModel (
+export function createReadOnlyItemDetailModel(
     itemId: number,
     quantity: number,
     options: Pick<ItemDetailOptions, 'onToast' | 'onClose'> = {},
-): ItemDetailModel
-{
+): ItemDetailModel {
     return {
         itemId,
         quantity,
@@ -120,7 +109,9 @@ export function createReadOnlyItemDetailModel (
 }
 
 /** Resolve the status strip's displayed item to its real session holder. */
-export function topStatusItemContainer (): Extract<ItemDetailContainer, { kind: 'storage' | 'bag' }>
-{
+export function topStatusItemContainer(): Extract<
+    ItemDetailContainer,
+    { kind: 'storage' | 'bag' }
+> {
     return getSession()?.isAtHome ? { kind: 'storage' } : { kind: 'bag' };
 }

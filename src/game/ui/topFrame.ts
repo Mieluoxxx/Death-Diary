@@ -49,29 +49,23 @@ export type TopFrameHandle = {
     destroy: () => void;
 };
 
-function sizeStatusIcon (image: GameObjects.Image): GameObjects.Image
-{
+function sizeStatusIcon(image: GameObjects.Image): GameObjects.Image {
     image.setScale(ICON_SCALE);
     return image;
 }
 
 /** Original topFrame getItemsByType prefix filter for attr quick-use. */
-function countsByPrefix (counts: ItemCounts, prefix: string): StatusQuickItem[]
-{
+function countsByPrefix(counts: ItemCounts, prefix: string): StatusQuickItem[] {
     const out: StatusQuickItem[] = [];
-    for (const [idText, num] of Object.entries(counts))
-    {
-        if (num <= 0)
-        {
+    for (const [idText, num] of Object.entries(counts)) {
+        if (num <= 0) {
             continue;
         }
-        if (!idText.startsWith(prefix))
-        {
+        if (!idText.startsWith(prefix)) {
             continue;
         }
         const itemId = Number(idText);
-        if (!Number.isFinite(itemId))
-        {
+        if (!Number.isFinite(itemId)) {
             continue;
         }
         out.push({ itemId, num });
@@ -80,27 +74,22 @@ function countsByPrefix (counts: ItemCounts, prefix: string): StatusQuickItem[]
     return out;
 }
 
-function quickItemsForAttr (attr: AttrKeyLocal, session: SessionState): StatusQuickItem[]
-{
+function quickItemsForAttr(attr: AttrKeyLocal, session: SessionState): StatusQuickItem[] {
     // Original: at home → storage; outdoors → bag.
     const bag = session.isAtHome ? session.storage : session.bag;
-    if (attr === 'starve')
-    {
+    if (attr === 'starve') {
         return countsByPrefix(bag, '1103');
     }
-    if (attr === 'infect')
-    {
+    if (attr === 'infect') {
         // Medicines except bandage.
         return countsByPrefix(bag, '1104').filter((row) => row.itemId !== 1104011);
     }
-    if (attr === 'injury')
-    {
+    if (attr === 'injury') {
         // Bandage only.
         return countsByPrefix(bag, '1104').filter((row) => row.itemId === 1104011);
     }
     return [];
 }
-
 
 type AttrFillEntry = {
     fill: GameObjects.Image;
@@ -113,22 +102,19 @@ type AttrFillEntry = {
 
 const ATTR_FILL_TWEEN_MS = 420;
 
-function applyBottomFillCrop (image: GameObjects.Image, fillPct: number): void
-{
+function applyBottomFillCrop(image: GameObjects.Image, fillPct: number): void {
     const clamped = Math.max(0, Math.min(1, fillPct));
     const frame = image.frame;
     const sourceWidth = frame.realWidth;
     const sourceHeight = frame.realHeight;
 
-    if (clamped <= 0)
-    {
+    if (clamped <= 0) {
         image.setVisible(false);
         return;
     }
 
     image.setVisible(true);
-    if (clamped >= 1)
-    {
+    if (clamped >= 1) {
         image.setCrop();
         return;
     }
@@ -141,31 +127,24 @@ function applyBottomFillCrop (image: GameObjects.Image, fillPct: number): void
 /**
  * Port of AttrButton.warnChange — brief up/down chevron beside the attr icon.
  */
-function playAttrChangeWarn (
-    scene: Scene,
-    baseIcon: GameObjects.Image,
-    wentUp: boolean,
-): void
-{
+function playAttrChangeWarn(scene: Scene, baseIcon: GameObjects.Image, wentUp: boolean): void {
     const frameName = wentUp ? 'icon_status_up.png' : 'icon_status_down.png';
-    if (!(scene.textures.exists('icon') && scene.textures.get('icon').has(frameName)))
-    {
+    if (!(scene.textures.exists('icon') && scene.textures.get('icon').has(frameName))) {
         return;
     }
 
     const warnName = `attrWarn_${baseIcon.name}`;
     const hostContainer = baseIcon.parentContainer;
     const searchList = hostContainer ? hostContainer.list : scene.children.list;
-    for (const child of [...searchList])
-    {
-        if ((child as GameObjects.Image).name === warnName)
-        {
+    for (const child of [...searchList]) {
+        if ((child as GameObjects.Image).name === warnName) {
             child.destroy();
         }
     }
 
     const warnX = baseIcon.x + baseIcon.displayWidth * 0.5 + 3;
-    const warnY = baseIcon.y + (wentUp ? -baseIcon.displayHeight * 0.25 : baseIcon.displayHeight * 0.25);
+    const warnY =
+        baseIcon.y + (wentUp ? -baseIcon.displayHeight * 0.25 : baseIcon.displayHeight * 0.25);
     const warn = scene.add
         .image(warnX, warnY, 'icon', frameName)
         .setOrigin(0, 0.5)
@@ -173,8 +152,7 @@ function playAttrChangeWarn (
         .setDepth((baseIcon.depth || 0) + 1)
         .setName(warnName);
 
-    if (hostContainer)
-    {
+    if (hostContainer) {
         hostContainer.add(warn);
     }
 
@@ -182,37 +160,32 @@ function playAttrChangeWarn (
         targets: warn,
         alpha: 0,
         duration: 1000,
-        onComplete: () =>
-        {
+        onComplete: () => {
             warn.destroy();
         },
     });
 }
 
-function animateAttrFill (
+function animateAttrFill(
     scene: Scene,
     entry: AttrFillEntry,
     targetRatio: number,
     showWarn: boolean,
-): void
-{
+): void {
     const clampedTarget = Math.max(0, Math.min(1, targetRatio));
     const fromRatio = entry.displayRatio;
-    if (Math.abs(clampedTarget - fromRatio) < 0.001)
-    {
+    if (Math.abs(clampedTarget - fromRatio) < 0.001) {
         applyBottomFillCrop(entry.fill, clampedTarget);
         entry.displayRatio = clampedTarget;
         return;
     }
 
-    if (showWarn)
-    {
+    if (showWarn) {
         playAttrChangeWarn(scene, entry.base, clampedTarget > fromRatio);
     }
 
     // Kill previous fill tween for this entry.
-    if (entry.tweenProxy)
-    {
+    if (entry.tweenProxy) {
         scene.tweens.killTweensOf(entry.tweenProxy);
     }
 
@@ -223,13 +196,11 @@ function animateAttrFill (
         ratio: clampedTarget,
         duration: ATTR_FILL_TWEEN_MS,
         ease: 'Sine.easeOut',
-        onUpdate: () =>
-        {
+        onUpdate: () => {
             entry.displayRatio = proxy.ratio;
             applyBottomFillCrop(entry.fill, proxy.ratio);
         },
-        onComplete: () =>
-        {
+        onComplete: () => {
             entry.displayRatio = clampedTarget;
             entry.tweenProxy = null;
             applyBottomFillCrop(entry.fill, clampedTarget);
@@ -237,12 +208,11 @@ function animateAttrFill (
     });
 }
 
-export function addTopFrame (
+export function addTopFrame(
     scene: Scene,
     session: SessionState,
     opts?: { onSettings?: () => void },
-): TopFrameHandle
-{
+): TopFrameHandle {
     const { width } = scene.scale;
     const lan = getLanguage();
     const root = scene.add.container(0, 0);
@@ -251,16 +221,9 @@ export function addTopFrame (
     const topY = 18;
     const bgLeft = width / 2 - FRAME_WIDTH / 2;
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_top.png'))
-    {
-        root.add(
-            scene.add
-                .image(width / 2, topY, 'ui', 'frame_bg_top.png')
-                .setOrigin(0.5, 0),
-        );
-    }
-    else
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_top.png')) {
+        root.add(scene.add.image(width / 2, topY, 'ui', 'frame_bg_top.png').setOrigin(0.5, 0));
+    } else {
         root.add(
             scene.add
                 .rectangle(width / 2, topY + FRAME_HEIGHT / 2, FRAME_WIDTH, FRAME_HEIGHT, 0x2a2a2a)
@@ -268,10 +231,8 @@ export function addTopFrame (
         );
     }
 
-    const firstLineCenterY =
-        topY + FRAME_HEIGHT - FIRST_LINE_LOCAL_Y - LINE_HEIGHT / 2;
-    const secondLineCenterY =
-        topY + FRAME_HEIGHT - SECOND_LINE_LOCAL_Y - LINE_HEIGHT / 2;
+    const firstLineCenterY = topY + FRAME_HEIGHT - FIRST_LINE_LOCAL_Y - LINE_HEIGHT / 2;
+    const secondLineCenterY = topY + FRAME_HEIGHT - SECOND_LINE_LOCAL_Y - LINE_HEIGHT / 2;
     const thirdLineLeft = bgLeft + 6;
     const thirdLineTopY = topY + FRAME_HEIGHT - THIRD_LINE_LOCAL_Y - THIRD_LINE_HEIGHT;
     const thirdLineCenterY = thirdLineTopY + THIRD_LINE_HEIGHT / 2;
@@ -300,8 +261,7 @@ export function addTopFrame (
         lineCenterY: number,
         lineHeight: number,
         onClick: () => void,
-    ): void =>
-    {
+    ): void => {
         const cellCenterX = contentLeft + cellW * (cellIndex + 0.5);
         const hit = scene.add
             .rectangle(cellCenterX, lineCenterY, cellW, lineHeight, 0x000000, 0)
@@ -310,12 +270,7 @@ export function addTopFrame (
         root.add(hit);
     };
 
-    const openStatus = (
-        stringId: StatusInfoId,
-        iconFrame: string,
-        value: string,
-    ): void =>
-    {
+    const openStatus = (stringId: StatusInfoId, iconFrame: string, value: string): void => {
         const live = getSession() ?? session;
         const copy = getStatusCopy(stringId, lan);
         openStatusDialog(scene, {
@@ -336,31 +291,24 @@ export function addTopFrame (
         onClick?: () => void,
         atlas: 'icon' | 'ui' = 'icon',
         track?: 'day' | 'clock' | 'temp' | 'season' | 'weather',
-    ): void =>
-    {
+    ): void => {
         const cellLeft = contentLeft + cellW * cellIndex;
         const cellCenterX = cellLeft + cellW / 2;
         const hasLabel = label !== null && label !== '';
 
-        if (scene.textures.exists(atlas) && scene.textures.get(atlas).has(iconFrame))
-        {
-            if (!hasLabel)
-            {
+        if (scene.textures.exists(atlas) && scene.textures.get(atlas).has(iconFrame)) {
+            if (!hasLabel) {
                 const image = sizeStatusIcon(
                     scene.add.image(cellCenterX, lineCenterY, atlas, iconFrame),
                 );
                 root.add(image);
-                if (track === 'season')
-                {
+                if (track === 'season') {
                     seasonIcon = image;
                 }
-                if (track === 'weather')
-                {
+                if (track === 'weather') {
                     weatherIcon = image;
                 }
-            }
-            else
-            {
+            } else {
                 const probe = scene.add.text(0, 0, label, labelStyle).setVisible(false);
                 const labelWidth = probe.width;
                 probe.destroy();
@@ -371,51 +319,40 @@ export function addTopFrame (
 
                 root.add(
                     sizeStatusIcon(
-                        scene.add
-                            .image(iconX, lineCenterY, atlas, iconFrame)
-                            .setOrigin(0, 0.5),
+                        scene.add.image(iconX, lineCenterY, atlas, iconFrame).setOrigin(0, 0.5),
                     ),
                 );
                 const text = scene.add
                     .text(labelX, lineCenterY, label, labelStyle)
                     .setOrigin(1, 0.5);
                 root.add(text);
-                if (track === 'day')
-                {
+                if (track === 'day') {
                     dayLabel = text;
                 }
-                if (track === 'clock')
-                {
+                if (track === 'clock') {
                     clockLabel = text;
                 }
-                if (track === 'temp')
-                {
+                if (track === 'temp') {
                     tempLabel = text;
                 }
             }
-        }
-        else if (hasLabel)
-        {
+        } else if (hasLabel) {
             const text = scene.add
                 .text(cellCenterX, lineCenterY, label, labelStyle)
                 .setOrigin(0.5, 0.5);
             root.add(text);
-            if (track === 'day')
-            {
+            if (track === 'day') {
                 dayLabel = text;
             }
-            if (track === 'clock')
-            {
+            if (track === 'clock') {
                 clockLabel = text;
             }
-            if (track === 'temp')
-            {
+            if (track === 'temp') {
                 tempLabel = text;
             }
         }
 
-        if (onClick)
-        {
+        if (onClick) {
             makeCellHit(cellIndex, lineCenterY, LINE_HEIGHT, onClick);
         }
     };
@@ -425,14 +362,12 @@ export function addTopFrame (
         attr: AttrKeyLocal,
         reverse: boolean,
         onClick: () => void,
-    ): void =>
-    {
+    ): void => {
         const cellLeft = contentLeft + cellW * cellIndex;
         const baseFrame = `icon_${attr}_1.png`;
         const fillFrame = `icon_${attr}_0.png`;
 
-        if (scene.textures.exists('icon') && scene.textures.get('icon').has(baseFrame))
-        {
+        if (scene.textures.exists('icon') && scene.textures.get('icon').has(baseFrame)) {
             const edgePadding = (cellW - ICON_DISPLAY) / 2;
             const iconCenterX = cellLeft + edgePadding + ICON_DISPLAY / 2;
 
@@ -442,8 +377,7 @@ export function addTopFrame (
             base.setName(`attrBase_${attr}`);
             root.add(base);
 
-            if (scene.textures.get('icon').has(fillFrame))
-            {
+            if (scene.textures.get('icon').has(fillFrame)) {
                 const fill = sizeStatusIcon(
                     scene.add.image(iconCenterX, secondLineCenterY, 'icon', fillFrame),
                 );
@@ -472,56 +406,87 @@ export function addTopFrame (
     const weatherFrame = `icon_weather_${session.weatherId}.png`;
     const tempIcon = 'icon_temperature_0.png';
 
-    placeStatusCell(0, firstLineCenterY, dayIcon, String(session.day), () =>
-    {
-        const live = getSession() ?? session;
-        openStatus(1, dayIcon, formatStatusValue(1, live, lan));
-    }, 'icon', 'day');
-    placeStatusCell(1, firstLineCenterY, seasonFrame, null, () =>
-    {
-        const live = getSession() ?? session;
-        const frame = `icon_season_${live.season}.png`;
-        openStatus(2, frame, formatStatusValue(2, live, lan));
-    }, 'icon', 'season');
-    placeStatusCell(2, firstLineCenterY, timeIcon, formatClock(session), () =>
-    {
-        const live = getSession() ?? session;
-        openStatus(4, timeIcon, formatStatusValue(4, live, lan));
-    }, 'icon', 'clock');
-    placeStatusCell(3, firstLineCenterY, weatherFrame, null, () =>
-    {
-        const live = getSession() ?? session;
-        const frame = `icon_weather_${live.weatherId}.png`;
-        openStatus(11, frame, formatStatusValue(11, live, lan));
-    }, 'icon', 'weather');
-    placeStatusCell(4, firstLineCenterY, tempIcon, String(session.temperature), () =>
-    {
-        const live = getSession() ?? session;
-        openStatus(3, tempIcon, formatStatusValue(3, live, lan));
-    }, 'icon', 'temp');
+    placeStatusCell(
+        0,
+        firstLineCenterY,
+        dayIcon,
+        String(session.day),
+        () => {
+            const live = getSession() ?? session;
+            openStatus(1, dayIcon, formatStatusValue(1, live, lan));
+        },
+        'icon',
+        'day',
+    );
+    placeStatusCell(
+        1,
+        firstLineCenterY,
+        seasonFrame,
+        null,
+        () => {
+            const live = getSession() ?? session;
+            const frame = `icon_season_${live.season}.png`;
+            openStatus(2, frame, formatStatusValue(2, live, lan));
+        },
+        'icon',
+        'season',
+    );
+    placeStatusCell(
+        2,
+        firstLineCenterY,
+        timeIcon,
+        formatClock(session),
+        () => {
+            const live = getSession() ?? session;
+            openStatus(4, timeIcon, formatStatusValue(4, live, lan));
+        },
+        'icon',
+        'clock',
+    );
+    placeStatusCell(
+        3,
+        firstLineCenterY,
+        weatherFrame,
+        null,
+        () => {
+            const live = getSession() ?? session;
+            const frame = `icon_weather_${live.weatherId}.png`;
+            openStatus(11, frame, formatStatusValue(11, live, lan));
+        },
+        'icon',
+        'weather',
+    );
+    placeStatusCell(
+        4,
+        firstLineCenterY,
+        tempIcon,
+        String(session.temperature),
+        () => {
+            const live = getSession() ?? session;
+            openStatus(3, tempIcon, formatStatusValue(3, live, lan));
+        },
+        'icon',
+        'temp',
+    );
 
     // settings
     {
         const cellIndex = 5;
         const cellCenterX = contentLeft + cellW * (cellIndex + 0.5);
-        if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_game_setting.png'))
-        {
+        if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_game_setting.png')) {
             const settingsBtn = sizeStatusIcon(
                 scene.add.image(cellCenterX, firstLineCenterY, 'ui', 'btn_game_setting.png'),
             );
             root.add(settingsBtn);
         }
-        makeCellHit(cellIndex, firstLineCenterY, LINE_HEIGHT, () =>
-        {
+        makeCellHit(cellIndex, firstLineCenterY, LINE_HEIGHT, () => {
             const already = scene.children.list.some(
                 (child) => (child as GameObjects.Container).name === 'settingLayer',
             );
-            if (already)
-            {
+            if (already) {
                 return;
             }
-            if (opts?.onSettings)
-            {
+            if (opts?.onSettings) {
                 opts.onSettings();
                 return;
             }
@@ -538,13 +503,10 @@ export function addTopFrame (
         { key: 'spirit', reverse: false },
         { key: 'hp', reverse: false },
     ];
-    attrDefs.forEach((def, index) =>
-    {
-        placeAttrCell(index, def.key, def.reverse, () =>
-        {
+    attrDefs.forEach((def, index) => {
+        placeAttrCell(index, def.key, def.reverse, () => {
             /** 按当前会话重建状态框，避免快捷物品条保留打开时的数量快照。 */
-            const openAttrStatusDialog = (): void =>
-            {
+            const openAttrStatusDialog = (): void => {
                 const live = getSession() ?? session;
                 const stringId = ATTR_STATUS_ID[def.key];
                 const copy = getStatusCopy(stringId, lan);
@@ -556,15 +518,13 @@ export function addTopFrame (
                     currentLine: formatCurrentValue(formatAttrValue(def.key, live), lan),
                     description: copy.des,
                     quickItems,
-                    onQuickItemTap: (itemId) =>
-                    {
-                        openItemDetailDialog(scene, createItemDetailModel(
-                            itemId,
-                            topStatusItemContainer(),
-                            {
+                    onQuickItemTap: (itemId) => {
+                        openItemDetailDialog(
+                            scene,
+                            createItemDetailModel(itemId, topStatusItemContainer(), {
                                 onUseSuccess: openAttrStatusDialog,
-                            },
-                        ));
+                            }),
+                        );
                     },
                 });
             };
@@ -573,8 +533,7 @@ export function addTopFrame (
     });
 
     // ── thirdLine logs ──
-    for (let lineIndex = 0; lineIndex < 4; lineIndex++)
-    {
+    for (let lineIndex = 0; lineIndex < 4; lineIndex++) {
         const cocosBottomY = THIRD_LINE_LOCAL_Y + lineIndex * 30 + 4;
         const phaserBottomY = topY + FRAME_HEIGHT - cocosBottomY;
         const lineText = scene.add
@@ -590,30 +549,24 @@ export function addTopFrame (
         logLineTexts.push(lineText);
     }
 
-    const fillLogLines = (live: SessionState): void =>
-    {
+    const fillLogLines = (live: SessionState): void => {
         const recent = live.logs.slice(-4);
         // Newest at bottom of strip (index 0 in original was lastLog only).
         // Match original single lastLog on first slot; show history upward.
         const lines = ['', '', '', ''];
-        if (recent.length === 0 && live.lastLog)
-        {
+        if (recent.length === 0 && live.lastLog) {
             lines[0] = live.lastLog;
-        }
-        else
-        {
+        } else {
             // oldest of the 4 → top visually (higher lineIndex = higher on screen in Cocos local)
             // phaser: lineIndex 0 is lowest? cocosBottomY = 6 + i*30 → lineIndex 0 is near bottom of strip
             // Put newest at lineIndex 0 (bottom of strip area in local coords = top of third line stack...)
             // Original only showed lastLog on first slot. Show newest first.
-            for (let i = 0; i < 4; i++)
-            {
+            for (let i = 0; i < 4; i++) {
                 const entry = recent[recent.length - 1 - i];
                 lines[i] = entry ? entry.text : '';
             }
         }
-        logLineTexts.forEach((textObj, index) =>
-        {
+        logLineTexts.forEach((textObj, index) => {
             textObj.setText(lines[index] ?? '');
         });
     };
@@ -631,49 +584,39 @@ export function addTopFrame (
         )
         .setInteractive({ useHandCursor: true });
     root.add(logHit);
-    logHit.on('pointerup', () =>
-    {
-        if (logPanel)
-        {
+    logHit.on('pointerup', () => {
+        if (logPanel) {
             logPanel.destroy(true);
             logPanel = null;
             return;
         }
         const live = getSession() ?? session;
-        logPanel = openLogPanel(scene, live, () =>
-        {
+        logPanel = openLogPanel(scene, live, () => {
             logPanel = null;
         });
     });
 
-    const refresh = (): void =>
-    {
+    const refresh = (): void => {
         const live = getSession();
-        if (!live)
-        {
+        if (!live) {
             return;
         }
         dayLabel?.setText(String(live.day));
         clockLabel?.setText(formatClock(live));
         tempLabel?.setText(String(Math.round(live.temperature)));
-        if (seasonIcon && scene.textures.exists('icon'))
-        {
+        if (seasonIcon && scene.textures.exists('icon')) {
             const frame = `icon_season_${live.season}.png`;
-            if (scene.textures.get('icon').has(frame))
-            {
+            if (scene.textures.get('icon').has(frame)) {
                 seasonIcon.setFrame(frame);
             }
         }
-        if (weatherIcon && scene.textures.exists('icon'))
-        {
+        if (weatherIcon && scene.textures.exists('icon')) {
             const frame = `icon_weather_${live.weatherId}.png`;
-            if (scene.textures.get('icon').has(frame))
-            {
+            if (scene.textures.get('icon').has(frame)) {
                 weatherIcon.setFrame(frame);
             }
         }
-        attrFills.forEach((entry, attrKey) =>
-        {
+        attrFills.forEach((entry, attrKey) => {
             const rawRatio = attrRatio(live, attrKey);
             const targetRatio = entry.reverse ? 1 - rawRatio : rawRatio;
             // Animate fill + up/down chevron when the displayed amount changes.
@@ -685,18 +628,14 @@ export function addTopFrame (
     return {
         root,
         refresh,
-        destroy: () =>
-        {
-            attrFills.forEach((entry) =>
-            {
-                if (entry.tweenProxy)
-                {
+        destroy: () => {
+            attrFills.forEach((entry) => {
+                if (entry.tweenProxy) {
                     scene.tweens.killTweensOf(entry.tweenProxy);
                     entry.tweenProxy = null;
                 }
             });
-            if (logPanel)
-            {
+            if (logPanel) {
                 logPanel.destroy(true);
                 logPanel = null;
             }
@@ -705,12 +644,11 @@ export function addTopFrame (
     };
 }
 
-function openLogPanel (
+function openLogPanel(
     scene: Scene,
     live: SessionState,
     onClosed: () => void,
-): GameObjects.Container
-{
+): GameObjects.Container {
     const { width, height } = scene.scale;
     const panel = scene.add.container(0, 0);
     panel.setDepth(120);
@@ -725,17 +663,14 @@ function openLogPanel (
     const bottomY = height - 18;
     let frameW = 596;
     let frameH = 839;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png')) {
         const frame = scene.add
             .image(width / 2, bottomY, 'ui', 'frame_bg_bottom.png')
             .setOrigin(0.5, 1);
         panel.add(frame);
         frameW = frame.displayWidth;
         frameH = frame.displayHeight;
-    }
-    else
-    {
+    } else {
         panel.add(
             scene.add
                 .rectangle(width / 2, bottomY, frameW, frameH, 0x1a1a1a)
@@ -759,17 +694,17 @@ function openLogPanel (
         inputBlocker: true,
     });
 
-    const entries = live.logs.length > 0
-        ? live.logs
-        : (live.lastLog
-            ? [{ text: live.lastLog, timeLabel: '' }]
-            : []);
+    const entries =
+        live.logs.length > 0
+            ? live.logs
+            : live.lastLog
+              ? [{ text: live.lastLog, timeLabel: '' }]
+              : [];
 
     // Oldest at top, newest at bottom (Phaser y-down). Stick to bottom after layout.
     let cursorY = 0;
     const textWidth = viewW - 20;
-    if (entries.length === 0)
-    {
+    if (entries.length === 0) {
         scroll.content.add(
             scene.add
                 .text(10, 10, '—', {
@@ -781,24 +716,20 @@ function openLogPanel (
                 .setOrigin(0, 0),
         );
         cursorY = 40;
-    }
-    else
-    {
-        for (const entry of entries)
-        {
+    } else {
+        for (const entry of entries) {
             const timeLabel = entry.timeLabel
                 ? scene.add
-                    .text(10, cursorY, entry.timeLabel, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                        color: '#ffffff',
-                        wordWrap: uiWordWrap(textWidth),
-                    })
-                    .setOrigin(0, 0)
+                      .text(10, cursorY, entry.timeLabel, {
+                          fontFamily: UI_FONT_FAMILY,
+                          resolution: UI_TEXT_RESOLUTION,
+                          fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                          color: '#ffffff',
+                          wordWrap: uiWordWrap(textWidth),
+                      })
+                      .setOrigin(0, 0)
                 : null;
-            if (timeLabel)
-            {
+            if (timeLabel) {
                 scroll.content.add(timeLabel);
                 cursorY += timeLabel.height + 2;
             }
@@ -822,17 +753,14 @@ function openLogPanel (
     // Newest at bottom of panel.
     scroll.setOffset(Math.min(0, viewH - contentH));
 
-    const close = () =>
-    {
+    const close = () => {
         scroll.destroy();
         panel.destroy(true);
         onClosed();
     };
     // Tap dim (outside) closes; taps on the scroll well are swallowed by ScrollViewport.
-    dim.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-    {
-        if (scroll.inView(pointer.x, pointer.y))
-        {
+    dim.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (scroll.inView(pointer.x, pointer.y)) {
             return;
         }
         close();

@@ -19,8 +19,7 @@ export function addAtlasButton(
         enabled?: boolean;
         onClick?: () => void;
     },
-): AtlasButton
-{
+): AtlasButton {
     const enabled = opts.enabled !== false;
     const labelSizeTier = opts.labelSizeTier ?? 'COMMON_2';
     const img = scene.add.image(0, 0, opts.atlas, opts.frame);
@@ -29,48 +28,50 @@ export function addAtlasButton(
     const parts: GameObjects.GameObject[] = [img];
     let labelText: GameObjects.Text | null = null;
 
-    if (opts.label)
-    {
+    if (opts.label) {
         labelText = scene.add
-            .text(0, 0, opts.label, uiSpriteBtnTextStyle(labelSizeTier, {
-                color: opts.labelColor ?? (enabled ? '#111' : '#666'),
-            }))
+            .text(
+                0,
+                0,
+                opts.label,
+                uiSpriteBtnTextStyle(labelSizeTier, {
+                    color: opts.labelColor ?? (enabled ? '#111' : '#666'),
+                }),
+            )
             .setOrigin(0.5);
         parts.push(labelText);
     }
 
     const c = scene.add.container(x, y, parts) as AtlasButton;
 
-    if (enabled && opts.onClick)
-    {
-        img.on('pointerdown', () =>
-        {
+    if (enabled && opts.onClick) {
+        img.on('pointerdown', () => {
             img.setAlpha(0.7);
         });
-        img.on('pointerup', () =>
-        {
+        img.on('pointerup', () => {
             img.setAlpha(1);
             opts.onClick?.();
         });
         img.on('pointerout', () => img.setAlpha(1));
-    }
-    else
-    {
+    } else {
         img.setAlpha(0.45);
     }
 
-    c.setLabel = (label: string) =>
-    {
-        if (labelText)
-        {
+    c.setLabel = (label: string) => {
+        if (labelText) {
             labelText.setText(label);
             return;
         }
 
         labelText = scene.add
-            .text(0, 0, label, uiSpriteBtnTextStyle(labelSizeTier, {
-                color: opts.labelColor ?? (enabled ? '#111' : '#666'),
-            }))
+            .text(
+                0,
+                0,
+                label,
+                uiSpriteBtnTextStyle(labelSizeTier, {
+                    color: opts.labelColor ?? (enabled ? '#111' : '#666'),
+                }),
+            )
             .setOrigin(0.5);
         c.add(labelText);
     };

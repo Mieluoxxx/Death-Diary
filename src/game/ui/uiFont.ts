@@ -17,8 +17,7 @@ export const UI_FONT_FACE_NAME = 'FZDaHei-B02S';
  * CSS / Phaser font-family.
  * Prefer bundled TTF so Linux/WSL/headless Chromium still draw CJK.
  */
-export const UI_FONT_FAMILY =
-    `"${UI_FONT_FACE_NAME}", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif`;
+export const UI_FONT_FAMILY = `"${UI_FONT_FACE_NAME}", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif`;
 
 export const UI_FONT_SIZE = {
     /** uiUtil.fontSize.COMMON_1 */
@@ -36,29 +35,22 @@ export type UiFontSizeKey = keyof typeof UI_FONT_SIZE;
  * to resolution 1 which looks soft/chunky when the game canvas is FIT-scaled.
  */
 export const UI_TEXT_RESOLUTION =
-    typeof window !== 'undefined'
-        ? Math.min(window.devicePixelRatio || 1, 2)
-        : 1;
+    typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
 
 /**
  * Effective label size after uiUtil.createSpriteBtn's `fontSize -= 4`.
  * Big white menu buttons: COMMON_1 → 28. Common buttons: COMMON_2 → 20.
  */
-export function spriteBtnFontSize (
-    tier: UiFontSizeKey = 'COMMON_2',
-): number
-{
+export function spriteBtnFontSize(tier: UiFontSizeKey = 'COMMON_2'): number {
     return UI_FONT_SIZE[tier] - 4;
 }
 
 /** Phaser Text style fragment with family + px size. */
-export function uiTextStyle (
+export function uiTextStyle(
     size: number | UiFontSizeKey = 'COMMON_2',
     extra: Phaser.Types.GameObjects.Text.TextStyle = {},
-): Phaser.Types.GameObjects.Text.TextStyle
-{
-    const fontSizePx =
-        typeof size === 'number' ? size : UI_FONT_SIZE[size];
+): Phaser.Types.GameObjects.Text.TextStyle {
+    const fontSizePx = typeof size === 'number' ? size : UI_FONT_SIZE[size];
 
     return {
         fontFamily: UI_FONT_FAMILY,
@@ -72,11 +64,10 @@ export function uiTextStyle (
  * Style for labels drawn on atlas sprite buttons (createSpriteBtn parity).
  * Pass the same tier the original fontInfo.fontSize used (before -4).
  */
-export function uiSpriteBtnTextStyle (
+export function uiSpriteBtnTextStyle(
     tier: UiFontSizeKey = 'COMMON_2',
     extra: Phaser.Types.GameObjects.Text.TextStyle = {},
-): Phaser.Types.GameObjects.Text.TextStyle
-{
+): Phaser.Types.GameObjects.Text.TextStyle {
     return uiTextStyle(spriteBtnFontSize(tier), extra);
 }
 
@@ -85,11 +76,10 @@ export function uiSpriteBtnTextStyle (
  * Advanced wrap measures text and splits long "words" by character — matches
  * Cocos LabelTTF dimensions wrapping.
  */
-export function uiWordWrap (width: number): {
+export function uiWordWrap(width: number): {
     width: number;
     useAdvancedWrap: true;
-}
-{
+} {
     return {
         width,
         useAdvancedWrap: true,
@@ -100,30 +90,22 @@ export function uiWordWrap (width: number): {
  * Ensure the bundled CJK face is loaded before Preloader draws text.
  * Falls back after timeout so Boot never hangs if the TTF fails.
  */
-export async function ensureUiFontLoaded (timeoutMs = 4000): Promise<boolean>
-{
-    if (typeof document === 'undefined' || !document.fonts)
-    {
+export async function ensureUiFontLoaded(timeoutMs = 4000): Promise<boolean> {
+    if (typeof document === 'undefined' || !document.fonts) {
         return true;
     }
 
-    try
-    {
+    try {
         const face = UI_FONT_FACE_NAME;
-        const loads = [20, 24, 28, 32].map((px) =>
-            document.fonts.load(`${px}px "${face}"`),
-        );
+        const loads = [20, 24, 28, 32].map((px) => document.fonts.load(`${px}px "${face}"`));
         await Promise.race([
             Promise.all(loads).then(() => true),
-            new Promise<boolean>((resolve) =>
-            {
+            new Promise<boolean>((resolve) => {
                 window.setTimeout(() => resolve(document.fonts.check(`24px "${face}"`)), timeoutMs);
             }),
         ]);
         return document.fonts.check(`24px "${face}"`);
-    }
-    catch
-    {
+    } catch {
         return false;
     }
 }

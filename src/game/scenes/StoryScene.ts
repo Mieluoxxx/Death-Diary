@@ -16,18 +16,15 @@ const LINES = [
     '然后发出邀请',
 ];
 
-export class StoryScene extends Scene
-{
+export class StoryScene extends Scene {
     private canContinue = false;
     private didContinue = false;
 
-    constructor ()
-    {
+    constructor() {
         super('Story');
     }
 
-    create ()
-    {
+    create() {
         this.canContinue = false;
         this.didContinue = false;
 
@@ -36,12 +33,9 @@ export class StoryScene extends Scene
 
         // dig_start: Cocos bottom-left y = height - 322 → Phaser top-left y = 322
         const artY = 322;
-        if (this.textures.exists('ui') && this.textures.get('ui').has('dig_start.png'))
-        {
+        if (this.textures.exists('ui') && this.textures.get('ui').has('dig_start.png')) {
             this.add.image(width / 2, artY, 'ui', 'dig_start.png');
-        }
-        else
-        {
+        } else {
             this.add.rectangle(width / 2, artY, Math.min(520, width - 80), 180, 0x1a1a1a);
         }
 
@@ -87,14 +81,12 @@ export class StoryScene extends Scene
             .setInteractive({ useHandCursor: true })
             .setDepth(1000);
 
-        hitArea.on('pointerdown', () =>
-        {
+        hitArea.on('pointerdown', () => {
             this.tryContinue();
         });
 
         // Also accept keyboard (Enter / Space) after fade.
-        if (this.input.keyboard)
-        {
+        if (this.input.keyboard) {
             this.input.keyboard.once('keydown-ENTER', () => this.tryContinue());
             this.input.keyboard.once('keydown-SPACE', () => this.tryContinue());
         }
@@ -104,17 +96,14 @@ export class StoryScene extends Scene
             targets: [poem, author, hint],
             alpha: 1,
             duration: 1000,
-            onComplete: () =>
-            {
+            onComplete: () => {
                 this.canContinue = true;
             },
         });
     }
 
-    private tryContinue (): void
-    {
-        if (!this.canContinue || this.didContinue)
-        {
+    private tryContinue(): void {
+        if (!this.canContinue || this.didContinue) {
             return;
         }
         this.didContinue = true;

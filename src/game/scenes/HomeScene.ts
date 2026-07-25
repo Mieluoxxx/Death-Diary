@@ -1,19 +1,11 @@
 import { GameObjects, Scene } from 'phaser';
-import {
-    getSession,
-    type RoleKey,
-    type SessionState,
-} from '../session/sessionStore';
+import { getSession, type RoleKey, type SessionState } from '../session/sessionStore';
 import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
 import { gameBusClear, gameBusOff, gameBusOn } from '../systems/gameBus';
 import { isDogHouseUnlocked, unlockDogHouse } from '../systems/iapStore';
 import { openDayLayer } from '../ui/dayLayer';
 import type { NightRaidResult } from '../systems/nightRaidSystem';
-import {
-    debugSkipGameHours,
-    startSurvivalLoop,
-    stopSurvivalLoop,
-} from '../systems/survivalLoop';
+import { debugSkipGameHours, startSurvivalLoop, stopSurvivalLoop } from '../systems/survivalLoop';
 import { tickTimeClock } from '../systems/timeClock';
 import { type BuildPanelHandle, openBuildPanel } from '../ui/buildPanel';
 import { createNavigationHost, type NavHostHandle, NavNode } from '../ui/navigation';
@@ -47,27 +39,21 @@ const COMMON_BUILDS: BuildSpot[] = [
     { bid: 15, x: 270, y: 656 },
 ];
 
-function buildsForRole (role: RoleKey): BuildSpot[]
-{
+function buildsForRole(role: RoleKey): BuildSpot[] {
     const spots = [...COMMON_BUILDS];
-    if (role === 'LUO')
-    {
+    if (role === 'LUO') {
         spots.push(
             { bid: 16, x: 480, y: 656 },
             { bid: 17, x: 430, y: 82 },
             { bid: 5, x: 310, y: 318 },
         );
-    }
-    else if (role === 'YAZI')
-    {
+    } else if (role === 'YAZI') {
         spots.push(
             { bid: 7, x: 503, y: 657 },
             { bid: 19, x: 430, y: 82 },
             { bid: 18, x: 310, y: 318 },
         );
-    }
-    else
-    {
+    } else {
         spots.push(
             { bid: 7, x: 503, y: 657 },
             { bid: 11, x: 430, y: 82 },
@@ -78,8 +64,7 @@ function buildsForRole (role: RoleKey): BuildSpot[]
     return spots;
 }
 
-export class HomeScene extends Scene
-{
+export class HomeScene extends Scene {
     private toastText: GameObjects.Text | null = null;
     private topFrame: TopFrameHandle | null = null;
     // death handled by DeathScene
@@ -91,16 +76,13 @@ export class HomeScene extends Scene
     private boundDied: (() => void) | null = null;
     private boundNightRaid: ((res: NightRaidResult) => void) | null = null;
 
-    constructor ()
-    {
+    constructor() {
         super('Home');
     }
 
-    create ()
-    {
+    create() {
         const session = getSession();
-        if (!session)
-        {
+        if (!session) {
             this.scene.start('MainMenu');
             return;
         }
@@ -112,8 +94,7 @@ export class HomeScene extends Scene
 
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
 
-        if (this.textures.exists('ui') && this.textures.get('ui').has('frame_bg_bottom.png'))
-        {
+        if (this.textures.exists('ui') && this.textures.get('ui').has('frame_bg_bottom.png')) {
             this.add
                 .image(width / 2, height - 18, 'ui', 'frame_bg_bottom.png')
                 .setOrigin(0.5, 1)
@@ -134,20 +115,17 @@ export class HomeScene extends Scene
         // Survival heartbeat: clock + hourly attr ticks (player.start subset).
         startSurvivalLoop();
 
-        this.boundRefresh = () =>
-        {
+        this.boundRefresh = () => {
             this.topFrame?.refresh();
         };
-        this.boundDied = () =>
-        {
+        this.boundDied = () => {
             this.topFrame?.refresh();
             this.buildPanel?.destroy();
             this.buildPanel = null;
             stopSurvivalLoop();
             this.scene.start('Death');
         };
-        this.boundNightRaid = (res) =>
-        {
+        this.boundNightRaid = (res) => {
             void openDayLayer(this, res);
         };
 
@@ -157,8 +135,7 @@ export class HomeScene extends Scene
         gameBusOn('player_died', this.boundDied);
         gameBusOn('night_raid', this.boundNightRaid);
 
-        if (session.isDead)
-        {
+        if (session.isDead) {
             this.scene.start('Death');
             return;
         }
@@ -168,38 +145,31 @@ export class HomeScene extends Scene
 
         this.events.once('shutdown', () => this.teardownSurvival());
     }
-    update (_time: number, deltaMs: number): void
-    {
+    update(_time: number, deltaMs: number): void {
         // Settings / day-end layer → freeze simulation.
-        const overlayOpen = this.children.list.some((child) =>
-        {
+        const overlayOpen = this.children.list.some((child) => {
             const name = (child as GameObjects.Container).name;
             return name === 'settingLayer' || name === 'dayLayer';
         });
-        if (overlayOpen)
-        {
+        if (overlayOpen) {
             return;
         }
         this.navHost?.update(deltaMs);
         tickTimeClock(deltaMs / 1000);
     }
 
-    private teardownSurvival (): void
-    {
-        if (this.boundRefresh)
-        {
+    private teardownSurvival(): void {
+        if (this.boundRefresh) {
             gameBusOff('session_updated', this.boundRefresh);
             gameBusOff('time_tick', this.boundRefresh);
             gameBusOff('logChanged', this.boundRefresh);
             this.boundRefresh = null;
         }
-        if (this.boundDied)
-        {
+        if (this.boundDied) {
             gameBusOff('player_died', this.boundDied);
             this.boundDied = null;
         }
-        if (this.boundNightRaid)
-        {
+        if (this.boundNightRaid) {
             gameBusOff('night_raid', this.boundNightRaid);
             this.boundNightRaid = null;
         }
@@ -214,24 +184,20 @@ export class HomeScene extends Scene
         this.topFrame = null;
     }
 
-    private placeHomeContent (session: SessionState, width: number, height: number): void
-    {
+    private placeHomeContent(session: SessionState, width: number, height: number): void {
         const homeBottom = height - 18;
         let homeWidth = 596;
 
         this.homeLayer?.destroy(true);
         this.homeLayer = this.add.container(0, 0).setDepth(1);
 
-        if (this.textures.exists('home') && this.textures.get('home').has('home_bg.png'))
-        {
+        if (this.textures.exists('home') && this.textures.get('home').has('home_bg.png')) {
             const homeBg = this.add
                 .image(width / 2, homeBottom, 'home', 'home_bg.png')
                 .setOrigin(0.5, 1);
             this.homeLayer.add(homeBg);
             homeWidth = homeBg.displayWidth;
-        }
-        else
-        {
+        } else {
             this.homeLayer.add(
                 this.add.rectangle(width / 2, homeBottom - 420, homeWidth, 840, 0x3a342c),
             );
@@ -241,8 +207,7 @@ export class HomeScene extends Scene
         const spots = buildsForRole(session.role);
 
         this.buildButtons.clear();
-        spots.forEach((spot) =>
-        {
+        spots.forEach((spot) => {
             const level = session.buildLevels[spot.bid] ?? -1;
             const safeLevel = Math.max(0, level);
             const frame = homeBuildFrame(spot.bid, safeLevel);
@@ -250,29 +215,23 @@ export class HomeScene extends Scene
             const py = homeBottom - spot.y;
 
             let btn: GameObjects.Image | GameObjects.Rectangle;
-            if (this.textures.exists('home') && this.textures.get('home').has(frame))
-            {
+            if (this.textures.exists('home') && this.textures.get('home').has(frame)) {
                 btn = this.add.image(px, py, 'home', frame).setDepth(2);
-            }
-            else
-            {
+            } else {
                 btn = this.add
                     .rectangle(px, py, 48, 48, level >= 0 ? 0x888888 : 0x333333)
                     .setDepth(2);
             }
 
-            if (level < 0)
-            {
+            if (level < 0) {
                 btn.setAlpha(0.55);
             }
 
             // Original: dog house locked until IAP 107.
-            if (spot.bid === 12 && !isDogHouseUnlocked())
-            {
+            if (spot.bid === 12 && !isDogHouseUnlocked()) {
                 btn.setAlpha(0.4);
                 btn.setInteractive({ useHandCursor: true });
-                btn.on('pointerup', () =>
-                {
+                btn.on('pointerup', () => {
                     this.promptDogHouseUnlock();
                 });
                 const lock = this.add
@@ -293,8 +252,7 @@ export class HomeScene extends Scene
             btn.setInteractive({ useHandCursor: true });
             btn.on('pointerdown', () => btn.setAlpha(level < 0 ? 0.4 : 0.7));
             btn.on('pointerout', () => btn.setAlpha(level < 0 ? 0.55 : 1));
-            btn.on('pointerup', () =>
-            {
+            btn.on('pointerup', () => {
                 btn.setAlpha(level < 0 ? 0.55 : 1);
                 this.openFacility(spot.bid);
             });
@@ -303,23 +261,18 @@ export class HomeScene extends Scene
         });
     }
 
-
-    private installDebugSkipHotkey (): void
-    {
+    private installDebugSkipHotkey(): void {
         // Keyboard: press "]" to skip +3 game hours (dev / QA for survival tick).
         // Use string key — avoid bare `Phaser` global (not imported at runtime).
         const keyboard = this.input.keyboard;
-        if (!keyboard)
-        {
+        if (!keyboard) {
             return;
         }
         const skipKey = keyboard.addKey('CLOSED_BRACKET');
-        skipKey.on('down', () =>
-        {
+        skipKey.on('down', () => {
             debugSkipGameHours(3);
             const live = getSession();
-            if (live)
-            {
+            if (live) {
                 const hourText = String(live.hour).padStart(2, '0');
                 const minuteText = String(live.minute).padStart(2, '0');
                 this.showToast(`调试：快进 3 小时 → 第${live.day}天 ${hourText}:${minuteText}`);
@@ -328,89 +281,72 @@ export class HomeScene extends Scene
         });
     }
 
-
-    private promptDogHouseUnlock (): void
-    {
+    private promptDogHouseUnlock(): void {
         // Web slice: free unlock (no payment). Mirrors IAP 107 success path.
         unlockDogHouse();
         this.showToast('狗舍已解锁（IAP 107）。可建造狗舍。');
         const live = getSession();
-        if (live)
-        {
+        if (live) {
             const { width, height } = this.scale;
             this.placeHomeContent(live, width, height);
         }
     }
 
-    private openFacility (bid: number): void
-    {
+    private openFacility(bid: number): void {
         // Radio is the web-slice cheat console (replaces original online board).
         // Always open it — do not gate behind bid-15 build level, or QA loses /list /get.
-        if (bid === 15)
-        {
+        if (bid === 15) {
             this.navHost?.forward(NavNode.RADIO, { bid: 15 });
             return;
         }
-        if (bid === 13)
-        {
+        if (bid === 13) {
             this.navHost?.forward(NavNode.STORAGE, { bid: 13 });
             return;
         }
-        if (bid === 14)
-        {
+        if (bid === 14) {
             this.navHost?.forward(NavNode.GATE, { bid: 14 });
             return;
         }
 
-        if (this.buildPanel)
-        {
+        if (this.buildPanel) {
             this.buildPanel.destroy();
             this.buildPanel = null;
         }
         // Match original Navigation: hide Home map while BuildNode is up.
         this.setHomeMapVisible(false);
         this.buildPanel = openBuildPanel(this, bid, {
-            onClose: () =>
-            {
+            onClose: () => {
                 this.buildPanel = null;
                 this.setHomeMapVisible(true);
             },
-            onUpgraded: (upgradedBid, level) =>
-            {
+            onUpgraded: (upgradedBid, level) => {
                 this.refreshBuildIcon(upgradedBid, level);
             },
         });
     }
 
-    private setHomeMapVisible (visible: boolean): void
-    {
+    private setHomeMapVisible(visible: boolean): void {
         this.homeLayer?.setVisible(visible);
-        this.buildButtons.forEach((btn) =>
-        {
+        this.buildButtons.forEach((btn) => {
             btn.setVisible(visible);
         });
     }
 
-    private refreshBuildIcon (bid: number, level: number): void
-    {
+    private refreshBuildIcon(bid: number, level: number): void {
         const btn = this.buildButtons.get(bid);
-        if (!btn || !(btn instanceof GameObjects.Image))
-        {
+        if (!btn || !(btn instanceof GameObjects.Image)) {
             return;
         }
         const frame = homeBuildFrame(bid, level);
-        if (this.textures.exists('home') && this.textures.get('home').has(frame))
-        {
+        if (this.textures.exists('home') && this.textures.get('home').has(frame)) {
             btn.setFrame(frame);
             btn.setAlpha(level < 0 ? 0.55 : 1);
         }
     }
 
-    private showToast (message: string): void
-    {
+    private showToast(message: string): void {
         const { width, height } = this.scale;
-        if (this.toastText)
-        {
+        if (this.toastText) {
             this.toastText.destroy();
         }
         this.toastText = this.add
@@ -427,8 +363,7 @@ export class HomeScene extends Scene
             .setOrigin(0.5)
             .setDepth(100);
 
-        this.time.delayedCall(1600, () =>
-        {
+        this.time.delayedCall(1600, () => {
             this.toastText?.destroy();
             this.toastText = null;
         });

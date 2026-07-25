@@ -18,12 +18,7 @@ import {
 import { type ItemCounts, mutateSession } from '../../session/sessionStore';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { mountScrollViewport } from '../scrollViewport';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from '../uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
 
 /**
  * Content well in Cocos local y-up (via ctx.toScreenY, which already adds CONTENT_Y_NUDGE).
@@ -38,27 +33,22 @@ const INPUT_LOCAL_Y = 52;
 const INPUT_WIDTH = 548;
 const MAX_SAFE_AMOUNT = Number.MAX_SAFE_INTEGER;
 
-function parsePositiveAmount (raw: string): number | null
-{
-    if (!/^\d+$/.test(raw))
-    {
+function parsePositiveAmount(raw: string): number | null {
+    if (!/^\d+$/.test(raw)) {
         return null;
     }
     const n = Number(raw);
-    if (!Number.isFinite(n) || n < 1 || n > MAX_SAFE_AMOUNT)
-    {
+    if (!Number.isFinite(n) || n < 1 || n > MAX_SAFE_AMOUNT) {
         return null;
     }
     return n;
 }
 
-function addCounts (storage: ItemCounts, itemId: number, amount: number): void
-{
+function addCounts(storage: ItemCounts, itemId: number, amount: number): void {
     storage[itemId] = (storage[itemId] ?? 0) + amount;
 }
 
-export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setTitle('电台');
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
@@ -117,59 +107,49 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
 
     const repaintInput = () => inputText.setText(`> ${inputValue}`);
 
-    const setBody = (message: string, stickBottom = false) =>
-    {
+    const setBody = (message: string, stickBottom = false) => {
         logText.setText(message);
         const contentH = Math.max(logText.height + 8, viewH);
         scroll.setContentSize(contentH);
-        if (stickBottom)
-        {
+        if (stickBottom) {
             scroll.setOffset(Math.min(0, viewH - contentH));
-        }
-        else
-        {
+        } else {
             // /list starts at the first group; drag / wheel reveals the rest.
             scroll.setOffset(0);
         }
     };
 
-    const appendOutput = (message: string, stickBottom = true) =>
-    {
+    const appendOutput = (message: string, stickBottom = true) => {
         const current = logText.text;
         setBody(current ? `${current}\n\n${message}` : message, stickBottom);
     };
 
-    const runCommand = (rawCommand: string) =>
-    {
+    const runCommand = (rawCommand: string) => {
         // "/get all 100" is a common typo for "/getall 100".
         const command = rawCommand
             .trim()
             .replace(/\s+/g, ' ')
             .replace(/^\/get\s+all\b/i, '/getall');
 
-        if (command === '/list')
-        {
+        if (command === '/list') {
             setBody(
-                '电台作弊终端\n'
-                + '/list  /get <id> <数量>  /getall <数量>\n\n'
-                + radioGroupedListText(),
+                '电台作弊终端\n' +
+                    '/list  /get <id> <数量>  /getall <数量>\n\n' +
+                    radioGroupedListText(),
                 false,
             );
             return;
         }
 
         const getMatch = /^\/get\s+(\d+)\s+(\S+)$/i.exec(command);
-        if (getMatch)
-        {
+        if (getMatch) {
             const itemId = Number(getMatch[1]);
             const amount = parsePositiveAmount(getMatch[2]!);
-            if (!amount)
-            {
+            if (!amount) {
                 appendOutput('数量必须是正整数。');
                 return;
             }
-            if (!RADIO_ITEM_CATALOG[itemId])
-            {
+            if (!RADIO_ITEM_CATALOG[itemId]) {
                 appendOutput(`未知物品编号：${itemId}。先用 /list 查询。`);
                 return;
             }
@@ -179,19 +159,15 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
         }
 
         const getAllMatch = /^\/getall\s+(\S+)$/i.exec(command);
-        if (getAllMatch)
-        {
+        if (getAllMatch) {
             const amount = parsePositiveAmount(getAllMatch[1]!);
-            if (!amount)
-            {
+            if (!amount) {
                 appendOutput('数量必须是正整数。');
                 return;
             }
             const itemIds = radioItemIds();
-            mutateSession((session) =>
-            {
-                for (const itemId of itemIds)
-                {
+            mutateSession((session) => {
+                for (const itemId of itemIds) {
                     addCounts(session.storage, itemId, amount);
                 }
             });
@@ -203,12 +179,9 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
     };
 
     const keyboard = ctx.scene.input.keyboard;
-    const onKeyDown = (event: KeyboardEvent) =>
-    {
-        if (event.key === 'Enter')
-        {
-            if (inputValue.trim())
-            {
+    const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Enter') {
+            if (inputValue.trim()) {
                 const command = inputValue;
                 appendOutput(`> ${command}`);
                 runCommand(command);
@@ -218,15 +191,13 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
             event.preventDefault();
             return;
         }
-        if (event.key === 'Backspace')
-        {
+        if (event.key === 'Backspace') {
             inputValue = inputValue.slice(0, -1);
             repaintInput();
             event.preventDefault();
             return;
         }
-        if (event.key.length === 1 && inputValue.length < 120)
-        {
+        if (event.key.length === 1 && inputValue.length < 120) {
             inputValue += event.key;
             repaintInput();
             event.preventDefault();
@@ -235,17 +206,16 @@ export function mountRadioNode (ctx: NodeMountContext): NodeMountResult
     keyboard?.on('keydown', onKeyDown);
 
     setBody(
-        '电台已改为本地作弊终端。\n'
-        + `/list：按类别列出全部物品和编号（共 ${radioItemIds().length} 种）\n`
-        + '/get <id> <数量>：获得指定物品\n'
-        + '/getall <数量>：获得全部物品\n'
-        + '\n（区域内可拖动 / 滚轮滚动）',
+        '电台已改为本地作弊终端。\n' +
+            `/list：按类别列出全部物品和编号（共 ${radioItemIds().length} 种）\n` +
+            '/get <id> <数量>：获得指定物品\n' +
+            '/getall <数量>：获得全部物品\n' +
+            '\n（区域内可拖动 / 滚轮滚动）',
         false,
     );
 
     return {
-        destroy: () =>
-        {
+        destroy: () => {
             keyboard?.off('keydown', onKeyDown);
             scroll.destroy();
         },

@@ -1,9 +1,5 @@
 import { type GameObjects, Scene } from 'phaser';
-import {
-    getPurchaseConfig,
-    type PermanentIapId,
-    SHOP_PERMANENT_IDS,
-} from '../data/purchaseList';
+import { getPurchaseConfig, type PermanentIapId, SHOP_PERMANENT_IDS } from '../data/purchaseList';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { isIapUnlocked } from '../systems/iapStore';
 import { addAtlasButton } from '../ui/atlasButton';
@@ -31,8 +27,7 @@ type PayCard = {
     priceLabel: GameObjects.Text;
 };
 
-export class ShopScene extends Scene
-{
+export class ShopScene extends Scene {
     private cards: PayCard[] = [];
     private scrollRoot: GameObjects.Container | null = null;
     private scrollMask: GameObjects.Graphics | null = null;
@@ -45,13 +40,11 @@ export class ShopScene extends Scene
     private dragMoved = false;
     private pointerDownY = 0;
 
-    constructor ()
-    {
+    constructor() {
         super('Shop');
     }
 
-    create ()
-    {
+    create() {
         this.cards = [];
         this.scrollRoot = null;
         this.scrollMask = null;
@@ -84,8 +77,7 @@ export class ShopScene extends Scene
         const viewY = SCROLL_TOP;
 
         this.scrollRoot = this.add.container(viewX, viewY);
-        this.cards = SHOP_PERMANENT_IDS.map((purchaseId, index) =>
-        {
+        this.cards = SHOP_PERMANENT_IDS.map((purchaseId, index) => {
             const col = index % 2;
             const row = Math.floor(index / 2);
             const x = col * (widthPadding + NODE_WIDTH) + NODE_WIDTH / 2;
@@ -105,13 +97,19 @@ export class ShopScene extends Scene
 
         // Transparent drag plane under cards — cards keep click priority via depth.
         const dragPlane = this.add
-            .rectangle(viewX + viewWidth / 2, viewY + viewHeight / 2, viewWidth, viewHeight, 0x000000, 0)
+            .rectangle(
+                viewX + viewWidth / 2,
+                viewY + viewHeight / 2,
+                viewWidth,
+                viewHeight,
+                0x000000,
+                0,
+            )
             .setInteractive();
         dragPlane.setDepth(1);
         this.scrollRoot.setDepth(2);
 
-        dragPlane.on('pointerdown', (pointer: Phaser.Input.Pointer) =>
-        {
+        dragPlane.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             this.dragging = true;
             this.dragMoved = false;
             this.dragStartY = pointer.y;
@@ -119,20 +117,16 @@ export class ShopScene extends Scene
             this.scrollStartY = this.scrollY;
         });
 
-        const onMove = (pointer: Phaser.Input.Pointer) =>
-        {
-            if (!this.dragging || !this.scrollRoot)
-            {
+        const onMove = (pointer: Phaser.Input.Pointer) => {
+            if (!this.dragging || !this.scrollRoot) {
                 return;
             }
-            if (Math.abs(pointer.y - this.pointerDownY) > 8)
-            {
+            if (Math.abs(pointer.y - this.pointerDownY) > 8) {
                 this.dragMoved = true;
             }
             this.setScrollY(this.scrollStartY + (pointer.y - this.dragStartY));
         };
-        const onUp = () =>
-        {
+        const onUp = () => {
             this.dragging = false;
         };
 
@@ -145,14 +139,12 @@ export class ShopScene extends Scene
             _gos: unknown,
             _dx: number,
             dy: number,
-        ) =>
-        {
+        ) => {
             this.setScrollY(this.scrollY - dy * 0.5);
         };
         this.input.on('wheel', onWheel);
 
-        this.events.once('shutdown', () =>
-        {
+        this.events.once('shutdown', () => {
             this.input.off('pointermove', onMove);
             this.input.off('pointerup', onUp);
             this.input.off('pointerupoutside', onUp);
@@ -162,8 +154,10 @@ export class ShopScene extends Scene
 
         // Return — Android layout: single centered back button
         const backY = height - 60;
-        if (this.textures.exists('ui') && this.textures.get('ui').has('btn_common_white_normal.png'))
-        {
+        if (
+            this.textures.exists('ui') &&
+            this.textures.get('ui').has('btn_common_white_normal.png')
+        ) {
             addAtlasButton(this, width / 2, backY, {
                 atlas: 'ui',
                 frame: 'btn_common_white_normal.png',
@@ -171,9 +165,7 @@ export class ShopScene extends Scene
                 labelSizeTier: 'COMMON_2',
                 onClick: () => this.scene.start('MainMenu'),
             });
-        }
-        else
-        {
+        } else {
             const btn = this.add
                 .rectangle(width / 2, backY, 160, 48, 0xe8e0d0)
                 .setInteractive({ useHandCursor: true });
@@ -189,39 +181,27 @@ export class ShopScene extends Scene
         }
     }
 
-    private setScrollY (y: number): void
-    {
-        if (!this.scrollRoot)
-        {
+    private setScrollY(y: number): void {
+        if (!this.scrollRoot) {
             return;
         }
         this.scrollY = Math.max(this.minScrollY, Math.min(this.maxScrollY, y));
         this.scrollRoot.y = SCROLL_TOP + this.scrollY;
     }
 
-    private buildPayCard (
-        purchaseId: PermanentIapId,
-        x: number,
-        y: number,
-        lan: LangCode,
-    ): PayCard
-    {
+    private buildPayCard(purchaseId: PermanentIapId, x: number, y: number, lan: LangCode): PayCard {
         const root = this.add.container(x, y);
         this.scrollRoot?.add(root);
 
-        const bgFrame =
-            purchaseId <= 104
-                ? 'frame_iap_bg_talent.png'
-                : 'frame_iap_bg_formula.png';
+        const bgFrame = purchaseId <= 104 ? 'frame_iap_bg_talent.png' : 'frame_iap_bg_formula.png';
 
-        if (this.textures.exists('ui') && this.textures.get('ui').has(bgFrame))
-        {
+        if (this.textures.exists('ui') && this.textures.get('ui').has(bgFrame)) {
             root.add(this.add.image(0, 0, 'ui', bgFrame));
-        }
-        else
-        {
+        } else {
             root.add(
-                this.add.rectangle(0, 0, NODE_WIDTH, NODE_HEIGHT, 0xd8d0c0).setStrokeStyle(1, 0x333333),
+                this.add
+                    .rectangle(0, 0, NODE_WIDTH, NODE_HEIGHT, 0xd8d0c0)
+                    .setStrokeStyle(1, 0x333333),
             );
         }
 
@@ -243,41 +223,38 @@ export class ShopScene extends Scene
                 .setOrigin(0.5, 0.5),
         );
 
-        if (purchaseId === 108 || purchaseId === 109)
-        {
+        if (purchaseId === 108 || purchaseId === 109) {
             const dig = purchaseId === 108 ? 'npc_dig_1.png' : 'npc_dig_4.png';
-            if (this.textures.exists('npc') && this.textures.get('npc').has(dig))
-            {
+            if (this.textures.exists('npc') && this.textures.get('npc').has(dig)) {
                 root.add(this.add.image(0, toLocalY(118), 'npc', dig).setScale(0.45));
             }
-        }
-        else
-        {
+        } else {
             const iconFrame = `icon_iap_${purchaseId}.png`;
-            if (this.textures.exists('icon') && this.textures.get('icon').has(iconFrame))
-            {
+            if (this.textures.exists('icon') && this.textures.get('icon').has(iconFrame)) {
                 root.add(this.add.image(0, toLocalY(118), 'icon', iconFrame));
             }
         }
 
         if (
-            purchaseId === 106
-            && this.textures.exists('icon')
-            && this.textures.get('icon').has('icon_sale.png')
-        )
-        {
-            root.add(
-                this.add.image(-NODE_WIDTH / 2 + 45, toLocalY(54), 'icon', 'icon_sale.png'),
-            );
+            purchaseId === 106 &&
+            this.textures.exists('icon') &&
+            this.textures.get('icon').has('icon_sale.png')
+        ) {
+            root.add(this.add.image(-NODE_WIDTH / 2 + 45, toLocalY(54), 'icon', 'icon_sale.png'));
         }
 
         const priceLabel = this.add
-            .text(NODE_WIDTH / 2 - 10, toLocalY(26), getPurchaseConfig(purchaseId).productPriceStr, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                color: '#111111',
-            })
+            .text(
+                NODE_WIDTH / 2 - 10,
+                toLocalY(26),
+                getPurchaseConfig(purchaseId).productPriceStr,
+                {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    color: '#111111',
+                },
+            )
             .setOrigin(1, 0.5);
         root.add(priceLabel);
 
@@ -299,8 +276,7 @@ export class ShopScene extends Scene
             .setInteractive({ useHandCursor: true });
         root.add(cardHit);
 
-        cardHit.on('pointerdown', (pointer: Phaser.Input.Pointer) =>
-        {
+        cardHit.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             this.dragging = true;
             this.dragMoved = false;
             this.dragStartY = pointer.y;
@@ -308,16 +284,12 @@ export class ShopScene extends Scene
             this.scrollStartY = this.scrollY;
         });
 
-        cardHit.on('pointerup', () =>
-        {
-            if (this.dragMoved)
-            {
+        cardHit.on('pointerup', () => {
+            if (this.dragMoved) {
                 return;
             }
-            openPayDialog(this, purchaseId, (result) =>
-            {
-                if (result.unlocked)
-                {
+            openPayDialog(this, purchaseId, (result) => {
+                if (result.unlocked) {
                     this.refreshCardStatuses();
                 }
             });
@@ -328,14 +300,12 @@ export class ShopScene extends Scene
         return card;
     }
 
-    private applyCardStatus (card: PayCard): void
-    {
+    private applyCardStatus(card: PayCard): void {
         card.unlockLabel.setVisible(isIapUnlocked(card.purchaseId));
         card.priceLabel.setText(getPurchaseConfig(card.purchaseId).productPriceStr);
     }
 
-    private refreshCardStatuses (): void
-    {
+    private refreshCardStatuses(): void {
         this.cards.forEach((card) => this.applyCardStatus(card));
     }
 }

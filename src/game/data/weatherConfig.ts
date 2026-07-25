@@ -29,7 +29,10 @@ export const WEATHER_CONFIG: Record<WeatherId, WeatherEffects> = {
 };
 
 /** Season → weighted weather rolls (original weatherSystemConfig). */
-export const WEATHER_BY_SEASON: Record<0 | 1 | 2 | 3, Array<{ weatherId: WeatherId; weight: number }>> = {
+export const WEATHER_BY_SEASON: Record<
+    0 | 1 | 2 | 3,
+    Array<{ weatherId: WeatherId; weight: number }>
+> = {
     0: [
         { weatherId: 0, weight: 5 },
         { weatherId: 1, weight: 1 },
@@ -60,34 +63,28 @@ export const WEATHER_BY_SEASON: Record<0 | 1 | 2 | 3, Array<{ weatherId: Weather
     ],
 };
 
-export function getWeatherEffects (weatherId: number): WeatherEffects
-{
-    const id = (Math.max(0, Math.min(4, Math.floor(weatherId))) as WeatherId);
+export function getWeatherEffects(weatherId: number): WeatherEffects {
+    const id = Math.max(0, Math.min(4, Math.floor(weatherId))) as WeatherId;
     return WEATHER_CONFIG[id] ?? WEATHER_CONFIG[0];
 }
 
-export function getWeatherValue (weatherId: number, key: keyof WeatherEffects): number
-{
+export function getWeatherValue(weatherId: number, key: keyof WeatherEffects): number {
     const cfg = getWeatherEffects(weatherId);
     const value = cfg[key];
     return typeof value === 'number' ? value : 0;
 }
 
 /** Weighted random weather for a season. */
-export function rollWeatherForSeason (season: 0 | 1 | 2 | 3): WeatherId
-{
+export function rollWeatherForSeason(season: 0 | 1 | 2 | 3): WeatherId {
     const table = WEATHER_BY_SEASON[season] ?? WEATHER_BY_SEASON[0];
     const total = table.reduce((sum, row) => sum + row.weight, 0);
-    if (total <= 0)
-    {
+    if (total <= 0) {
         return 0;
     }
     let r = Math.random() * total;
-    for (const row of table)
-    {
+    for (const row of table) {
         r -= row.weight;
-        if (r <= 0)
-        {
+        if (r <= 0) {
             return row.weatherId;
         }
     }

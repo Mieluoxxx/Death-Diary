@@ -10,11 +10,7 @@
 
 import type { GameObjects } from 'phaser';
 import type { NodeMountContext } from './navigation';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from './uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
 
 /** Cocos actionBarBaseHeight — title row y (from bg bottom). */
 const ACTION_BAR_LOCAL_Y = 803;
@@ -42,11 +38,10 @@ export type SiteChromeOptions = {
  * Place progress (right of title) + storage count (right edge) on the action bar.
  * Caller must still `ctx.setTitle(siteName, { align: 'left' })`.
  */
-export function mountSiteChromeCaptions (
+export function mountSiteChromeCaptions(
     ctx: NodeMountContext,
     opts: SiteChromeOptions,
-): SiteChromeCaptions
-{
+): SiteChromeCaptions {
     const titleX = ctx.width / 2 - ctx.bgWidth / 2 + TITLE_LOCAL_X;
     // Absolute chrome — match siteNode (bgBottom - cocosY), no content-nudge.
     const titleY = ctx.bgBottomY - ACTION_BAR_LOCAL_Y;
@@ -61,8 +56,7 @@ export function mountSiteChromeCaptions (
 
     let progressText: GameObjects.Text | null = null;
     const progress = opts.progress ?? '';
-    if (progress)
-    {
+    if (progress) {
         // Measure title width so progress starts after the name.
         const titleProbe = ctx.scene.add
             .text(0, 0, opts.siteName, {
@@ -90,8 +84,7 @@ export function mountSiteChromeCaptions (
     return {
         progress: progressText,
         storage,
-        destroy: () =>
-        {
+        destroy: () => {
             progressText?.destroy();
             storage.destroy();
         },
@@ -99,10 +92,8 @@ export function mountSiteChromeCaptions (
 }
 
 /** Format "进度:cur/total" for a site room list. */
-export function formatSiteProgress (step: number, roomCount: number): string
-{
-    if (roomCount <= 0)
-    {
+export function formatSiteProgress(step: number, roomCount: number): string {
+    if (roomCount <= 0) {
         return '进度:0/0';
     }
     return `进度:${Math.min(step, roomCount)}/${roomCount}`;

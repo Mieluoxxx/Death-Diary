@@ -24,93 +24,110 @@ export const SHOP_PERMANENT_IDS: readonly PermanentIapId[] = [
 
 export const PURCHASE_LIST: Record<PermanentIapId, PurchaseInfo> = {
     101: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc1',
-            price: 12,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 12.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc1',
+                price: 12,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 12.00',
+            },
+        ],
         multiPrice: false,
     },
     102: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc2',
-            price: 12,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 12.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc2',
+                price: 12,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 12.00',
+            },
+        ],
         multiPrice: false,
     },
     103: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc3',
-            price: 12,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 12.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc3',
+                price: 12,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 12.00',
+            },
+        ],
         multiPrice: false,
     },
     104: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc4',
-            price: 12,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 12.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc4',
+                price: 12,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 12.00',
+            },
+        ],
         multiPrice: false,
     },
     105: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc5',
-            price: 6,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 6.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc5',
+                price: 6,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 6.00',
+            },
+        ],
         multiPrice: false,
     },
     106: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc8',
-            price: 1,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 1.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc8',
+                price: 1,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 1.00',
+            },
+        ],
         multiPrice: false,
     },
     107: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc7',
-            price: 6,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 6.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc7',
+                price: 6,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 6.00',
+            },
+        ],
         multiPrice: false,
     },
     108: {
-        priceList: [{
-            productId: 'ipa_huozhe_nc9',
-            price: 12,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 12.00',
-        }],
+        priceList: [
+            {
+                productId: 'ipa_huozhe_nc9',
+                price: 12,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 12.00',
+            },
+        ],
         multiPrice: false,
     },
     109: {
-        priceList: [{
-            productId: 'cnan_huozhe_nc10',
-            price: 12,
-            currencyCode: 'CNY',
-            productPriceStr: '￥ 12.00',
-        }],
+        priceList: [
+            {
+                productId: 'cnan_huozhe_nc10',
+                price: 12,
+                currencyCode: 'CNY',
+                productPriceStr: '￥ 12.00',
+            },
+        ],
         multiPrice: false,
     },
 };
 
-export function getPurchaseConfig (purchaseId: PermanentIapId): PurchasePriceInfo & {
+export function getPurchaseConfig(purchaseId: PermanentIapId): PurchasePriceInfo & {
     multiPrice: boolean;
     priceIndex: number;
-}
-{
+} {
     const info = PURCHASE_LIST[purchaseId];
     const price = info.priceList[0];
     return {
@@ -120,7 +137,6 @@ export function getPurchaseConfig (purchaseId: PermanentIapId): PurchasePriceInf
     };
 }
 
-export function isPermanentIapId (id: number): id is PermanentIapId
-{
+export function isPermanentIapId(id: number): id is PermanentIapId {
     return id in PURCHASE_LIST;
 }

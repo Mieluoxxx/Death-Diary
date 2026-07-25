@@ -47,17 +47,12 @@ export type StatusDialogConfig = {
     onQuickItemTap?: (itemId: number) => void;
 };
 
-export function openStatusDialog (
-    scene: Scene,
-    config: StatusDialogConfig,
-): GameObjects.Container
-{
+export function openStatusDialog(scene: Scene, config: StatusDialogConfig): GameObjects.Container {
     // Avoid stacking identical overlays.
     const existing = scene.children.list.find(
         (child) => (child as GameObjects.Container).name === 'statusDialog',
     );
-    if (existing)
-    {
+    if (existing) {
         existing.destroy(true);
     }
 
@@ -83,14 +78,9 @@ export function openStatusDialog (
     const bgLeft = bgCenterX - DIALOG_WIDTH / 2;
 
     let panel: GameObjects.Image | GameObjects.Rectangle;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME))
-    {
-        panel = scene.add
-            .image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME)
-            .setOrigin(0.5, 0.5);
-    }
-    else
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has(DIALOG_FRAME)) {
+        panel = scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME).setOrigin(0.5, 0.5);
+    } else {
         panel = scene.add
             .rectangle(bgCenterX, bgCenterY, DIALOG_WIDTH, DIALOG_HEIGHT, 0xe8e0d0)
             .setStrokeStyle(2, 0x333333);
@@ -111,11 +101,10 @@ export function openStatusDialog (
     let iconDisplayWidth = 0;
     const iconAtlas = config.iconAtlas ?? 'icon';
     if (
-        config.iconFrame
-        && scene.textures.exists(iconAtlas)
-        && scene.textures.get(iconAtlas).has(config.iconFrame)
-    )
-    {
+        config.iconFrame &&
+        scene.textures.exists(iconAtlas) &&
+        scene.textures.get(iconAtlas).has(config.iconFrame)
+    ) {
         const icon = scene.add
             .image(textLeft, titleTopY + TITLE_HEIGHT / 2 - 4, iconAtlas, config.iconFrame)
             .setOrigin(0, 0.5)
@@ -141,8 +130,7 @@ export function openStatusDialog (
 
     // Clamp title if it somehow exceeds band height.
     const titleMaxBottom = titleBottomY - 22;
-    if (titleText.y + titleText.height > titleMaxBottom)
-    {
+    if (titleText.y + titleText.height > titleMaxBottom) {
         titleText.setFontSize(UI_FONT_SIZE.COMMON_2);
     }
 
@@ -189,8 +177,7 @@ export function openStatusDialog (
         .setOrigin(0, 0);
 
     // Safety clip if metrics still exceed content height.
-    if (des.height > desMaxHeight)
-    {
+    if (des.height > desMaxHeight) {
         const cropWidth = Math.max(1, Math.ceil(des.width));
         des.setCrop(0, 0, cropWidth, desMaxHeight);
     }
@@ -199,8 +186,7 @@ export function openStatusDialog (
 
     // Horizontal item strip (original TableView 400×100) via shared ScrollViewport.
     let stripScroll: ScrollViewportHandle | null = null;
-    if (hasQuickItems && config.quickItems)
-    {
+    if (hasQuickItems && config.quickItems) {
         const stripTop = contentBottomY - quickStripH;
         const cellSize = 84;
         const cellPitch = 100;
@@ -219,21 +205,17 @@ export function openStatusDialog (
         });
 
         let cursorX = 0;
-        for (const row of config.quickItems)
-        {
+        for (const row of config.quickItems) {
             const cellCenterX = cursorX + cellSize / 2;
             const cellCenterY = viewH / 2;
 
-            if (scene.textures.exists('ui') && scene.textures.get('ui').has('item_bg.png'))
-            {
+            if (scene.textures.exists('ui') && scene.textures.get('ui').has('item_bg.png')) {
                 stripScroll.content.add(
                     scene.add
                         .image(cellCenterX, cellCenterY, 'ui', 'item_bg.png')
                         .setDisplaySize(cellSize, cellSize),
                 );
-            }
-            else
-            {
+            } else {
                 stripScroll.content.add(
                     scene.add
                         .rectangle(cellCenterX, cellCenterY, cellSize, cellSize, 0x3a342c)
@@ -242,8 +224,7 @@ export function openStatusDialog (
             }
 
             const iconFrame = `icon_item_${row.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
-            {
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame)) {
                 stripScroll.content.add(
                     scene.add
                         .image(cellCenterX, cellCenterY, 'icon', iconFrame)
@@ -273,14 +254,12 @@ export function openStatusDialog (
                 .rectangle(cellCenterX, cellCenterY, cellSize, cellSize, 0xffffff, 0.001)
                 .setInteractive({ useHandCursor: true });
             const itemId = row.itemId;
-            hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-            {
+            hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
                 if (
-                    pointer.getDistance() > 8
-                    || stripScroll?.didDrag()
-                    || !stripScroll?.inView(pointer.x, pointer.y)
-                )
-                {
+                    pointer.getDistance() > 8 ||
+                    stripScroll?.didDrag() ||
+                    !stripScroll?.inView(pointer.x, pointer.y)
+                ) {
                     return;
                 }
                 config.onQuickItemTap?.(itemId);
@@ -298,26 +277,22 @@ export function openStatusDialog (
         stripScroll.setContentSize(Math.max(viewW, config.quickItems.length * cellPitch));
     }
 
-
-    const dismiss = () =>
-    {
+    const dismiss = () => {
         stripScroll?.destroy();
         stripScroll = null;
         root.destroy(true);
     };
 
     // Tap outside panel dismisses (autoDismiss true for status dialogs)
-    dim.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-    {
+    dim.on('pointerup', (pointer: Phaser.Input.Pointer) => {
         const localX = pointer.x;
         const localY = pointer.y;
         const inside =
-            localX >= bgLeft
-            && localX <= bgLeft + DIALOG_WIDTH
-            && localY >= bgTopY
-            && localY <= bgBottomY;
-        if (!inside)
-        {
+            localX >= bgLeft &&
+            localX <= bgLeft + DIALOG_WIDTH &&
+            localY >= bgTopY &&
+            localY <= bgBottomY;
+        if (!inside) {
             dismiss();
         }
     });
@@ -325,10 +300,9 @@ export function openStatusDialog (
     // Action button: "知道了"
     const okLabel = t('gotIt', lan);
     if (
-        scene.textures.exists('ui')
-        && scene.textures.get('ui').has('btn_common_black_normal.png')
-    )
-    {
+        scene.textures.exists('ui') &&
+        scene.textures.get('ui').has('btn_common_black_normal.png')
+    ) {
         const okBtn = addAtlasButton(scene, bgCenterX, actionCenterY, {
             atlas: 'ui',
             frame: 'btn_common_black_normal.png',
@@ -338,9 +312,7 @@ export function openStatusDialog (
             onClick: dismiss,
         });
         root.add(okBtn);
-    }
-    else
-    {
+    } else {
         const fallback = scene.add
             .rectangle(bgCenterX, actionCenterY, 158, 45, 0x222222)
             .setInteractive({ useHandCursor: true });
