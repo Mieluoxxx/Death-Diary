@@ -15,7 +15,7 @@
 | `getSession()` | 当前会话；无存档则 `null` |
 | `mutateSession(fn)` | 事务式修改并返回新状态（内部写回存储） |
 | `createNewSession(role, talent)` | 新开局 |
-| 存盘 key | `buried_city_session_v3` |
+| 存盘 key | `buried_city_session_v4` |
 | `appendSessionLog(text, timeLabel?)` | 写日志（顶栏 + 历史） |
 | `attrRatio` / `formatClock` | UI 展示用 |
 
@@ -35,7 +35,6 @@
 ## 约定
 
 - systems 改状态优先 `mutateSession`，再按需 `gameBusEmit`。
-- 读档走 `normalizeSession`，给新字段默认值。
 - 日志有上限（`MAX_LOG_ENTRIES`）；完整历史见顶栏日志面板。
 
 ## 相关

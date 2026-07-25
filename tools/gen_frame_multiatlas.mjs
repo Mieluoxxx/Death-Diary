@@ -8,48 +8,50 @@
  *   bun tools/gen_frame_multiatlas.mjs
  *   bun tools/gen_frame_multiatlas.mjs --check   # exit 1 if outputs stale
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
-import { ATLAS_MANIFEST } from '../src/game/assets/atlasManifest.ts';
+import {
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    statSync,
+    writeFileSync,
+} from "node:fs";
+import { join, relative } from "node:path";
+import { ATLAS_MANIFEST } from "../src/game/assets/atlasManifest.ts";
 
-const root = join(import.meta.dir, '..');
-const framesRoot = join(root, 'public', 'source-art', 'frames');
-const outDir = join(root, 'public', 'source-art', 'multiatlas');
-const indexPath = join(root, 'public', 'source-art', 'frame-index.json');
-const framesGenPath = join(root, 'src', 'game', 'assets', 'frames.gen.ts');
+const root = join(import.meta.dir, "..");
+const framesRoot = join(root, "public", "source-art", "frames");
+const outDir = join(root, "public", "source-art", "multiatlas");
+const indexPath = join(root, "public", "source-art", "frame-index.json");
+const framesGenPath = join(root, "src", "game", "assets", "frames.gen.ts");
 
-const checkOnly = process.argv.includes('--check');
+const checkOnly = process.argv.includes("--check");
 
 const PRELOAD = [...ATLAS_MANIFEST.preload];
 const LAZY = [...ATLAS_MANIFEST.lazy];
 const MANIFEST_KEYS = new Set([...PRELOAD, ...LAZY]);
 
-function die (msg)
-{
+function die(msg) {
     console.error(msg);
     process.exit(1);
 }
 
-function pngSize (path)
-{
+function pngSize(path) {
     const buf = readFileSync(path);
-    if (buf.length < 24 || buf.toString('ascii', 1, 4) !== 'PNG')
-    {
+    if (buf.length < 24 || buf.toString("ascii", 1, 4) !== "PNG") {
         throw new Error(`not a PNG: ${path}`);
     }
     return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
 }
 
-function listPngs (dir)
-{
+function listPngs(dir) {
     if (!existsSync(dir)) return [];
     return readdirSync(dir)
-        .filter((n) => n.endsWith('.png') && statSync(join(dir, n)).isFile())
+        .filter((n) => n.endsWith(".png") && statSync(join(dir, n)).isFile())
         .sort();
 }
 
-function listAtlasDirs ()
-{
+function listAtlasDirs() {
     if (!existsSync(framesRoot)) return [];
     return readdirSync(framesRoot)
         .filter((n) => statSync(join(framesRoot, n)).isDirectory())
@@ -57,21 +59,18 @@ function listAtlasDirs ()
 }
 
 /** PNG basename → valid TS object key (identifier or quoted). */
-function frameProp (filename)
-{
-    const base = filename.replace(/\.png$/i, '');
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(base))
-    {
+function frameProp(filename) {
+    const base = filename.replace(/\.png$/i, "");
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(base)) {
         return { key: base, quoted: false, value: filename };
     }
     return { key: base, quoted: true, value: filename };
 }
 
-function buildTexturePage (file, w, h)
-{
+function buildTexturePage(file, w, h) {
     return {
         image: file,
-        format: 'RGBA8888',
+        format: "RGBA8888",
         size: { w, h },
         scale: 1,
         frames: [
@@ -88,10 +87,8 @@ function buildTexturePage (file, w, h)
     };
 }
 
-function buildAtlasDoc (atlas, files)
-{
-    const textures = files.map((file) =>
-    {
+function buildAtlasDoc(atlas, files) {
+    const textures = files.map((file) => {
         const abs = join(framesRoot, atlas, file);
         const { w, h } = pngSize(abs);
         return buildTexturePage(file, w, h);
@@ -100,91 +97,98 @@ function buildAtlasDoc (atlas, files)
     return {
         textures,
         meta: {
-            app: 'Death-Diary/tools/gen_frame_multiatlas.mjs',
-            version: '1.0',
-            format: 'Phaser3 Multi Atlas (one PNG per frame)',
+            app: "Death-Diary/tools/gen_frame_multiatlas.mjs",
+            version: "1.0",
+            format: "Phaser3 Multi Atlas (one PNG per frame)",
             atlas,
             frameCount: textures.length,
-            source: 'public/source-art/frames',
+            source: "public/source-art/frames",
         },
     };
 }
 
-function writeOrCheck (path, content, label)
-{
+function writeOrCheck(path, content, label) {
     const rel = relative(root, path);
-    if (checkOnly)
-    {
-        if (!existsSync(path))
-        {
+    if (checkOnly) {
+        if (!existsSync(path)) {
             die(`--check: missing ${rel} (${label}) — run bun run gen:frames`);
         }
-        const prev = readFileSync(path, 'utf8');
-        if (prev !== content)
-        {
+        const prev = readFileSync(path, "utf8");
+        if (prev !== content) {
             die(`--check: stale ${rel} (${label}) — run bun run gen:frames`);
         }
         return false;
     }
 
-    mkdirSync(join(path, '..'), { recursive: true });
+    mkdirSync(join(path, ".."), { recursive: true });
     writeFileSync(path, content);
     return true;
 }
 
-function emitFramesGen (atlasFrames)
-{
+function emitFramesGen(atlasFrames) {
     const lines = [];
-    lines.push('/* AUTO-GENERATED by tools/gen_frame_multiatlas.mjs — do not edit */');
-    lines.push('');
-    lines.push(`export const PRELOAD_ATLAS_KEYS = ${JSON.stringify(PRELOAD)} as const;`);
-    lines.push('');
-    lines.push(`export const LAZY_ATLAS_KEYS = ${JSON.stringify(LAZY)} as const;`);
-    lines.push('');
-    lines.push('export const ALL_ATLAS_KEYS = [');
-    lines.push('    ...PRELOAD_ATLAS_KEYS,');
-    lines.push('    ...LAZY_ATLAS_KEYS,');
-    lines.push('] as const;');
-    lines.push('');
-    lines.push('export type PreloadAtlasKey = (typeof PRELOAD_ATLAS_KEYS)[number];');
-    lines.push('export type LazyAtlasKey = (typeof LAZY_ATLAS_KEYS)[number];');
-    lines.push('export type AtlasKey = (typeof ALL_ATLAS_KEYS)[number];');
-    lines.push('');
-    lines.push('/** Frame basename constants per atlas (optional typed access). */');
-    lines.push('export const Frame = {');
+    lines.push(
+        "/* AUTO-GENERATED by tools/gen_frame_multiatlas.mjs — do not edit */",
+    );
+    lines.push("");
+    lines.push(
+        `export const PRELOAD_ATLAS_KEYS = ${JSON.stringify(PRELOAD)} as const;`,
+    );
+    lines.push("");
+    lines.push(
+        `export const LAZY_ATLAS_KEYS = ${JSON.stringify(LAZY)} as const;`,
+    );
+    lines.push("");
+    lines.push("export const ALL_ATLAS_KEYS = [");
+    lines.push("    ...PRELOAD_ATLAS_KEYS,");
+    lines.push("    ...LAZY_ATLAS_KEYS,");
+    lines.push("] as const;");
+    lines.push("");
+    lines.push(
+        "export type PreloadAtlasKey = (typeof PRELOAD_ATLAS_KEYS)[number];",
+    );
+    lines.push("export type LazyAtlasKey = (typeof LAZY_ATLAS_KEYS)[number];");
+    lines.push("export type AtlasKey = (typeof ALL_ATLAS_KEYS)[number];");
+    lines.push("");
+    lines.push(
+        "/** Frame basename constants per atlas (optional typed access). */",
+    );
+    lines.push("export const Frame = {");
 
-    for (const atlas of Object.keys(atlasFrames).sort())
-    {
+    for (const atlas of Object.keys(atlasFrames).sort()) {
         lines.push(`    ${atlas}: {`);
-        for (const file of atlasFrames[atlas])
-        {
+        for (const file of atlasFrames[atlas]) {
             const { key, quoted, value } = frameProp(file);
             const prop = quoted ? JSON.stringify(key) : key;
             lines.push(`        ${prop}: ${JSON.stringify(value)},`);
         }
-        lines.push('    },');
+        lines.push("    },");
     }
 
-    lines.push('} as const;');
-    lines.push('');
-    lines.push('export type FrameMap = typeof Frame;');
-    lines.push('export type FramesOf<A extends keyof FrameMap> = FrameMap[A][keyof FrameMap[A]];');
-    lines.push('');
-    return `${lines.join('\n')}\n`;
+    lines.push("} as const;");
+    lines.push("");
+    lines.push("export type FrameMap = typeof Frame;");
+    lines.push(
+        "export type FramesOf<A extends keyof FrameMap> = FrameMap[A][keyof FrameMap[A]];",
+    );
+    lines.push("");
+    return `${lines.join("\n")}\n`;
 }
 
 // --- main ---
 
-if (!existsSync(framesRoot))
-{
-    die(`missing ${relative(root, framesRoot)} — copy Buried-Town frames first`);
+if (!existsSync(framesRoot)) {
+    die(
+        `missing ${relative(root, framesRoot)} — copy Buried-Town frames first`,
+    );
 }
 
 const diskAtlases = listAtlasDirs();
 const unknownOnDisk = diskAtlases.filter((a) => !MANIFEST_KEYS.has(a));
-for (const a of unknownOnDisk)
-{
-    console.warn(`warn: frames/${a}/ not in atlasManifest (preload|lazy) — skipped`);
+for (const a of unknownOnDisk) {
+    console.warn(
+        `warn: frames/${a}/ not in atlasManifest (preload|lazy) — skipped`,
+    );
 }
 
 // basename → atlas (collision detection)
@@ -195,33 +199,26 @@ let totalFrames = 0;
 const summary = [];
 const errors = [];
 
-for (const atlas of [...PRELOAD, ...LAZY])
-{
+for (const atlas of [...PRELOAD, ...LAZY]) {
     const atlasDir = join(framesRoot, atlas);
     const files = listPngs(atlasDir);
     const required = PRELOAD.includes(atlas);
 
-    if (files.length === 0)
-    {
-        if (required)
-        {
+    if (files.length === 0) {
+        if (required) {
             errors.push(`preload atlas empty/missing: ${atlas}`);
-        }
-        else
-        {
+        } else {
             console.warn(`skip empty lazy atlas: ${atlas}`);
         }
         continue;
     }
 
-    for (const file of files)
-    {
-        if (owner.has(file))
-        {
-            errors.push(`duplicate frame basename "${file}" in ${owner.get(file)} and ${atlas}`);
-        }
-        else
-        {
+    for (const file of files) {
+        if (owner.has(file)) {
+            errors.push(
+                `duplicate frame basename "${file}" in ${owner.get(file)} and ${atlas}`,
+            );
+        } else {
             owner.set(file, atlas);
         }
         allIndex[file] = `source-art/frames/${atlas}/${file}`;
@@ -232,39 +229,42 @@ for (const atlas of [...PRELOAD, ...LAZY])
     const doc = buildAtlasDoc(atlas, files);
     const outPath = join(outDir, `${atlas}.json`);
     // multiatlas JSON: compact (no pretty) for stable smaller diffs
-    const written = writeOrCheck(outPath, JSON.stringify(doc), `atlas ${atlas}`);
+    const written = writeOrCheck(
+        outPath,
+        JSON.stringify(doc),
+        `atlas ${atlas}`,
+    );
     totalFrames += files.length;
     summary.push({ atlas, frames: files.length, out: relative(root, outPath) });
-    if (written)
-    {
-        console.log(`wrote ${relative(root, outPath)} (${files.length} frames)`);
+    if (written) {
+        console.log(
+            `wrote ${relative(root, outPath)} (${files.length} frames)`,
+        );
     }
 }
 
-if (errors.length)
-{
+if (errors.length) {
     for (const e of errors) console.error(`error: ${e}`);
     process.exit(1);
 }
 
 // Full tree index (manifest atlases only that exist)
 const indexBody = `${JSON.stringify(allIndex, null, 2)}\n`;
-if (writeOrCheck(indexPath, indexBody, 'frame-index'))
-{
-    console.log(`wrote ${relative(root, indexPath)} (${Object.keys(allIndex).length} frames)`);
+if (writeOrCheck(indexPath, indexBody, "frame-index")) {
+    console.log(
+        `wrote ${relative(root, indexPath)} (${Object.keys(allIndex).length} frames)`,
+    );
 }
 
 const genBody = emitFramesGen(atlasFrames);
-if (writeOrCheck(framesGenPath, genBody, 'frames.gen.ts'))
-{
+if (writeOrCheck(framesGenPath, genBody, "frames.gen.ts")) {
     console.log(`wrote ${relative(root, framesGenPath)}`);
 }
 
-if (checkOnly)
-{
+if (checkOnly) {
     console.log(`--check ok: ${summary.length} atlases, ${totalFrames} frames`);
-}
-else
-{
-    console.log(`atlases: ${summary.length}, frames: ${totalFrames} (preload ${PRELOAD.length}, lazy ${LAZY.length})`);
+} else {
+    console.log(
+        `atlases: ${summary.length}, frames: ${totalFrames} (preload ${PRELOAD.length}, lazy ${LAZY.length})`,
+    );
 }
