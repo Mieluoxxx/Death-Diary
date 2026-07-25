@@ -125,6 +125,55 @@ export const BUILD_LEVEL_STRINGS: Record<string, NamedCopy> = {
     },
 };
 
+/** Port of string_zh "b_a_*" facility action detail copy. */
+export const BUILD_ACTION_STRINGS: Record<string, NamedCopy> = {
+    '5': {
+        title: '点火',
+        des: '10℃以下，人可能会因感冒引发呼吸道和肺部感染。所以在寒冷的天气，尽量保持火炉里有足够的柴火。',
+    },
+    '8': {
+        title: '陷阱',
+        des: '简单的陷阱就可以在草丛里诱捕野兔。在蛮荒的世界里，这是珍贵的动物蛋白来源。幸亏兔子们还没疯。',
+    },
+    '9': {
+        title: '睡觉',
+        des: '恢复生命值和精力的唯一办法就是充足的睡眠。保持较高的床等级、饱食度和心情值，都会提高睡眠效率。',
+    },
+    '10': {
+        title: '咖啡时间',
+        des: '持续恶劣的生存环境会导致心理机能失调。坐下来喝杯咖啡，会释放压力，放松心情。',
+    },
+    '10_1': {
+        title: '微醺时间',
+        des: '虽然在危机重重的环境里必须保持清醒，但是在高压环境里，同样需要适当地放松。',
+    },
+    '12': {
+        title: '喂狗',
+        des: '在饥饿状态下，狗没有办法参与到你的家园防御。所以每天至少喂一次狗。',
+    },
+    '17': {
+        title: '埋放炸药',
+        des: '埋放了充足炸药的雷区，可以抵御任何僵尸侵袭',
+    },
+};
+
+export function buildActionCopy(bid: number, actionId = 0): NamedCopy {
+    if (bid === 10 && actionId === 1) {
+        return (
+            BUILD_ACTION_STRINGS['10_1'] ?? {
+                title: '微醺时间',
+                des: '',
+            }
+        );
+    }
+    return (
+        BUILD_ACTION_STRINGS[String(bid)] ?? {
+            title: `动作${bid}`,
+            des: '',
+        }
+    );
+}
+
 export const ITEM_STRINGS: Record<string, NamedCopy> = {
     '1101011': {
         title: '木质材料',

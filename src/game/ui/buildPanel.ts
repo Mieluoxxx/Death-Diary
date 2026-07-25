@@ -12,7 +12,7 @@
  */
 
 import type { GameObjects, Scene } from 'phaser';
-import { buildLevelName } from '../data/buildStrings';
+import { buildActionCopy, buildLevelName } from '../data/buildStrings';
 import { getBuildLevel, getStorageCount } from '../session/sessionStore';
 import {
     BuildUpgradeType,
@@ -29,7 +29,17 @@ import {
 } from '../systems/facilityAction';
 import { gameBusOff, gameBusOn } from '../systems/gameBus';
 import { addAtlasButton } from './atlasButton';
-import { mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
+import { openBuildDetailDialog } from './buildDialog';
+import { openStatusDialog } from './dialogSmall';
+import { createReadOnlyItemDetailModel } from './itemDetailContext';
+import { openItemDetailDialog } from './itemDialog';
+import {
+    addScrollHit,
+    isScrollTap,
+    mountScrollViewport,
+    type ScrollViewportHandle,
+    trackScrollButton,
+} from './scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 export type BuildPanelHandle = {
@@ -195,6 +205,18 @@ export function openBuildPanel(
         .setVisible(false);
     row.add(buildIcon);
 
+    // Original upgradeView iconBg → showBuildDialog(bid, nextOrMaxLevel).
+    const upgradeIconHit = scene.add
+        .rectangle(iconBgX, iconLocalY, 110, 73, 0xffffff, 0.001)
+        .setInteractive({ useHandCursor: true });
+    upgradeIconHit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.getDistance() > 8) {
+            return;
+        }
+        openBuildDetailDialog(scene, bid);
+    });
+    row.add(upgradeIconHit);
+
     // Cost / condition text area (left of action button)
     const textLeft = iconBgX + 55 + 10;
     const costText = scene.add
@@ -297,10 +319,12 @@ export function openBuildPanel(
         if (!actionScroll || closed) {
             return;
         }
-        const prevOffset = actionScroll.getOffset();
-        actionScroll.syncMask();
+        // Local alias so forEach callbacks keep the non-null type.
+        const scroll = actionScroll;
+        const prevOffset = scroll.getOffset();
+        scroll.syncMask();
         actionListRoot.removeAll(true);
-        actionScroll.clearHits();
+        scroll.clearHits();
 
         const facilityActions = listFacilityActions(bid);
         const craftActions = listCraftActions(bid);
@@ -318,8 +342,8 @@ export function openBuildPanel(
                     })
                     .setOrigin(0.5, 0),
             );
-            actionScroll.setContentSize(listViewH);
-            actionScroll.setOffset(0);
+            scroll.setContentSize(listViewH);
+            scroll.setOffset(0);
             return;
         }
 
@@ -335,7 +359,7 @@ export function openBuildPanel(
                     costText.setColor('#ff5555');
                     clearItemIcons();
                 },
-                () => Boolean(actionScroll?.didDrag()),
+                scroll,
             );
             rowIndex += 1;
         });
@@ -350,13 +374,13 @@ export function openBuildPanel(
                     costText.setColor('#ff5555');
                     clearItemIcons();
                 },
-                () => Boolean(actionScroll?.didDrag()),
+                scroll,
             );
             rowIndex += 1;
         });
 
-        actionScroll.setContentSize(Math.max(listViewH, rowIndex * ACTION_ROW_HEIGHT));
-        actionScroll.setOffset(prevOffset);
+        scroll.setContentSize(Math.max(listViewH, rowIndex * ACTION_ROW_HEIGHT));
+        scroll.setOffset(prevOffset);
     };
 
     const setProgress = (pct: number) => {
@@ -566,7 +590,7 @@ function mountCraftRow(
     action: CraftActionView,
     index: number,
     onFail: (msg: string) => void,
-    wasDragging: () => boolean,
+    scroll: ScrollViewportHandle,
 ): void {
     const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
     const row = scene.add.container(0, rowY);
@@ -598,6 +622,25 @@ function mountCraftRow(
     ) {
         row.add(scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`));
     }
+
+    // Original Formula.clickIcon → showItemDialog(produce, showOnly).
+    const craftIconHit = addScrollHit(scene, scroll, {
+        x: iconX,
+        y: iconY,
+        width: 110,
+        height: 73,
+        axisLocal: rowY + iconY,
+        onTap: () => {
+            openItemDetailDialog(
+                scene,
+                createReadOnlyItemDetailModel(
+                    action.produceItemId,
+                    getStorageCount(action.produceItemId),
+                ),
+            );
+        },
+    });
+    row.add(craftIconHit);
 
     const textLeft = -BG_WIDTH / 2 + 140;
     if (action.hint) {
@@ -689,7 +732,8 @@ function mountCraftRow(
             onClick: action.actionDisabled
                 ? undefined
                 : () => {
-                      if (wasDragging()) {
+                      const pointer = scene.input.activePointer;
+                      if (!isScrollTap(scroll, pointer)) {
                           return;
                       }
                       const res = clickCraftAction(action.bid, action.formulaId);
@@ -699,6 +743,7 @@ function mountCraftRow(
                   },
         });
         row.add(btn);
+        trackScrollButton(scroll, btn, rowY);
     }
 }
 
@@ -708,7 +753,7 @@ function mountFacilityRow(
     action: FacilityActionView,
     index: number,
     onFail: (msg: string) => void,
-    wasDragging: () => boolean,
+    scroll: ScrollViewportHandle,
 ): void {
     const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
     const row = scene.add.container(0, rowY);
@@ -734,6 +779,25 @@ function mountFacilityRow(
     ) {
         row.add(scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`));
     }
+
+    // Original BuildAction.clickIcon → showBuildActionDialog(bid, actionId).
+    const facilityIconHit = addScrollHit(scene, scroll, {
+        x: iconX,
+        y: iconY,
+        width: 110,
+        height: 73,
+        axisLocal: rowY + iconY,
+        onTap: () => {
+            const copy = buildActionCopy(action.bid, action.actionId);
+            openStatusDialog(scene, {
+                iconFrame: action.iconHint,
+                iconAtlas: 'build',
+                title: copy.title,
+                description: copy.des,
+            });
+        },
+    });
+    row.add(facilityIconHit);
 
     const textLeft = -BG_WIDTH / 2 + 140;
     if (action.hint) {
@@ -808,7 +872,8 @@ function mountFacilityRow(
             onClick: action.actionDisabled
                 ? undefined
                 : () => {
-                      if (wasDragging()) {
+                      const pointer = scene.input.activePointer;
+                      if (!isScrollTap(scroll, pointer)) {
                           return;
                       }
                       const res = clickFacilityAction(action.bid, action.actionId);
@@ -818,5 +883,6 @@ function mountFacilityRow(
                   },
         });
         row.add(btn);
+        trackScrollButton(scroll, btn, rowY);
     }
 }
