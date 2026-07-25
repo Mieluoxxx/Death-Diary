@@ -7,6 +7,7 @@ import {
     applyGameTimeToSession,
     clockPartsFromGameTime,
     getSession,
+    mutateSession,
     type SessionState,
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';
@@ -62,38 +63,31 @@ const clock: ClockState = {
     lastSeason: null,
 };
 
-function requireSession (): SessionState
-{
+function requireSession(): SessionState {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         throw new Error('timeClock: no active session');
     }
     return session;
 }
 
-export function isTimeClockRunning (): boolean
-{
+export function isTimeClockRunning(): boolean {
     return clock.running;
 }
 
-export function isTimeClockPaused (): boolean
-{
+export function isTimeClockPaused(): boolean {
     return clock.pausedRef > 0;
 }
 
-export function pauseTimeClock (): void
-{
+export function pauseTimeClock(): void {
     clock.pausedRef += 1;
 }
 
-export function resumeTimeClock (): void
-{
+export function resumeTimeClock(): void {
     clock.pausedRef = Math.max(0, clock.pausedRef - 1);
 }
 
-export function getGameTimeScale (): number
-{
+export function getGameTimeScale(): number {
     return clock.timeScale;
 }
 
@@ -101,15 +95,12 @@ export function getGameTimeScale (): number
  * Temporarily speed up so `gameSeconds` elapse in `realSeconds` wall time.
  * Used later for craft/upgrade; A-slice only exposes the API.
  */
-export function accelerateTime (gameSeconds: number, realSeconds: number): void
-{
-    if (clock.isAccelerated || realSeconds <= 0)
-    {
+export function accelerateTime(gameSeconds: number, realSeconds: number): void {
+    if (clock.isAccelerated || realSeconds <= 0) {
         return;
     }
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return;
     }
     clock.timeScale = gameSeconds / realSeconds;
@@ -117,16 +108,14 @@ export function accelerateTime (gameSeconds: number, realSeconds: number): void
     clock.accelerateEndTime = session.gameTime + gameSeconds;
 }
 
-export function accelerateWorkTime (gameSeconds: number): void
-{
+export function accelerateWorkTime(gameSeconds: number): void {
     const realCap = 3;
-    if (gameSeconds / TIME_SCALE_ORIGIN > realCap)
-    {
+    if (gameSeconds / TIME_SCALE_ORIGIN > realCap) {
         accelerateTime(gameSeconds, realCap);
     }
 }
 
-export function addTimerCallback (
+export function addTimerCallback(
     internalTime: number,
     delegate: TimerDelegate,
     options?: {
@@ -134,8 +123,7 @@ export function addTimerCallback (
         repeat?: number;
         priority?: number;
     },
-): TimerCallbackHandle
-{
+): TimerCallbackHandle {
     const session = requireSession();
     const startTime = options?.startTime ?? session.gameTime;
     const handle: TimerCallbackHandle = {
@@ -152,17 +140,14 @@ export function addTimerCallback (
     return handle;
 }
 
-export function removeTimerCallback (handle: TimerCallbackHandle): void
-{
+export function removeTimerCallback(handle: TimerCallbackHandle): void {
     const index = clock.callbacks.findIndex((item) => item.id === handle.id);
-    if (index >= 0)
-    {
+    if (index >= 0) {
         clock.callbacks.splice(index, 1);
     }
 }
 
-export function clearTimerCallbacks (): void
-{
+export function clearTimerCallbacks(): void {
     clock.callbacks = [];
 }
 
@@ -170,8 +155,7 @@ export function clearTimerCallbacks (): void
  * Start the clock for the current session. Does not register survival hooks —
  * call startSurvivalLoop() after this.
  */
-export function startTimeClock (): void
-{
+export function startTimeClock(): void {
     const session = requireSession();
     clock.running = true;
     clock.pausedRef = 0;
@@ -187,8 +171,7 @@ export function startTimeClock (): void
     clock.lastSeason = parts.season;
 }
 
-export function stopTimeClock (): void
-{
+export function stopTimeClock(): void {
     clock.running = false;
     clock.pausedRef = 0;
     clearTimerCallbacks();
@@ -200,15 +183,12 @@ export function stopTimeClock (): void
  * Advance simulation by real-frame delta seconds.
  * Call from the active in-game scene's update().
  */
-export function tickTimeClock (realDeltaSeconds: number): void
-{
-    if (!clock.running || clock.pausedRef > 0 || realDeltaSeconds <= 0)
-    {
+export function tickTimeClock(realDeltaSeconds: number): void {
+    if (!clock.running || clock.pausedRef > 0 || realDeltaSeconds <= 0) {
         return;
     }
     const session = getSession();
-    if (!session || session.isDead)
-    {
+    if (!session || session.isDead) {
         return;
     }
 
@@ -216,117 +196,98 @@ export function tickTimeClock (realDeltaSeconds: number): void
     advanceGameTime(session, deltaGameSeconds);
 }
 
-function advanceGameTime (session: SessionState, deltaGameSeconds: number): void
-{
+function advanceGameTime(session: SessionState, deltaGameSeconds: number): void {
     const previousParts = clockPartsFromGameTime(session.gameTime);
     const nextTime = session.gameTime + deltaGameSeconds;
     applyGameTimeToSession(session, nextTime);
 
     // Process callbacks against the new time.
     const finished: TimerCallbackHandle[] = [];
-    for (const callback of clock.callbacks)
-    {
+    for (const callback of clock.callbacks) {
         callback.delegate.process?.(deltaGameSeconds);
-        if (nextTime >= callback.endTime)
-        {
+        if (nextTime >= callback.endTime) {
             callback.delegate.end?.();
             callback.repeat -= 1;
             finished.push(callback);
         }
     }
 
-    for (const callback of finished)
-    {
-        if (callback.repeat > 0)
-        {
+    for (const callback of finished) {
+        if (callback.repeat > 0) {
             callback.startTime = nextTime;
             callback.endTime = nextTime + callback.internalTime;
-        }
-        else
-        {
+        } else {
             removeTimerCallback(callback);
         }
     }
 
-    if (clock.isAccelerated && nextTime >= clock.accelerateEndTime)
-    {
+    if (clock.isAccelerated && nextTime >= clock.accelerateEndTime) {
         clock.isAccelerated = false;
         clock.timeScale = TIME_SCALE_ORIGIN;
     }
 
     const parts = clockPartsFromGameTime(nextTime);
     const minuteChanged =
-        previousParts.day !== parts.day
-        || previousParts.hour !== parts.hour
-        || previousParts.minute !== parts.minute;
+        previousParts.day !== parts.day ||
+        previousParts.hour !== parts.hour ||
+        previousParts.minute !== parts.minute;
 
-    if (minuteChanged)
-    {
+    if (minuteChanged) {
         gameBusEmit('time_tick', {
             gameTime: nextTime,
             day: parts.day,
             hour: parts.hour,
             minute: parts.minute,
         });
-        // Throttled persist: once per game-minute (~0.6s real at default scale).
-        try
-        {
-            localStorage.setItem('buried_city_session_v2', JSON.stringify(session));
-        }
-        catch
-        {
-            // ignore
-        }
+        // Persist through the session store at the same game-minute cadence.
+        mutateSession(() => {});
         gameBusEmit('session_updated');
     }
 
-    if (clock.lastStage !== parts.stage)
-    {
+    if (clock.lastStage !== parts.stage) {
         clock.lastStage = parts.stage;
         gameBusEmit('stage_change', parts.stage);
     }
 
-    if (clock.lastSeason !== parts.season)
-    {
+    if (clock.lastSeason !== parts.season) {
         clock.lastSeason = parts.season;
         gameBusEmit('season_change', parts.season);
     }
 }
 
 /** Register a forever callback every `intervalSeconds` of game time. */
-export function everyGameInterval (
+export function everyGameInterval(
     intervalSeconds: number,
     onEnd: () => void,
     options?: { startTime?: number; priority?: number },
-): TimerCallbackHandle
-{
-    return addTimerCallback(intervalSeconds, { end: onEnd }, {
-        startTime: options?.startTime,
-        repeat: REPEAT_FOREVER,
-        priority: options?.priority,
-    });
+): TimerCallbackHandle {
+    return addTimerCallback(
+        intervalSeconds,
+        { end: onEnd },
+        {
+            startTime: options?.startTime,
+            repeat: REPEAT_FOREVER,
+            priority: options?.priority,
+        },
+    );
 }
 
 /**
  * Align a repeating interval so the first fire is at the next boundary
  * after `fromTime` (e.g. next whole hour).
  */
-export function alignIntervalStart (fromTime: number, intervalSeconds: number): number
-{
+export function alignIntervalStart(fromTime: number, intervalSeconds: number): number {
     const remainder = fromTime % intervalSeconds;
-    if (remainder === 0)
-    {
+    if (remainder === 0) {
         // Already on boundary — schedule from previous boundary so end fires at now+interval.
         return fromTime;
     }
     return fromTime - remainder;
 }
 
-export function getCurrentStage (): 'day' | 'night'
-{
+export function getCurrentStage(): 'day' | 'night' {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return 'day';
     }
     return clockPartsFromGameTime(session.gameTime).stage;

@@ -12,29 +12,16 @@
  */
 
 import type { GameObjects } from 'phaser';
-import { getNpcCopy, getNpcDef } from '../../data/npcConfig';
-import {
-    getSiteConfig,
-    HOME_SITE_ID,
-} from '../../data/siteConfig';
+import { getNpcCopy, getNpcDef, NPC_IDS } from '../../data/npcConfig';
+import { getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
-import {
-    clearBattle,
-    getDodgeProgress,
-    startBattle,
-    tickBattle,
-} from '../../systems/battleSystem';
+import { clearBattle, getDodgeProgress, startBattle, tickBattle } from '../../systems/battleSystem';
 import { arriveAt, planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
 import { accelerateTime } from '../../systems/timeClock';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from '../uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
 
 /** map_bg source size (original). */
 const MAP_W = 584;
@@ -45,32 +32,27 @@ const DIALOG_FRAME = 'dialog_big_bg.png';
 const DIALOG_W = 448;
 const DIALOG_H = 625;
 
-function formatTravelTime (seconds: number): string
-{
+function formatTravelTime(seconds: number): string {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0)
-    {
+    if (h > 0) {
         return m > 0 ? `${h}小时${m}分` : `${h}小时`;
     }
     return `${Math.max(1, m)}分钟`;
 }
 
-function hasFrame (ctx: NodeMountContext, atlas: string, frame: string): boolean
-{
+function hasFrame(ctx: NodeMountContext, atlas: string, frame: string): boolean {
     return ctx.scene.textures.exists(atlas) && ctx.scene.textures.get(atlas).has(frame);
 }
 
-export function mountMapNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
     // Original MapNode: empty title, no left/right chrome.
     ctx.setTitle('');
     ctx.setLeftEnabled(false);
     ctx.setRightEnabled(false);
 
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return {};
     }
 
@@ -88,27 +70,16 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
 
     const mapLayer = ctx.scene.add.container(0, 0);
     mapLayer.enableFilters();
-    if (mapLayer.filters)
-    {
-        mapLayer.filters.internal.addMask(
-            maskRect,
-            false,
-            ctx.scene.cameras.main,
-            'world',
-        );
+    if (mapLayer.filters) {
+        mapLayer.filters.internal.addMask(maskRect, false, ctx.scene.cameras.main, 'world');
     }
     ctx.content.add(mapLayer);
 
-    if (hasFrame(ctx, 'map', 'map_bg.png'))
-    {
+    if (hasFrame(ctx, 'map', 'map_bg.png')) {
         mapLayer.add(
-            ctx.scene.add
-                .image(mapOriginX, mapOriginY, 'map', 'map_bg.png')
-                .setOrigin(0, 0),
+            ctx.scene.add.image(mapOriginX, mapOriginY, 'map', 'map_bg.png').setOrigin(0, 0),
         );
-    }
-    else
-    {
+    } else {
         mapLayer.add(
             ctx.scene.add
                 .rectangle(mapOriginX + drawW / 2, mapOriginY + drawH / 2, drawW, drawH, 0x1a1a1a)
@@ -118,11 +89,9 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
 
     // Original MapView.updateWeather: weather overlay except cloudy (id 0).
     const weatherId = session.weatherId ?? 0;
-    if (weatherId > 0)
-    {
+    if (weatherId > 0) {
         const weatherFrame = `weather_${weatherId}.png`;
-        if (hasFrame(ctx, 'weather', weatherFrame))
-        {
+        if (hasFrame(ctx, 'weather', weatherFrame)) {
             mapLayer.add(
                 ctx.scene.add
                     .image(mapOriginX, mapOriginY, 'weather', weatherFrame)
@@ -151,15 +120,14 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
     let moving = false;
     let destroyed = false;
 
-    for (const siteId of session.map.unlocked)
-    {
+    for (const siteId of session.map.unlocked) {
         const cfg = getSiteConfig(siteId);
-        if (!cfg)
-        {
+        if (!cfg) {
             continue;
         }
-        const pos = toScreen(cfg.coordinate.x, cfg.coordinate.y);
         const isHome = siteId === HOME_SITE_ID;
+        const coordinate = isHome ? session.map.homePos : cfg.coordinate;
+        const pos = toScreen(coordinate.x, coordinate.y);
         const bgFrame = isHome ? 'site_big_bg.png' : 'site_bg.png';
         const hlFrame = isHome ? 'site_highlight_big_bg.png' : 'site_highlight_bg.png';
         const iconFrame = `site_${siteId}.png`;
@@ -167,24 +135,19 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const marker = ctx.scene.add.container(pos.x, pos.y);
         mapLayer.add(marker);
 
-        if (hasFrame(ctx, 'site', bgFrame))
-        {
+        if (hasFrame(ctx, 'site', bgFrame)) {
             marker.add(ctx.scene.add.image(0, 0, 'site', bgFrame));
-        }
-        else
-        {
+        } else {
             marker.add(ctx.scene.add.circle(0, 0, isHome ? 55 : 28, 0xffffff));
         }
 
         let highlight: GameObjects.Image | null = null;
-        if (hasFrame(ctx, 'site', hlFrame))
-        {
+        if (hasFrame(ctx, 'site', hlFrame)) {
             highlight = ctx.scene.add.image(0, 0, 'site', hlFrame).setVisible(false);
             marker.add(highlight);
         }
 
-        if (hasFrame(ctx, 'site', iconFrame))
-        {
+        if (hasFrame(ctx, 'site', iconFrame)) {
             marker.add(ctx.scene.add.image(0, 0, 'site', iconFrame));
         }
 
@@ -194,29 +157,22 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
             .setInteractive({ useHandCursor: true });
         marker.add(hit);
 
-        const setHighlight = (on: boolean) =>
-        {
+        const setHighlight = (on: boolean) => {
             highlight?.setVisible(on);
         };
 
-        hit.on('pointerdown', () =>
-        {
-            if (!moving)
-            {
+        hit.on('pointerdown', () => {
+            if (!moving) {
                 setHighlight(true);
             }
         });
-        hit.on('pointerout', () =>
-        {
-            if (!moving)
-            {
+        hit.on('pointerout', () => {
+            if (!moving) {
                 setHighlight(false);
             }
         });
-        hit.on('pointerup', () =>
-        {
-            if (moving)
-            {
+        hit.on('pointerup', () => {
+            if (moving) {
                 return;
             }
             setHighlight(false);
@@ -226,87 +182,71 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         markers.set(siteId, { siteId, root: marker, highlight, setHighlight });
     }
 
-    // Unlocked NPC homes (npc_N.png).
-    for (const npcId of session.map.unlockedNpcs ?? [])
-    {
+    // NPC homes are visible directly from their canonical persistent state.
+    for (const npcId of NPC_IDS) {
+        if (!session.npcs[npcId].unlocked) {
+            continue;
+        }
         const def = getNpcDef(npcId);
-        if (!def)
-        {
+        if (!def) {
             continue;
         }
         const pos = toScreen(def.coordinate.x, def.coordinate.y);
         const marker = ctx.scene.add.container(pos.x, pos.y);
         mapLayer.add(marker);
-        if (hasFrame(ctx, 'site', 'site_bg.png'))
-        {
+        if (hasFrame(ctx, 'site', 'site_bg.png')) {
             marker.add(ctx.scene.add.image(0, 0, 'site', 'site_bg.png'));
         }
         const npcFrame = `npc_${npcId}.png`;
-        if (hasFrame(ctx, 'npc', npcFrame))
-        {
+        if (hasFrame(ctx, 'npc', npcFrame)) {
             marker.add(ctx.scene.add.image(0, 0, 'npc', npcFrame));
-        }
-        else if (hasFrame(ctx, 'icon', 'icon_npc.png'))
-        {
+        } else if (hasFrame(ctx, 'icon', 'icon_npc.png')) {
             marker.add(ctx.scene.add.image(0, 0, 'icon', 'icon_npc.png').setScale(0.6));
         }
         const hit = ctx.scene.add
             .circle(0, 0, 28, 0xffffff, 0.001)
             .setInteractive({ useHandCursor: true });
         marker.add(hit);
-        hit.on('pointerup', () =>
-        {
-            if (moving)
-            {
+        hit.on('pointerup', () => {
+            if (moving) {
                 return;
             }
             onNpcTap(npcId);
         });
     }
 
-
     // Actor on top of markers (original red pin on current pos) — 1:1, no upscale.
     const actorPos = toScreen(session.map.pos.x, session.map.pos.y);
-    if (hasFrame(ctx, 'map', 'map_actor.png'))
-    {
+    if (hasFrame(ctx, 'map', 'map_actor.png')) {
         actorImg = ctx.scene.add.image(actorPos.x, actorPos.y, 'map', 'map_actor.png');
         mapLayer.add(actorImg);
-    }
-    else
-    {
+    } else {
         actorImg = ctx.scene.add.circle(actorPos.x, actorPos.y, 8, 0xff0000);
         mapLayer.add(actorImg);
     }
 
-    function clearPath (): void
-    {
+    function clearPath(): void {
         pathLine?.destroy(true);
         pathLine = null;
     }
 
     /** Cocos MapView.makeLine — map_line.png tiles along vector, rotated. */
-    function makeLine (start: { x: number; y: number }, end: { x: number; y: number }): void
-    {
+    function makeLine(start: { x: number; y: number }, end: { x: number; y: number }): void {
         clearPath();
-        if (!hasFrame(ctx, 'map', 'map_line.png'))
-        {
+        if (!hasFrame(ctx, 'map', 'map_line.png')) {
             return;
         }
         const dx = end.x - start.x;
         const dy = end.y - start.y;
         const length = Math.sqrt(dx * dx + dy * dy);
-        if (length < 1)
-        {
+        if (length < 1) {
             return;
         }
         const num = Math.ceil(length / LINE_W);
         pathLine = ctx.scene.add.container(start.x, start.y);
-        for (let i = 0; i < num; i++)
-        {
+        for (let i = 0; i < num; i++) {
             pathLine.add(
-                ctx.scene.add
-                    .image(i * LINE_W, 0, 'map', 'map_line.png')
-                    .setOrigin(0, 0.5),
+                ctx.scene.add.image(i * LINE_W, 0, 'map', 'map_line.png').setOrigin(0, 0.5),
             );
         }
         // Cocos: angle from +x, y-up → clockwise when y≥0 uses 360−angle.
@@ -314,51 +254,45 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
         pathLine.setAngle(angleDeg);
         mapLayer.add(pathLine);
-        if (actorImg)
-        {
+        if (actorImg) {
             mapLayer.bringToTop(actorImg);
         }
     }
 
-    function onSiteTap (siteId: number): void
-    {
+    function onSiteTap(siteId: number): void {
         const live = getSession();
         const cfg = getSiteConfig(siteId);
         const plan = planTravel(siteId);
-        if (!live || !cfg || !plan || moving)
-        {
+        if (!live || !cfg || !plan || moving) {
             return;
         }
         const dist = plan.distance;
         const timeLabel = formatTravelTime(plan.gameSeconds);
 
         // Already standing on site — enter without dialog (same as near-zero dist).
-        if (dist < 8)
-        {
+        if (dist < 8) {
             enterSite(siteId);
             return;
         }
 
-        showTravelDialog(siteId, cfg.name, cfg.des, timeLabel, () =>
-        {
+        showTravelDialog(siteId, cfg.name, cfg.des, timeLabel, () => {
             startTravel(siteId);
         });
     }
 
-    function startTravel (siteId: number): void
-    {
+    function startTravel(siteId: number): void {
         const live = getSession();
         const cfg = getSiteConfig(siteId);
         const plan = planTravel(siteId);
-        if (!live || !cfg || !plan || !actorImg || moving || destroyed)
-        {
+        if (!live || !cfg || !plan || !actorImg || moving || destroyed) {
             return;
         }
         moving = true;
         markers.get(siteId)?.setHighlight(true);
 
         const from = { x: actorImg.x, y: actorImg.y };
-        const to = toScreen(cfg.coordinate.x, cfg.coordinate.y);
+        const target = siteId === HOME_SITE_ID ? live.map.homePos : cfg.coordinate;
+        const to = toScreen(target.x, target.y);
         makeLine(from, to);
 
         // Original MapNode: accelerate game time for the whole Actor.move.
@@ -374,23 +308,18 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
             y: to.y,
             duration: animMs,
             ease: 'Linear',
-            onComplete: () =>
-            {
-                if (destroyed)
-                {
+            onComplete: () => {
+                if (destroyed) {
                     return;
                 }
                 clearPath();
                 markers.get(siteId)?.setHighlight(false);
 
-                if (encounter)
-                {
+                if (encounter) {
                     // Pause arrival until dodge encounter resolves (auto 5s win).
-                    runDodgeEncounter(encounter.monsters, () =>
-                    {
+                    runDodgeEncounter(encounter.monsters, () => {
                         moving = false;
-                        if (!arriveAt(siteId))
-                        {
+                        if (!arriveAt(siteId)) {
                             ctx.showToast('无法前往');
                             return;
                         }
@@ -400,8 +329,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
                 }
 
                 moving = false;
-                if (!arriveAt(siteId))
-                {
+                if (!arriveAt(siteId)) {
                     ctx.showToast('无法前往');
                     return;
                 }
@@ -410,8 +338,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         });
     }
 
-    function runDodgeEncounter (monsters: number[], onDone: () => void): void
-    {
+    function runDodgeEncounter(monsters: number[], onDone: () => void): void {
         clearBattle();
         startBattle(monsters, { isDodge: true });
         const { width, height } = ctx.scene.scale;
@@ -449,18 +376,15 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const timer = ctx.scene.time.addEvent({
             delay: 100,
             loop: true,
-            callback: () =>
-            {
-                if (done || destroyed)
-                {
+            callback: () => {
+                if (done || destroyed) {
                     timer.remove(false);
                     return;
                 }
                 const result = tickBattle(0.1);
                 const pct = Math.floor(getDodgeProgress() * 100);
                 pctText.setText(`${pct}%`);
-                if (result)
-                {
+                if (result) {
                     done = true;
                     timer.remove(false);
                     overlay.destroy(true);
@@ -472,14 +396,13 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         });
     }
 
-    function showTravelDialog (
+    function showTravelDialog(
         siteId: number,
         name: string,
         des: string,
         timeLabel: string,
         onOk: () => void,
-    ): void
-    {
+    ): void {
         const { width, height } = ctx.scene.scale;
         const overlay = ctx.scene.add.container(0, 0);
         overlay.setDepth(200);
@@ -501,16 +424,11 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const bgCenterY = bgTopY + DIALOG_H / 2;
         const bgLeft = bgCenterX - DIALOG_W / 2;
 
-        if (hasFrame(ctx, 'ui', DIALOG_FRAME))
-        {
+        if (hasFrame(ctx, 'ui', DIALOG_FRAME)) {
             overlay.add(
-                ctx.scene.add
-                    .image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME)
-                    .setOrigin(0.5),
+                ctx.scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME).setOrigin(0.5),
             );
-        }
-        else
-        {
+        } else {
             overlay.add(
                 ctx.scene.add
                     .rectangle(bgCenterX, bgCenterY, DIALOG_W, DIALOG_H, 0xe8e0d0)
@@ -531,8 +449,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         // Title icon (site_*)
         const iconFrame = `site_${siteId}.png`;
         let titleTextX = textLeft;
-        if (hasFrame(ctx, 'site', iconFrame))
-        {
+        if (hasFrame(ctx, 'site', iconFrame)) {
             const icon = ctx.scene.add
                 .image(textLeft, titleY, 'site', iconFrame)
                 .setOrigin(0, 0.5)
@@ -555,8 +472,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         // dig illustration (original dig_des scale 0.8)
         const digFrame = `site_dig_${siteId}.png`;
         let digBottom = contentTop + 12;
-        if (hasFrame(ctx, 'site', digFrame))
-        {
+        if (hasFrame(ctx, 'site', digFrame)) {
             const dig = ctx.scene.add
                 .image(bgCenterX, contentTop + 8, 'site', digFrame)
                 .setOrigin(0.5, 0)
@@ -606,8 +522,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
             frame: 'btn_common_black_normal.png',
             label: siteId === HOME_SITE_ID ? '回家' : '前往',
             labelColor: '#eee',
-            onClick: () =>
-            {
+            onClick: () => {
                 close();
                 onOk();
             },
@@ -615,37 +530,31 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         overlay.add(ok);
     }
 
-    function onNpcTap (npcId: number): void
-    {
+    function onNpcTap(npcId: number): void {
         const live = getSession();
         const def = getNpcDef(npcId);
-        if (!live || !def || moving)
-        {
+        if (!live || !def || moving) {
             return;
         }
         const from = live.map.pos;
         const dist = Math.hypot(def.coordinate.x - from.x, def.coordinate.y - from.y);
         const name = getNpcCopy(npcId).name;
-        if (dist < 8)
-        {
+        if (dist < 8) {
             enterNpc(npcId);
             return;
         }
         // Rough travel time using same velocity baseline as sites (~distance map units).
         const gameSeconds = Math.max(60, Math.round(dist * 8));
         const timeLabel = formatTravelTime(gameSeconds);
-        showTravelDialog(-1, `${name}家`, getNpcCopy(npcId).des, timeLabel, () =>
-        {
+        showTravelDialog(-1, `${name}家`, getNpcCopy(npcId).des, timeLabel, () => {
             startTravelToNpc(npcId, gameSeconds);
         });
     }
 
-    function startTravelToNpc (npcId: number, gameSeconds: number): void
-    {
+    function startTravelToNpc(npcId: number, gameSeconds: number): void {
         const live = getSession();
         const def = getNpcDef(npcId);
-        if (!live || !def || !actorImg || moving || destroyed)
-        {
+        if (!live || !def || !actorImg || moving || destroyed) {
             return;
         }
         moving = true;
@@ -653,28 +562,23 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         const to = toScreen(def.coordinate.x, def.coordinate.y);
         makeLine(from, to);
         accelerateTime(gameSeconds, 3);
-        const encounter = rollTravelEncounter(Math.hypot(
-            def.coordinate.x - live.map.pos.x,
-            def.coordinate.y - live.map.pos.y,
-        ));
+        const encounter = rollTravelEncounter(
+            Math.hypot(def.coordinate.x - live.map.pos.x, def.coordinate.y - live.map.pos.y),
+        );
         ctx.scene.tweens.add({
             targets: actorImg,
             x: to.x,
             y: to.y,
             duration: 3000,
             ease: 'Linear',
-            onComplete: () =>
-            {
-                if (destroyed)
-                {
+            onComplete: () => {
+                if (destroyed) {
                     return;
                 }
                 clearPath();
-                const finish = () =>
-                {
+                const finish = () => {
                     moving = false;
-                    mutateSession((s) =>
-                    {
+                    mutateSession((s) => {
                         s.map.pos = { ...def.coordinate };
                         s.isAtHome = false;
                         s.isAtSite = false;
@@ -682,8 +586,7 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
                     });
                     enterNpc(npcId);
                 };
-                if (encounter)
-                {
+                if (encounter) {
                     runDodgeEncounter(encounter.monsters, finish);
                     return;
                 }
@@ -692,34 +595,28 @@ export function mountMapNode (ctx: NodeMountContext): NodeMountResult
         });
     }
 
-    function enterNpc (npcId: number): void
-    {
+    function enterNpc(npcId: number): void {
         ctx.forward(NavNode.NPC, npcId);
     }
 
-    function enterSite (siteId: number): void
-    {
-        if (siteId === HOME_SITE_ID)
-        {
+    function enterSite(siteId: number): void {
+        if (siteId === HOME_SITE_ID) {
             const live = getSession();
-            if (live && !live.isAtHome)
-            {
+            if (live && !live.isAtHome) {
                 travelTo(HOME_SITE_ID);
             }
             ctx.rootTo(NavNode.HOME);
             return;
         }
         const live = getSession();
-        if (!live || live.nowSiteId !== siteId)
-        {
+        if (!live || live.nowSiteId !== siteId) {
             travelTo(siteId);
         }
         ctx.forward(NavNode.SITE, siteId);
     }
 
     return {
-        destroy: () =>
-        {
+        destroy: () => {
             destroyed = true;
             clearPath();
             mapLayer.filters?.internal.clear();

@@ -17,11 +17,7 @@ import {
     FIRE_TEMPERATURE_BONUS,
     TEMPERATURE_BY_SEASON,
 } from '../data/playerConfig';
-import {
-    getWeatherEffects,
-    getWeatherValue,
-    rollWeatherForSeason,
-} from '../data/weatherConfig';
+import { getWeatherEffects, getWeatherValue, rollWeatherForSeason } from '../data/weatherConfig';
 import { checkDay as medalCheckDay } from '../medal/medalStore';
 import {
     appendSessionLog,
@@ -34,6 +30,7 @@ import {
 import { clearCraftRuntime } from './craftSystem';
 import { gameBusEmit } from './gameBus';
 import { runNightRaid } from './nightRaidSystem';
+import { refreshNpcTrading, runNpcDailyVisit } from './npcSystem';
 import {
     changeAttr,
     changeHp,
@@ -78,8 +75,7 @@ const WEATHER_LOG: Record<number, string> = {
 
 let survivalActive = false;
 
-export function isSurvivalLoopActive (): boolean
-{
+export function isSurvivalLoopActive(): boolean {
     return survivalActive;
 }
 
@@ -87,16 +83,13 @@ export function isSurvivalLoopActive (): boolean
  * Boot clock + survival timers for the current session.
  * Safe to call once per Home enter; no-ops if already running with same session.
  */
-export function startSurvivalLoop (): void
-{
+export function startSurvivalLoop(): void {
     const session = getSession();
-    if (!session || session.isDead)
-    {
+    if (!session || session.isDead) {
         return;
     }
 
-    if (survivalActive && isTimeClockRunning())
-    {
+    if (survivalActive && isTimeClockRunning()) {
         return;
     }
 
@@ -106,56 +99,60 @@ export function startSurvivalLoop (): void
     const now = session.gameTime;
 
     const hourStart = alignIntervalStart(now, SECONDS_PER_HOUR);
-    everyGameInterval(SECONDS_PER_HOUR, () =>
-    {
-        runHourlySurvivalTick();
-    }, { startTime: hourStart, priority: 10 });
+    everyGameInterval(
+        SECONDS_PER_HOUR,
+        () => {
+            runHourlySurvivalTick();
+        },
+        { startTime: hourStart, priority: 10 },
+    );
 
     const dayStart = alignIntervalStart(now, SECONDS_PER_DAY);
-    everyGameInterval(SECONDS_PER_DAY, () =>
-    {
-        runDailySurvivalTick();
-    }, { startTime: dayStart, priority: 5 });
+    everyGameInterval(
+        SECONDS_PER_DAY,
+        () => {
+            runDailySurvivalTick();
+        },
+        { startTime: dayStart, priority: 5 },
+    );
 
     scheduleDailyHour(STAGE_DAY_HOUR, () => onStageEdge('day'));
     scheduleDailyHour(STAGE_NIGHT_HOUR, () => onStageEdge('night'));
 }
 
-export function stopSurvivalLoop (): void
-{
+export function stopSurvivalLoop(): void {
     survivalActive = false;
     stopTimeClock();
     clearCraftRuntime();
 }
 
-function scheduleDailyHour (hour: number, onFire: () => void): void
-{
+function scheduleDailyHour(hour: number, onFire: () => void): void {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return;
     }
     const now = session.gameTime;
     const parts = clockPartsFromGameTime(now);
     const anchorDayIndex = parts.day - 1;
     let anchor = anchorDayIndex * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR;
-    if (anchor > now)
-    {
+    if (anchor > now) {
         anchor -= SECONDS_PER_DAY;
     }
-    addTimerCallback(SECONDS_PER_DAY, { end: onFire }, {
-        startTime: anchor,
-        repeat: REPEAT_FOREVER,
-        priority: 8,
-    });
+    addTimerCallback(
+        SECONDS_PER_DAY,
+        { end: onFire },
+        {
+            startTime: anchor,
+            repeat: REPEAT_FOREVER,
+            priority: 8,
+        },
+    );
 }
 
 /** Exposed for tests / debug: run one hour of survival rules immediately. */
-export function runHourlySurvivalTick (): void
-{
+export function runHourlySurvivalTick(): void {
     const session = getSession();
-    if (!session || session.isDead)
-    {
+    if (!session || session.isDead) {
         return;
     }
 
@@ -167,43 +164,30 @@ export function runHourlySurvivalTick (): void
     updateTemperatureEffect(session);
     updateBandEffects(session);
 
-    try
-    {
-        localStorage.setItem('buried_city_session_v3', JSON.stringify(session));
-    }
-    catch
-    {
-        // ignore
-    }
+    mutateSession(() => {});
     gameBusEmit('session_updated');
 }
 
-function expireCureBind (session: SessionState): void
-{
+function expireCureBind(session: SessionState): void {
     const now = session.gameTime;
-    if (session.binded && session.bindTime && now - session.bindTime >= CURE_BIND_DURATION)
-    {
+    if (session.binded && session.bindTime && now - session.bindTime >= CURE_BIND_DURATION) {
         session.binded = false;
     }
-    if (session.cured && session.cureTime && now - session.cureTime >= CURE_BIND_DURATION)
-    {
+    if (session.cured && session.cureTime && now - session.cureTime >= CURE_BIND_DURATION) {
         session.cured = false;
     }
 }
 
-function runDailySurvivalTick (): void
-{
+function runDailySurvivalTick(): void {
     const session = getSession();
-    if (!session || session.isDead)
-    {
+    if (!session || session.isDead) {
         return;
     }
 
     runNightRaid();
 
     const live = getSession();
-    if (!live || live.isDead)
-    {
+    if (!live || live.isDead) {
         return;
     }
 
@@ -219,23 +203,20 @@ function runDailySurvivalTick (): void
     gameBusEmit('session_updated');
 }
 
-function onStageEdge (stage: 'day' | 'night'): void
-{
+function onStageEdge(stage: 'day' | 'night'): void {
     const session = getSession();
-    if (!session || session.isDead)
-    {
+    if (!session || session.isDead) {
         return;
     }
 
-    if (stage === 'day')
-    {
+    if (stage === 'day') {
         appendSessionLog('天亮了。', `第${session.day}天 ${formatClock(session)}`);
         // Original: weather check + NPC + Medal.checkDay(1) at dawn path.
         checkWeather(session);
         medalCheckDay(1);
-    }
-    else
-    {
+        refreshNpcTrading();
+        runNpcDailyVisit();
+    } else {
         appendSessionLog('夜幕降临。', `第${session.day}天 ${formatClock(session)}`);
     }
 
@@ -251,13 +232,10 @@ function onStageEdge (stage: 'day' | 'night'): void
  * Original WeatherSystem.checkWeather:
  * cloudy → weighted roll; else lastDays++ until lastDays >= config.lastDays → cloudy.
  */
-function checkWeather (session: SessionState): void
-{
-    if (session.weatherId === 0)
-    {
+function checkWeather(session: SessionState): void {
+    if (session.weatherId === 0) {
         const next = rollWeatherForSeason(session.season);
-        if (next !== session.weatherId)
-        {
+        if (next !== session.weatherId) {
             session.weatherId = next;
             session.weatherLastDays = 0;
             appendSessionLog(WEATHER_LOG[next] ?? WEATHER_LOG[0]!);
@@ -268,8 +246,7 @@ function checkWeather (session: SessionState): void
 
     session.weatherLastDays = (session.weatherLastDays ?? 0) + 1;
     const maxDays = getWeatherEffects(session.weatherId).lastDays ?? 2;
-    if (session.weatherLastDays >= maxDays)
-    {
+    if (session.weatherLastDays >= maxDays) {
         session.weatherId = 0;
         session.weatherLastDays = 0;
         appendSessionLog(WEATHER_LOG[0]!);
@@ -280,46 +257,33 @@ function checkWeather (session: SessionState): void
 /**
  * Port of player.updateByTime (dog starve + weather + sleep).
  */
-function updateByTime (session: SessionState): void
-{
+function updateByTime(session: SessionState): void {
     const c = CHANGE_BY_TIME;
 
     // starve band update is separate; immunity also blocks time decay.
-    if (!isBuffActive(STARVE_IMMUNE_BUFF_ITEM_ID, session))
-    {
+    if (!isBuffActive(STARVE_IMMUNE_BUFF_ITEM_ID, session)) {
         changeStarve(c[0][0]);
     }
 
-    if (typeof session.dogStarve === 'number')
-    {
+    if (typeof session.dogStarve === 'number') {
         const next = Math.max(0, Math.min(session.dogStarveMax ?? 50, session.dogStarve + c[1][0]));
-        if (next !== session.dogStarve)
-        {
+        if (next !== session.dogStarve) {
             session.dogStarve = next;
         }
     }
 
-    if (!isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session))
-    {
+    if (!isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session)) {
         const stage = getCurrentStage();
-        if (stage === 'day')
-        {
+        if (stage === 'day') {
             changeVigour(session.isAtHome ? c[2][0] : c[3][0]);
-        }
-        else
-        {
+        } else {
             changeVigour(session.isAtHome ? c[4][0] : c[5][0]);
         }
     }
 
-    if (session.isInSleep)
-    {
+    if (session.isInSleep) {
         const bedLevel = session.buildLevels[9] ?? -1;
-        const bedRateBase = bedLevel >= 1
-            ? BED_RATES[1]
-            : bedLevel >= 0
-                ? BED_RATES[0]
-                : 0.5;
+        const bedRateBase = bedLevel >= 1 ? BED_RATES[1] : bedLevel >= 0 ? BED_RATES[0] : 0.5;
         const starveRatio = session.attrs.starve / 100;
         const spiritRatio = session.attrs.spirit / 100;
         // Original: bedRate = bed.rate*0.5 + starve/max*0.2 + spirit/max*0.3
@@ -331,20 +295,16 @@ function updateByTime (session: SessionState): void
     // Weather hourly attr effects.
     const weatherVigour = getWeatherValue(session.weatherId, 'vigour');
     const weatherSpirit = getWeatherValue(session.weatherId, 'spirit');
-    if (weatherVigour !== 0 && !isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session))
-    {
+    if (weatherVigour !== 0 && !isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session)) {
         changeVigour(weatherVigour);
     }
-    if (weatherSpirit !== 0)
-    {
+    if (weatherSpirit !== 0) {
         changeSpirit(weatherSpirit);
     }
 }
 
-function isFireActive (session: SessionState): boolean
-{
-    if (session.role === 'YAZI')
-    {
+function isFireActive(session: SessionState): boolean {
+    if (session.role === 'YAZI') {
         // Electric stove (18) uses power plant active flag in original.
         // Slice: treat electricFenceActive-adjacent plant unlock as proxy when stove built.
         const stoveLevel = session.buildLevels[18] ?? -1;
@@ -354,50 +314,42 @@ function isFireActive (session: SessionState): boolean
     return (session.bonfireFuel ?? 0) > 0 && (session.buildLevels[5] ?? -1) >= 0;
 }
 
-function updateTemperature (session: SessionState): void
-{
+function updateTemperature(session: SessionState): void {
     const seasonRow = TEMPERATURE_BY_SEASON[session.season] ?? TEMPERATURE_BY_SEASON[0];
     const stage = getCurrentStage();
     let target = seasonRow[0];
     target += stage === 'day' ? seasonRow[1] : seasonRow[2];
 
-    if (isFireActive(session))
-    {
+    if (isFireActive(session)) {
         target += FIRE_TEMPERATURE_BONUS;
     }
 
     target += getWeatherValue(session.weatherId, 'temperature');
 
     const delta = target - session.temperature;
-    if (delta !== 0)
-    {
+    if (delta !== 0) {
         changeAttr('temperature', delta);
     }
 }
 
-function updateTemperatureEffect (session: SessionState): void
-{
+function updateTemperatureEffect(session: SessionState): void {
     const band = getAttrBand('temperature', session.temperature);
-    if (!band)
-    {
+    if (!band) {
         return;
     }
-    for (const [attrKey, raw] of Object.entries(band.effect))
-    {
-        if (raw === undefined || raw === 0)
-        {
+    for (const [attrKey, raw] of Object.entries(band.effect)) {
+        if (raw === undefined || raw === 0) {
             continue;
         }
         if (
-            attrKey === 'hp'
-            || attrKey === 'spirit'
-            || attrKey === 'starve'
-            || attrKey === 'vigour'
-            || attrKey === 'injury'
-            || attrKey === 'infect'
-            || attrKey === 'temperature'
-        )
-        {
+            attrKey === 'hp' ||
+            attrKey === 'spirit' ||
+            attrKey === 'starve' ||
+            attrKey === 'vigour' ||
+            attrKey === 'injury' ||
+            attrKey === 'infect' ||
+            attrKey === 'temperature'
+        ) {
             changeAttr(attrKey, raw);
         }
     }
@@ -406,186 +358,149 @@ function updateTemperatureEffect (session: SessionState): void
 /**
  * Port of updateStarve / updateInjure / updateInfect / updateVigour band effects.
  */
-function updateBandEffects (session: SessionState): void
-{
+function updateBandEffects(session: SessionState): void {
     applyStarveBand(session);
     applyVigourBand(session);
     applyInjuryBand(session);
     applyInfectBand(session);
 }
 
-function applyStarveBand (session: SessionState): void
-{
-    if (isBuffActive(STARVE_IMMUNE_BUFF_ITEM_ID, session))
-    {
+function applyStarveBand(session: SessionState): void {
+    if (isBuffActive(STARVE_IMMUNE_BUFF_ITEM_ID, session)) {
         return;
     }
     applyBandSimple('starve', session.attrs.starve);
 }
 
-function applyVigourBand (session: SessionState): void
-{
-    if (isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session))
-    {
+function applyVigourBand(session: SessionState): void {
+    if (isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session)) {
         return;
     }
     applyBandSimple('vigour', session.attrs.vigour);
 }
 
-function applyBandSimple (attrKey: string, value: number): void
-{
+function applyBandSimple(attrKey: string, value: number): void {
     const band = findAttrBand(attrKey, value);
-    if (!band)
-    {
+    if (!band) {
         return;
     }
-    for (const [effectKey, raw] of Object.entries(band.effect))
-    {
-        if (raw === undefined || raw === 0)
-        {
+    for (const [effectKey, raw] of Object.entries(band.effect)) {
+        if (raw === undefined || raw === 0) {
             continue;
         }
         if (
-            effectKey === 'hp'
-            || effectKey === 'spirit'
-            || effectKey === 'starve'
-            || effectKey === 'vigour'
-            || effectKey === 'injury'
-            || effectKey === 'infect'
-            || effectKey === 'temperature'
-        )
-        {
+            effectKey === 'hp' ||
+            effectKey === 'spirit' ||
+            effectKey === 'starve' ||
+            effectKey === 'vigour' ||
+            effectKey === 'injury' ||
+            effectKey === 'infect' ||
+            effectKey === 'temperature'
+        ) {
             changeAttr(effectKey, raw);
         }
     }
 }
 
-function applyInjuryBand (session: SessionState): void
-{
+function applyInjuryBand(session: SessionState): void {
     const band = findAttrBand('injury', session.attrs.injury);
-    if (!band)
-    {
+    if (!band) {
         return;
     }
     const gated = isInBind(session);
-    for (const [effectKey, raw] of Object.entries(band.effect))
-    {
-        if (raw === undefined || raw === 0)
-        {
+    for (const [effectKey, raw] of Object.entries(band.effect)) {
+        if (raw === undefined || raw === 0) {
             continue;
         }
         // Original: infect/spirit skipped while bandaged.
-        if (gated && (effectKey === 'infect' || effectKey === 'spirit'))
-        {
+        if (gated && (effectKey === 'infect' || effectKey === 'spirit')) {
             continue;
         }
         if (
-            effectKey === 'hp'
-            || effectKey === 'spirit'
-            || effectKey === 'starve'
-            || effectKey === 'vigour'
-            || effectKey === 'injury'
-            || effectKey === 'infect'
-            || effectKey === 'temperature'
-        )
-        {
+            effectKey === 'hp' ||
+            effectKey === 'spirit' ||
+            effectKey === 'starve' ||
+            effectKey === 'vigour' ||
+            effectKey === 'injury' ||
+            effectKey === 'infect' ||
+            effectKey === 'temperature'
+        ) {
             changeAttr(effectKey, raw);
         }
     }
 }
 
-function applyInfectBand (session: SessionState): void
-{
-    if (isBuffActive(INFECT_IMMUNE_BUFF_ITEM_ID, session))
-    {
+function applyInfectBand(session: SessionState): void {
+    if (isBuffActive(INFECT_IMMUNE_BUFF_ITEM_ID, session)) {
         return;
     }
     const band = findAttrBand('infect', session.attrs.infect);
-    if (!band)
-    {
+    if (!band) {
         return;
     }
     const gated = isInCure(session);
-    for (const [effectKey, raw] of Object.entries(band.effect))
-    {
-        if (raw === undefined || raw === 0)
-        {
+    for (const [effectKey, raw] of Object.entries(band.effect)) {
+        if (raw === undefined || raw === 0) {
             continue;
         }
         let value = raw;
         // Original: infect→hp scaled by infect/100.
-        if (effectKey === 'hp')
-        {
+        if (effectKey === 'hp') {
             value = Math.ceil(raw * (session.attrs.infect / 100));
         }
         // Original: infect/spirit skipped while cured (hp still applies).
-        if (gated && (effectKey === 'infect' || effectKey === 'spirit'))
-        {
+        if (gated && (effectKey === 'infect' || effectKey === 'spirit')) {
             continue;
         }
         if (
-            effectKey === 'hp'
-            || effectKey === 'spirit'
-            || effectKey === 'starve'
-            || effectKey === 'vigour'
-            || effectKey === 'injury'
-            || effectKey === 'infect'
-            || effectKey === 'temperature'
-        )
-        {
+            effectKey === 'hp' ||
+            effectKey === 'spirit' ||
+            effectKey === 'starve' ||
+            effectKey === 'vigour' ||
+            effectKey === 'injury' ||
+            effectKey === 'infect' ||
+            effectKey === 'temperature'
+        ) {
             changeAttr(effectKey, value);
         }
     }
 }
 
 /** Debug helper: jump forward N game hours without waiting. */
-export function debugSkipGameHours (hours: number): void
-{
+export function debugSkipGameHours(hours: number): void {
     const session = getSession();
-    if (!session || !survivalActive)
-    {
+    if (!session || !survivalActive) {
         return;
     }
     const n = Math.max(0, Math.floor(hours));
-    for (let i = 0; i < n; i++)
-    {
+    for (let i = 0; i < n; i++) {
         runHourlySurvivalTick();
-        if (getSession()?.isDead)
-        {
+        if (getSession()?.isDead) {
             break;
         }
     }
 }
 
 /** Add bonfire fuel unit (wood). Max 6 like original. */
-export function addBonfireFuel (): { ok: boolean; msg: string }
-{
+export function addBonfireFuel(): { ok: boolean; msg: string } {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return { ok: false, msg: '无存档' };
     }
-    if ((session.buildLevels[5] ?? -1) < 0)
-    {
+    if ((session.buildLevels[5] ?? -1) < 0) {
         return { ok: false, msg: '你没有火炉' };
     }
-    if ((session.bonfireFuel ?? 0) >= 6)
-    {
+    if ((session.bonfireFuel ?? 0) >= 6) {
         return { ok: false, msg: '燃料已满' };
     }
-    if ((session.storage[1101011] ?? 0) < 1)
-    {
+    if ((session.storage[1101011] ?? 0) < 1) {
         return { ok: false, msg: '木材不足' };
     }
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         const wood = live.storage[1101011] ?? 0;
-        if (wood <= 1)
-        {
+        if (wood <= 1) {
             delete live.storage[1101011];
-        }
-        else
-        {
+        } else {
             live.storage[1101011] = wood - 1;
         }
         live.bonfireFuel = (live.bonfireFuel ?? 0) + 1;
@@ -599,14 +514,11 @@ export function addBonfireFuel (): { ok: boolean; msg: string }
  * Consume 1 fuel every 4 game hours while burning.
  * Original: each fuel unit lasts makeTime 240 minutes.
  */
-export function maybeBurnBonfireFuel (session: SessionState): void
-{
-    if ((session.bonfireFuel ?? 0) <= 0)
-    {
+export function maybeBurnBonfireFuel(session: SessionState): void {
+    if ((session.bonfireFuel ?? 0) <= 0) {
         return;
     }
-    if (session.hour % 4 === 0)
-    {
+    if (session.hour % 4 === 0) {
         session.bonfireFuel = Math.max(0, session.bonfireFuel - 1);
     }
 }

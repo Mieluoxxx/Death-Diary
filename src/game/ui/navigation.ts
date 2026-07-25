@@ -5,11 +5,7 @@
  */
 
 import type { GameObjects, Scene } from 'phaser';
-import {
-    getSession,
-    mutateSession,
-    type NavEntry,
-} from '../session/sessionStore';
+import { getSession, mutateSession, type NavEntry } from '../session/sessionStore';
 import { gameBusEmit } from '../systems/gameBus';
 import { playerGoHome } from '../systems/mapSystem';
 import { mountBattleNode } from './nodes/battleNode';
@@ -105,14 +101,13 @@ const MOUNTERS: Record<string, NodeMounter> = {
     [NavNode.NPC]: mountNpcNode,
 };
 
-export function createNavigationHost (
+export function createNavigationHost(
     scene: Scene,
     opts?: {
         onHomeVisible?: (visible: boolean) => void;
         onToast?: (msg: string) => void;
     },
-): NavHostHandle
-{
+): NavHostHandle {
     const { width, height } = scene.scale;
     const root = scene.add.container(0, 0);
     root.setDepth(140);
@@ -129,17 +124,13 @@ export function createNavigationHost (
         .setOrigin(0.5, 0.5);
     root.add(fill);
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png')) {
         root.add(
-            scene.add
-                .image(width / 2, bgBottomY, 'ui', 'frame_bg_bottom.png')
-                .setOrigin(0.5, 1),
+            scene.add.image(width / 2, bgBottomY, 'ui', 'frame_bg_bottom.png').setOrigin(0.5, 1),
         );
     }
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_line.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_line.png')) {
         root.add(
             scene.add.image(width / 2, toScreenY(CONTENT_TOP_LOCAL_Y), 'ui', 'frame_line.png'),
         );
@@ -165,106 +156,80 @@ export function createNavigationHost (
     let activeNode: NodeMountResult | null = null;
     let destroyed = false;
 
-    const showToast = (msg: string) =>
-    {
+    const showToast = (msg: string) => {
         opts?.onToast?.(msg);
     };
 
-    const setTitle = (title: string, opts?: { align?: 'left' | 'center' }) =>
-    {
+    const setTitle = (title: string, opts?: { align?: 'left' | 'center' }) => {
         titleText.setText(title);
         const align = opts?.align ?? 'center';
-        if (align === 'left')
-        {
+        if (align === 'left') {
             // Original Site/Battle: title left of bar, after back btn.
             // leftBtn x=60; btn ~82 wide → title at 60 + 41 + 10 ≈ 111, anchor top-left.
             titleText.setOrigin(0, 0.5);
             titleText.setPosition(toScreenX(111), titleY);
-        }
-        else
-        {
+        } else {
             titleText.setOrigin(0.5, 0.5);
             titleText.setPosition(width / 2, titleY);
         }
     };
 
-    const setLeftEnabled = (enabled: boolean) =>
-    {
-        if (!leftBtn)
-        {
+    const setLeftEnabled = (enabled: boolean) => {
+        if (!leftBtn) {
             return;
         }
         leftBtn.setVisible(enabled);
         leftBtn.setAlpha(enabled ? 1 : 0.35);
-        if (enabled)
-        {
+        if (enabled) {
             leftBtn.setInteractive({ useHandCursor: true });
-        }
-        else if ('disableInteractive' in leftBtn)
-        {
+        } else if ('disableInteractive' in leftBtn) {
             leftBtn.disableInteractive();
         }
     };
 
-    const setRightEnabled = (enabled: boolean, _label?: string) =>
-    {
-        if (rightBtn)
-        {
+    const setRightEnabled = (enabled: boolean, _label?: string) => {
+        if (rightBtn) {
             // Original Map/Home use icon-only arrows; hide when not needed.
             rightBtn.setVisible(enabled);
             rightBtn.setAlpha(enabled ? 1 : 0.35);
-            if (enabled)
-            {
+            if (enabled) {
                 rightBtn.setInteractive({ useHandCursor: true });
-            }
-            else if ('disableInteractive' in rightBtn)
-            {
+            } else if ('disableInteractive' in rightBtn) {
                 rightBtn.disableInteractive();
             }
         }
         // Never show text under forward (original is icon-only).
-        if (rightLabel)
-        {
+        if (rightLabel) {
             rightLabel.setVisible(false);
             rightLabel.setText('');
         }
     };
 
     // Back button
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_back.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_back.png')) {
         leftBtn = scene.add
             .image(toScreenX(60), titleY, 'ui', 'btn_back.png')
             .setInteractive({ useHandCursor: true });
-    }
-    else
-    {
+    } else {
         leftBtn = scene.add
             .rectangle(toScreenX(60), titleY, 82, 39, 0x333333)
             .setInteractive({ useHandCursor: true });
     }
     root.add(leftBtn);
-    leftBtn.on('pointerup', () =>
-    {
-        if (activeNode?.onLeft)
-        {
+    leftBtn.on('pointerup', () => {
+        if (activeNode?.onLeft) {
             activeNode.onLeft();
-        }
-        else
-        {
+        } else {
             back();
         }
     });
 
     // Forward / action button (right)
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_forward.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_forward.png')) {
         rightBtn = scene.add
             .image(toScreenX(BG_WIDTH - 60), titleY, 'ui', 'btn_forward.png')
             .setInteractive({ useHandCursor: true });
-    }
-    else
-    {
+    } else {
         rightBtn = scene.add
             .rectangle(toScreenX(BG_WIDTH - 60), titleY, 82, 39, 0x444444)
             .setInteractive({ useHandCursor: true });
@@ -280,44 +245,34 @@ export function createNavigationHost (
         .setOrigin(0.5, 0)
         .setVisible(false);
     root.add(rightLabel);
-    rightBtn.on('pointerup', () =>
-    {
+    rightBtn.on('pointerup', () => {
         activeNode?.onRight?.();
     });
 
-    const clearContent = () =>
-    {
+    const clearContent = () => {
         activeNode?.destroy?.();
         activeNode = null;
         content.removeAll(true);
     };
 
-    const persistStack = (stack: NavEntry[]) =>
-    {
-        mutateSession((live) =>
-        {
+    const persistStack = (stack: NavEntry[]) => {
+        mutateSession((live) => {
             live.navigation = stack;
         });
     };
 
-    const getStack = (): NavEntry[] =>
-    {
+    const getStack = (): NavEntry[] => {
         const session = getSession();
-        return session?.navigation?.length
-            ? [...session.navigation]
-            : [{ nodeName: NavNode.HOME }];
+        return session?.navigation?.length ? [...session.navigation] : [{ nodeName: NavNode.HOME }];
     };
 
-    const mountCurrent = () =>
-    {
-        if (destroyed)
-        {
+    const mountCurrent = () => {
+        if (destroyed) {
             return;
         }
         clearContent();
         let stack = getStack();
-        if (stack.length === 0)
-        {
+        if (stack.length === 0) {
             stack = [{ nodeName: NavNode.HOME }];
             persistStack(stack);
         }
@@ -329,36 +284,35 @@ export function createNavigationHost (
         opts?.onHomeVisible?.(homeVisible);
         fill.setVisible(!homeVisible);
         // Hide chrome frame when on pure home map (home draws its own bottom).
-        root.list.forEach((child) =>
-        {
-            if (child === content)
-            {
+        root.list.forEach((child) => {
+            if (child === content) {
                 return;
             }
             // Keep root chrome hidden only for pure home.
-            if (homeVisible && child !== content)
-            {
-                (child as GameObjects.GameObject & { setVisible?: (v: boolean) => void })
-                    .setVisible?.(false);
-            }
-            else
-            {
-                (child as GameObjects.GameObject & { setVisible?: (v: boolean) => void })
-                    .setVisible?.(true);
+            if (homeVisible && child !== content) {
+                (
+                    child as GameObjects.GameObject & {
+                        setVisible?: (v: boolean) => void;
+                    }
+                ).setVisible?.(false);
+            } else {
+                (
+                    child as GameObjects.GameObject & {
+                        setVisible?: (v: boolean) => void;
+                    }
+                ).setVisible?.(true);
             }
         });
         content.setVisible(true);
 
-        if (nodeName === NavNode.HOME)
-        {
+        if (nodeName === NavNode.HOME) {
             // Home is drawn by HomeScene; still call goHome if returning.
             playerGoHome();
             setTitle('');
             setRightEnabled(false);
             setLeftEnabled(false);
             const mounter = MOUNTERS[nodeName];
-            if (mounter)
-            {
+            if (mounter) {
                 activeNode = mounter(makeCtx(top.userData));
             }
             gameBusEmit('nav_changed', { nodeName });
@@ -369,8 +323,7 @@ export function createNavigationHost (
         setLeftEnabled(true);
         setRightEnabled(false, '');
         const mounter = MOUNTERS[nodeName];
-        if (!mounter)
-        {
+        if (!mounter) {
             setTitle(nodeName);
             content.add(
                 scene.add
@@ -390,8 +343,7 @@ export function createNavigationHost (
         gameBusEmit('session_updated');
     };
 
-    function makeCtx (userData: unknown): NodeMountContext
-    {
+    function makeCtx(userData: unknown): NodeMountContext {
         return {
             scene,
             host: root,
@@ -415,19 +367,16 @@ export function createNavigationHost (
         };
     }
 
-    function forward (nodeName: string, userData?: unknown): void
-    {
+    function forward(nodeName: string, userData?: unknown): void {
         const stack = getStack();
         stack.push({ nodeName, userData });
         persistStack(stack);
         mountCurrent();
     }
 
-    function back (): void
-    {
+    function back(): void {
         const stack = getStack();
-        if (stack.length <= 1)
-        {
+        if (stack.length <= 1) {
             rootTo(NavNode.HOME);
             return;
         }
@@ -436,23 +385,18 @@ export function createNavigationHost (
         mountCurrent();
     }
 
-    function replace (nodeName: string, userData?: unknown): void
-    {
+    function replace(nodeName: string, userData?: unknown): void {
         const stack = getStack();
-        if (stack.length === 0)
-        {
+        if (stack.length === 0) {
             stack.push({ nodeName, userData });
-        }
-        else
-        {
+        } else {
             stack[stack.length - 1] = { nodeName, userData };
         }
         persistStack(stack);
         mountCurrent();
     }
 
-    function rootTo (nodeName: string, userData?: unknown): void
-    {
+    function rootTo(nodeName: string, userData?: unknown): void {
         persistStack([{ nodeName, userData }]);
         mountCurrent();
     }
@@ -466,19 +410,15 @@ export function createNavigationHost (
         back,
         replace,
         rootTo,
-        currentName: () =>
-        {
+        currentName: () => {
             const stack = getStack();
             return stack[stack.length - 1]?.nodeName ?? NavNode.HOME;
         },
-        update: (deltaMs: number) =>
-        {
+        update: (deltaMs: number) => {
             activeNode?.update?.(deltaMs);
         },
-        destroy: () =>
-        {
-            if (destroyed)
-            {
+        destroy: () => {
+            if (destroyed) {
                 return;
             }
             destroyed = true;
@@ -489,10 +429,7 @@ export function createNavigationHost (
 }
 
 /** Content area top Y (screen) under title bar. */
-export function contentTopScreenY (
-    height: number,
-): number
-{
+export function contentTopScreenY(height: number): number {
     const bgBottomY = height - BG_BOTTOM_OFFSET;
     return bgBottomY - CONTENT_TOP_LOCAL_Y + CONTENT_Y_NUDGE;
 }

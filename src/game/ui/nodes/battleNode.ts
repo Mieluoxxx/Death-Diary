@@ -29,16 +29,8 @@ import {
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
-import {
-    formatSiteProgress,
-    mountSiteChromeCaptions,
-} from '../siteChrome';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from '../uiFont';
+import { formatSiteProgress, mountSiteChromeCaptions } from '../siteChrome';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
 
 const LOG_LINES = 7;
 const LOG_STEP = 50;
@@ -62,39 +54,34 @@ const BATTLE_DES: string[] = [
     '你被一群僵尸包围了',
 ];
 
-function hasFrame (ctx: NodeMountContext, atlas: string, frame: string): boolean
-{
+function hasFrame(ctx: NodeMountContext, atlas: string, frame: string): boolean {
     return ctx.scene.textures.exists(atlas) && ctx.scene.textures.get(atlas).has(frame);
 }
 
-
-function placeDigHeader (
-    ctx: NodeMountContext,
-    digFrame: string | null,
-    digAtlas: string,
-): number
-{
+function placeDigHeader(ctx: NodeMountContext, digFrame: string | null, digAtlas: string): number {
     const digTop = ctx.bgBottomY - (770 - 20);
     let below = digTop + 40;
 
-    if (hasFrame(ctx, 'npc', 'npc_dig_bg.png'))
-    {
+    if (hasFrame(ctx, 'npc', 'npc_dig_bg.png')) {
         const plate = ctx.scene.add
             .image(ctx.width / 2, digTop, 'npc', 'npc_dig_bg.png')
             .setOrigin(0.5, 0);
         ctx.content.add(plate);
         below = plate.y + plate.displayHeight + 8;
 
-        if (hasFrame(ctx, 'dig_monster', 'monster_dig_mid_bg.png'))
-        {
+        if (hasFrame(ctx, 'dig_monster', 'monster_dig_mid_bg.png')) {
             ctx.content.add(
                 ctx.scene.add
-                    .image(plate.x, plate.y + plate.displayHeight / 2, 'dig_monster', 'monster_dig_mid_bg.png')
+                    .image(
+                        plate.x,
+                        plate.y + plate.displayHeight / 2,
+                        'dig_monster',
+                        'monster_dig_mid_bg.png',
+                    )
                     .setOrigin(0.5),
             );
         }
-        if (digFrame && hasFrame(ctx, digAtlas, digFrame))
-        {
+        if (digFrame && hasFrame(ctx, digAtlas, digFrame)) {
             ctx.content.add(
                 ctx.scene.add
                     .image(plate.x, plate.y + plate.displayHeight / 2, digAtlas, digFrame)
@@ -104,8 +91,7 @@ function placeDigHeader (
         return below;
     }
 
-    if (digFrame && hasFrame(ctx, digAtlas, digFrame))
-    {
+    if (digFrame && hasFrame(ctx, digAtlas, digFrame)) {
         const dig = ctx.scene.add
             .image(ctx.width / 2, digTop, digAtlas, digFrame)
             .setOrigin(0.5, 0);
@@ -115,8 +101,7 @@ function placeDigHeader (
     return below;
 }
 
-export function mountBattleNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountBattleNode(ctx: NodeMountContext): NodeMountResult {
     const siteId = Number(ctx.userData);
     const room = currentRoom(siteId);
     const cfg = getSiteConfig(siteId);
@@ -130,17 +115,14 @@ export function mountBattleNode (ctx: NodeMountContext): NodeMountResult
     ctx.setRightEnabled(false);
 
     const progress =
-        site && site.rooms.length > 0
-            ? formatSiteProgress(site.step + 1, site.rooms.length)
-            : '';
+        site && site.rooms.length > 0 ? formatSiteProgress(site.step + 1, site.rooms.length) : '';
     mountSiteChromeCaptions(ctx, {
         siteName,
         progress,
         storageN: siteStorageCount(siteId),
     });
 
-    if (!room)
-    {
+    if (!room) {
         ctx.setLeftEnabled(true);
         ctx.content.add(
             ctx.scene.add
@@ -155,8 +137,7 @@ export function mountBattleNode (ctx: NodeMountContext): NodeMountResult
         return { onLeft: () => ctx.back() };
     }
 
-    if (room.type === 'work')
-    {
+    if (room.type === 'work') {
         // Original createWorkBeginView — choose tool first, never auto-scavenge.
         return mountWorkBegin(ctx, siteId, room.workType ?? 0);
     }
@@ -165,13 +146,12 @@ export function mountBattleNode (ctx: NodeMountContext): NodeMountResult
     return mountBattleBegin(ctx, siteId, room.monsters, room.difficulty);
 }
 
-function mountBattleBegin (
+function mountBattleBegin(
     ctx: NodeMountContext,
     siteId: number,
     monsters: number[],
     difficulty: number,
-): NodeMountResult
-{
+): NodeMountResult {
     const digName = `monster_dig_${Math.max(1, Math.min(12, difficulty))}.png`;
     const belowDig = placeDigHeader(ctx, digName, 'dig_monster');
 
@@ -196,18 +176,11 @@ function mountBattleBegin (
 
     const session = getSession();
     let hasWeapon = false;
-    if (session)
-    {
-        for (const id of [
-            session.equip[EquipPosMap.GUN],
-            session.equip[EquipPosMap.WEAPON],
-        ])
-        {
-            if (id && id !== HAND_ITEM_ID)
-            {
+    if (session) {
+        for (const id of [session.equip[EquipPosMap.GUN], session.equip[EquipPosMap.WEAPON]]) {
+            if (id && id !== HAND_ITEM_ID) {
                 const slot = getItemDef(id).slot;
-                if (slot === 'gun' || slot === 'weapon')
-                {
+                if (slot === 'gun' || slot === 'weapon') {
                     hasWeapon = true;
                 }
             }
@@ -229,21 +202,18 @@ function mountBattleBegin (
     const iconY = cursorY + equipLabel.height / 2;
     const equipIds = session
         ? [
-            session.equip[EquipPosMap.GUN],
-            session.equip[EquipPosMap.WEAPON],
-            session.equip[EquipPosMap.EQUIP],
-            session.equip[EquipPosMap.TOOL],
-        ]
+              session.equip[EquipPosMap.GUN],
+              session.equip[EquipPosMap.WEAPON],
+              session.equip[EquipPosMap.EQUIP],
+              session.equip[EquipPosMap.TOOL],
+          ]
         : [];
-    for (const id of equipIds)
-    {
-        if (!id || id === HAND_ITEM_ID)
-        {
+    for (const id of equipIds) {
+        if (!id || id === HAND_ITEM_ID) {
             continue;
         }
         const frame = `icon_item_${id}.png`;
-        if (hasFrame(ctx, 'icon', frame))
-        {
+        if (hasFrame(ctx, 'icon', frame)) {
             const icon = ctx.scene.add
                 .image(iconX, iconY, 'icon', frame)
                 .setOrigin(0, 0.5)
@@ -252,19 +222,15 @@ function mountBattleBegin (
             iconX += icon.displayWidth + 6;
         }
     }
-    if (!hasWeapon)
-    {
-        if (hasFrame(ctx, 'gate', 'icon_tab_hand.png'))
-        {
+    if (!hasWeapon) {
+        if (hasFrame(ctx, 'gate', 'icon_tab_hand.png')) {
             ctx.content.add(
                 ctx.scene.add
                     .image(iconX, iconY, 'gate', 'icon_tab_hand.png')
                     .setOrigin(0, 0.5)
                     .setScale(0.7),
             );
-        }
-        else if (hasFrame(ctx, 'icon', 'icon_item_1.png'))
-        {
+        } else if (hasFrame(ctx, 'icon', 'icon_item_1.png')) {
             ctx.content.add(
                 ctx.scene.add
                     .image(iconX, iconY, 'icon', 'icon_item_1.png')
@@ -289,8 +255,7 @@ function mountBattleBegin (
     cursorY += threat.height + 15;
 
     // 1207 unarmed warning
-    if (!hasWeapon)
-    {
+    if (!hasWeapon) {
         const warn = ctx.scene.add
             .text(left, cursorY, '你没有装备任何武器，只能徒手进攻！', {
                 fontFamily: UI_FONT_FAMILY,
@@ -305,8 +270,7 @@ function mountBattleBegin (
     }
 
     // Low vigour warning (1206)
-    if (session && session.attrs.vigour < 30)
-    {
+    if (session && session.attrs.vigour < 30) {
         ctx.content.add(
             ctx.scene.add
                 .text(left, cursorY, '你的精力值过低，攻击速度降为50%！', {
@@ -324,8 +288,7 @@ function mountBattleBegin (
         atlas: 'ui',
         frame: 'btn_common_white_normal.png',
         label: '战斗',
-        onClick: () =>
-        {
+        onClick: () => {
             // Clear begin content and swap to process view.
             ctx.content.removeAll(true);
             // Re-place chrome captions (removed with content).
@@ -346,7 +309,11 @@ function mountBattleBegin (
             // Store on content for host update — host already holds this result; we need to swap.
             // Workaround: mutate returned result's update/destroy by assignment after return is impossible.
             // Instead re-forward replace with a flag is heavy. Use content data bag:
-            (ctx.content as unknown as { __battleProcess?: NodeMountResult }).__battleProcess = process;
+            (
+                ctx.content as unknown as {
+                    __battleProcess?: NodeMountResult;
+                }
+            ).__battleProcess = process;
         },
     });
     ctx.content.add(fightBtn);
@@ -355,31 +322,29 @@ function mountBattleBegin (
     let processHandle: NodeMountResult | null = null;
     return {
         onLeft: () => ctx.back(),
-        update: (deltaMs: number) =>
-        {
-            const bag = ctx.content as unknown as { __battleProcess?: NodeMountResult };
-            if (!processHandle && bag.__battleProcess)
-            {
+        update: (deltaMs: number) => {
+            const bag = ctx.content as unknown as {
+                __battleProcess?: NodeMountResult;
+            };
+            if (!processHandle && bag.__battleProcess) {
                 processHandle = bag.__battleProcess;
                 delete bag.__battleProcess;
             }
             processHandle?.update?.(deltaMs);
         },
-        destroy: () =>
-        {
+        destroy: () => {
             processHandle?.destroy?.();
         },
     };
 }
 
-function placeBottomProgress (
+function placeBottomProgress(
     ctx: NodeMountContext,
     opts?: { showCount?: boolean },
 ): {
     setPct: (pct: number) => void;
     setCount: (alive: number, total: number) => void;
-}
-{
+} {
     const showCount = opts?.showCount !== false;
     const pbBottomY = ctx.bgBottomY - PB_BOTTOM_Y;
     let fill: GameObjects.Image | GameObjects.Rectangle | null = null;
@@ -387,8 +352,7 @@ function placeBottomProgress (
     let bgCenterX = ctx.width / 2;
     let bgTopY = pbBottomY;
 
-    if (hasFrame(ctx, 'ui', 'pb_bg.png'))
-    {
+    if (hasFrame(ctx, 'ui', 'pb_bg.png')) {
         const bg = ctx.scene.add
             .image(ctx.width / 2, pbBottomY, 'ui', 'pb_bg.png')
             .setOrigin(0.5, 1);
@@ -398,19 +362,14 @@ function placeBottomProgress (
         fillMax = hasFrame(ctx, 'ui', 'pb.png')
             ? ctx.scene.textures.get('ui').get('pb.png').width
             : bg.width - 4;
-        if (hasFrame(ctx, 'ui', 'pb.png'))
-        {
+        if (hasFrame(ctx, 'ui', 'pb.png')) {
             const cy = bg.y - bg.displayHeight / 2;
-            fill = ctx.scene.add
-                .image(bg.x - fillMax / 2, cy, 'ui', 'pb.png')
-                .setOrigin(0, 0.5);
+            fill = ctx.scene.add.image(bg.x - fillMax / 2, cy, 'ui', 'pb.png').setOrigin(0, 0.5);
             fill.setCrop(0, 0, 1, fill.height);
             fill.setVisible(false);
             ctx.content.add(fill);
         }
-    }
-    else
-    {
+    } else {
         const bg = ctx.scene.add
             .rectangle(ctx.width / 2, pbBottomY, 268, 17, 0x333333)
             .setOrigin(0.5, 1);
@@ -425,43 +384,39 @@ function placeBottomProgress (
     // Battle only: 僵尸数量 above bar. Work process must not show this.
     const countLabel = showCount
         ? ctx.scene.add
-            .text(bgCenterX + 134, bgTopY - 5, '', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                color: '#ffffff',
-            })
-            .setOrigin(1, 1)
+              .text(bgCenterX + 134, bgTopY - 5, '', {
+                  fontFamily: UI_FONT_FAMILY,
+                  resolution: UI_TEXT_RESOLUTION,
+                  fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                  color: '#ffffff',
+              })
+              .setOrigin(1, 1)
         : null;
-    if (countLabel)
-    {
+    if (countLabel) {
         ctx.content.add(countLabel);
     }
 
     return {
-        setPct: (pct: number) =>
-        {
+        setPct: (pct: number) => {
             const p = Math.max(0, Math.min(1, pct));
-            if (!fill)
-            {
+            if (!fill) {
                 return;
             }
-            if ('setCrop' in fill && typeof fill.setCrop === 'function' && hasFrame(ctx, 'ui', 'pb.png'))
-            {
+            if (
+                'setCrop' in fill &&
+                typeof fill.setCrop === 'function' &&
+                hasFrame(ctx, 'ui', 'pb.png')
+            ) {
                 const img = fill as GameObjects.Image;
                 const w = Math.max(1, Math.round(fillMax * p));
                 img.setCrop(0, 0, w, img.height);
                 img.setVisible(p > 0);
-            }
-            else
-            {
+            } else {
                 (fill as GameObjects.Rectangle).width = Math.max(1, fillMax * p);
             }
         },
-        setCount: (alive: number, total: number) =>
-        {
-            if (!countLabel)
-            {
+        setCount: (alive: number, total: number) => {
+            if (!countLabel) {
                 return;
             }
             countLabel.setText(`僵尸数量:${alive}/${total}`);
@@ -476,60 +431,43 @@ const WORK_DES = [
     '一组柜子，显然被人群和僵尸忽略了。',
 ];
 
-function listWorkTools (session: ReturnType<typeof getSession>): number[]
-{
+function listWorkTools(session: ReturnType<typeof getSession>): number[] {
     // Original: HAND + bag items of type 1302 with effect_tool.
     const ids: number[] = [HAND_ITEM_ID];
-    if (!session)
-    {
+    if (!session) {
         return ids;
     }
-    for (const [idText, num] of Object.entries(session.bag))
-    {
-        if (num <= 0)
-        {
+    for (const [idText, num] of Object.entries(session.bag)) {
+        if (num <= 0) {
             continue;
         }
         const id = Number(idText);
         const def = getItemDef(id);
-        if (def.effectTool)
-        {
+        if (def.effectTool) {
             ids.push(id);
         }
     }
     // Also allow equipped weapon/tool if it has effect_tool (e.g. crowbar).
-    for (const pos of [EquipPosMap.WEAPON, EquipPosMap.TOOL] as const)
-    {
+    for (const pos of [EquipPosMap.WEAPON, EquipPosMap.TOOL] as const) {
         const id = session.equip[pos];
-        if (id && id !== HAND_ITEM_ID && getItemDef(id).effectTool && !ids.includes(id))
-        {
+        if (id && id !== HAND_ITEM_ID && getItemDef(id).effectTool && !ids.includes(id)) {
             ids.push(id);
         }
     }
     return ids;
 }
 
-function toolWorkMinutes (itemId: number, vigour: number): number
-{
+function toolWorkMinutes(itemId: number, vigour: number): number {
     // Original: HAND=45m, else effect_tool.workingTime; * vigourEffect.
-    let minutes =
-        itemId === HAND_ITEM_ID
-            ? 45
-            : (getItemDef(itemId).effectTool?.workingTime ?? 45);
+    let minutes = itemId === HAND_ITEM_ID ? 45 : (getItemDef(itemId).effectTool?.workingTime ?? 45);
     // vigourEffect: low vigour slows work (simple: <30 → ×2)
-    if (vigour < 30)
-    {
+    if (vigour < 30) {
         minutes = Math.round(minutes * 2);
     }
     return minutes;
 }
 
-function mountWorkBegin (
-    ctx: NodeMountContext,
-    siteId: number,
-    workType: number,
-): NodeMountResult
-{
+function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number): NodeMountResult {
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
 
@@ -538,8 +476,7 @@ function mountWorkBegin (
     const digTop = ctx.bgBottomY - (770 - 20);
     let digBottom = digTop + 200;
 
-    if (hasFrame(ctx, 'dig_work', digFrame))
-    {
+    if (hasFrame(ctx, 'dig_work', digFrame)) {
         const dig = ctx.scene.add
             .image(ctx.width / 2, digTop, 'dig_work', digFrame)
             .setOrigin(0.5, 0);
@@ -574,20 +511,17 @@ function mountWorkBegin (
 
     let processHandle: NodeMountResult | null = null;
 
-    tools.forEach((itemId, i) =>
-    {
+    tools.forEach((itemId, i) => {
         const x = areaLeft + (padding * 2 + iconW) * i + (padding + iconW / 2);
         const minutes = toolWorkMinutes(itemId, vigour);
 
         // btn_tool background
-        if (hasFrame(ctx, 'ui', 'btn_tool.png'))
-        {
+        if (hasFrame(ctx, 'ui', 'btn_tool.png')) {
             const bg = ctx.scene.add
                 .image(x, btnY, 'ui', 'btn_tool.png')
                 .setInteractive({ useHandCursor: true });
             ctx.content.add(bg);
-            bg.on('pointerup', () =>
-            {
+            bg.on('pointerup', () => {
                 // Clear begin UI and start timed process.
                 ctx.content.removeAll(true);
                 const site = getSite(siteId);
@@ -606,35 +540,22 @@ function mountWorkBegin (
             });
 
             // Tool icon (hand / crowbar…)
-            if (itemId === HAND_ITEM_ID && hasFrame(ctx, 'gate', 'icon_tab_hand.png'))
-            {
+            if (itemId === HAND_ITEM_ID && hasFrame(ctx, 'gate', 'icon_tab_hand.png')) {
                 ctx.content.add(
-                    ctx.scene.add
-                        .image(x, btnY, 'gate', 'icon_tab_hand.png')
-                        .setScale(0.7),
+                    ctx.scene.add.image(x, btnY, 'gate', 'icon_tab_hand.png').setScale(0.7),
                 );
-            }
-            else
-            {
+            } else {
                 const frame = `icon_item_${itemId}.png`;
-                if (hasFrame(ctx, 'icon', frame))
-                {
-                    ctx.content.add(
-                        ctx.scene.add
-                            .image(x, btnY, 'icon', frame)
-                            .setScale(0.5),
-                    );
+                if (hasFrame(ctx, 'icon', frame)) {
+                    ctx.content.add(ctx.scene.add.image(x, btnY, 'icon', frame).setScale(0.5));
                 }
             }
-        }
-        else
-        {
+        } else {
             const hit = ctx.scene.add
                 .circle(x, btnY, 28, 0x444444)
                 .setInteractive({ useHandCursor: true });
             ctx.content.add(hit);
-            hit.on('pointerup', () =>
-            {
+            hit.on('pointerup', () => {
                 ctx.content.removeAll(true);
                 processHandle = mountWorkProcess(ctx, siteId, minutes, itemId, wt);
             });
@@ -654,45 +575,37 @@ function mountWorkBegin (
     });
 
     return {
-        onLeft: () =>
-        {
-            if (processHandle)
-            {
+        onLeft: () => {
+            if (processHandle) {
                 return;
             }
             ctx.back();
         },
-        update: (deltaMs: number) =>
-        {
+        update: (deltaMs: number) => {
             processHandle?.update?.(deltaMs);
         },
-        destroy: () =>
-        {
+        destroy: () => {
             processHandle?.destroy?.();
         },
     };
 }
 
-function mountWorkProcess (
+function mountWorkProcess(
     ctx: NodeMountContext,
     siteId: number,
     minutes: number,
     _itemId: number,
     workType: number,
-): NodeMountResult
-{
+): NodeMountResult {
     ctx.setLeftEnabled(false);
     ctx.setRightEnabled(false);
 
     // Keep dig visible during process (original dig_des stays on bg).
     const digFrame = `work_dig_${Math.max(0, Math.min(2, workType))}.png`;
-    if (hasFrame(ctx, 'dig_work', digFrame))
-    {
+    if (hasFrame(ctx, 'dig_work', digFrame)) {
         const digTop = ctx.bgBottomY - (770 - 20);
         ctx.content.add(
-            ctx.scene.add
-                .image(ctx.width / 2, digTop, 'dig_work', digFrame)
-                .setOrigin(0.5, 0),
+            ctx.scene.add.image(ctx.width / 2, digTop, 'dig_work', digFrame).setOrigin(0.5, 0),
         );
     }
 
@@ -706,15 +619,12 @@ function mountWorkProcess (
     let done = false;
 
     return {
-        update: (deltaMs: number) =>
-        {
-            if (done)
-            {
+        update: (deltaMs: number) => {
+            if (done) {
                 return;
             }
             progress += deltaMs / durationMs;
-            if (progress >= 1)
-            {
+            if (progress >= 1) {
                 progress = 1;
                 done = true;
                 bar.setPct(1);
@@ -726,20 +636,18 @@ function mountWorkProcess (
             }
             bar.setPct(progress);
         },
-        destroy: () =>
-        {
+        destroy: () => {
             // no-op
         },
     };
 }
 
-function mountBattleProcess (
+function mountBattleProcess(
     ctx: NodeMountContext,
     siteId: number,
     monsters: number[],
     difficulty: number,
-): NodeMountResult
-{
+): NodeMountResult {
     clearBattle();
     startBattle(monsters);
     // Original createBattleProcessView: left_btn_enabled false; no escape button.
@@ -751,8 +659,7 @@ function mountBattleProcess (
     const logLeft = ctx.width / 2 - ctx.bgWidth / 2 + CONTENT_LEFT;
     const logWidth = ctx.bgWidth - CONTENT_LEFT * 2;
     const logLabels: GameObjects.Text[] = [];
-    for (let i = 0; i < LOG_LINES; i++)
-    {
+    for (let i = 0; i < LOG_LINES; i++) {
         const y = ctx.bgBottomY - (i * LOG_STEP + LOG_BASE_Y);
         const label = ctx.scene.add
             .text(logLeft, y, '', {
@@ -768,19 +675,14 @@ function mountBattleProcess (
     }
 
     const logBuf: BattleLogEntry[] = [];
-    const paintLogs = () =>
-    {
-        for (let i = 0; i < LOG_LINES; i++)
-        {
+    const paintLogs = () => {
+        for (let i = 0; i < LOG_LINES; i++) {
             const entry = logBuf[i];
             const label = logLabels[i]!;
-            if (entry)
-            {
+            if (entry) {
                 label.setText(entry.text);
                 label.setColor(entry.color ?? '#ffffff');
-            }
-            else
-            {
+            } else {
                 label.setText('');
             }
         }
@@ -799,24 +701,19 @@ function mountBattleProcess (
 
     // Seed initial logs already pushed by startBattle.
     const seed = getActiveBattle();
-    if (seed)
-    {
-        for (const e of seed.sum.entries)
-        {
+    if (seed) {
+        for (const e of seed.sum.entries) {
             logBuf.unshift(e);
         }
-        if (logBuf.length > LOG_LINES)
-        {
+        if (logBuf.length > LOG_LINES) {
             logBuf.length = LOG_LINES;
         }
         lastEntryLen = seed.sum.entries.length;
         paintLogs();
     }
 
-    const showResult = (win: boolean) =>
-    {
-        if (resultShown)
-        {
+    const showResult = (win: boolean) => {
+        if (resultShown) {
             return;
         }
         resultShown = true;
@@ -826,15 +723,12 @@ function mountBattleProcess (
         // End view: des "你成功地消灭了僵尸", 消耗/损失, button "下一个房间" → updateView (next room).
         // Defeat: leave battle node (back to site).
         const sum = getActiveBattle()?.sum;
-        if (win)
-        {
+        if (win) {
             roomEnd(siteId, true);
         }
 
-        const endDelay = ctx.scene.time.delayedCall(1800, () =>
-        {
-            if (!ctx.scene.sys.isActive())
-            {
+        const endDelay = ctx.scene.time.delayedCall(1800, () => {
+            if (!ctx.scene.sys.isActive()) {
                 return;
             }
             // Clear process UI (logs/bar) for end summary.
@@ -861,27 +755,19 @@ function mountBattleProcess (
 
             // des: 你成功地消灭了僵尸 / 逃离 / 失败
             let endTitle = '战斗失败';
-            if (win)
-            {
+            if (win) {
                 endTitle = sum?.isDodge ? '你甩开了僵尸' : '你成功地消灭了僵尸';
-            }
-            else if (sum?.escaped)
-            {
+            } else if (sum?.escaped) {
                 endTitle = '你逃离了战斗';
             }
             ctx.content.add(
                 ctx.scene.add
-                    .text(
-                        ctx.width / 2,
-                        belowDig + 16,
-                        endTitle,
-                        {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                            color: '#ffffff',
-                        },
-                    )
+                    .text(ctx.width / 2, belowDig + 16, endTitle, {
+                        fontFamily: UI_FONT_FAMILY,
+                        resolution: UI_TEXT_RESOLUTION,
+                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                        color: '#ffffff',
+                    })
                     .setOrigin(0.5, 0),
             );
 
@@ -894,16 +780,13 @@ function mountBattleProcess (
             const toolName = toolId ? getItemDef(toolId).name : '';
             let costLine = '消耗: 无';
             const costParts: string[] = [];
-            if (usedBullets > 0)
-            {
+            if (usedBullets > 0) {
                 costParts.push(`子弹×${usedBullets}`);
             }
-            if (usedTools > 0 && toolName)
-            {
+            if (usedTools > 0 && toolName) {
                 costParts.push(`${toolName}×${usedTools}`);
             }
-            if (costParts.length > 0)
-            {
+            if (costParts.length > 0) {
                 costLine = `消耗: ${costParts.join('，')}`;
             }
             ctx.content.add(
@@ -931,8 +814,7 @@ function mountBattleProcess (
             );
             y += 28;
 
-            if (sum?.brokenWeapons && sum.brokenWeapons.length > 0)
-            {
+            if (sum?.brokenWeapons && sum.brokenWeapons.length > 0) {
                 const names = sum.brokenWeapons.map((id) => getItemDef(id).name).join('、');
                 ctx.content.add(
                     ctx.scene.add
@@ -947,8 +829,7 @@ function mountBattleProcess (
                 y += 28;
             }
 
-            if (sum?.escaped)
-            {
+            if (sum?.escaped) {
                 ctx.content.add(
                     ctx.scene.add
                         .text(left, y, '你逃离了战场。', {
@@ -964,15 +845,13 @@ function mountBattleProcess (
             const nextRoom = currentRoom(siteId);
             const siteEnded = Boolean(getSite(siteId)?.ended) || !nextRoom;
 
-            if (win && !siteEnded && nextRoom)
-            {
+            if (win && !siteEnded && nextRoom) {
                 // 1060 下一个房间 → stay on BattleAndWorkNode, load next room view.
                 const btn = addAtlasButton(ctx.scene, ctx.width / 2, ctx.bgBottomY - 60, {
                     atlas: 'ui',
                     frame: 'btn_common_white_normal.png',
                     label: '下一个房间',
-                    onClick: () =>
-                    {
+                    onClick: () => {
                         clearBattle();
                         // Re-enter this node so begin/process rebuilds for the new room.
                         ctx.replace(NavNode.BATTLE_AND_WORK, siteId);
@@ -980,16 +859,13 @@ function mountBattleProcess (
                 });
                 ctx.scene.children.remove(btn);
                 ctx.content.add(btn);
-            }
-            else
-            {
+            } else {
                 // Site fully cleared, or defeat → leave battle node.
                 const btn = addAtlasButton(ctx.scene, ctx.width / 2, ctx.bgBottomY - 60, {
                     atlas: 'ui',
                     frame: 'btn_common_white_normal.png',
                     label: win ? '离开' : '撤退',
-                    onClick: () =>
-                    {
+                    onClick: () => {
                         clearBattle();
                         ctx.back();
                     },
@@ -1003,21 +879,16 @@ function mountBattleProcess (
     };
 
     return {
-        update: (deltaMs: number) =>
-        {
-            if (finished)
-            {
+        update: (deltaMs: number) => {
+            if (finished) {
                 return;
             }
             const battle = getActiveBattle();
-            if (battle)
-            {
-                while (lastEntryLen < battle.sum.entries.length)
-                {
+            if (battle) {
+                while (lastEntryLen < battle.sum.entries.length) {
                     const e = battle.sum.entries[lastEntryLen]!;
                     logBuf.unshift(e);
-                    if (logBuf.length > LOG_LINES)
-                    {
+                    if (logBuf.length > LOG_LINES) {
                         logBuf.length = LOG_LINES;
                     }
                     lastEntryLen += 1;
@@ -1025,24 +896,19 @@ function mountBattleProcess (
                 paintLogs();
 
                 const alive = battle.monsters.filter((m) => !m.dead && m.hp > 0).length;
-                if (alive !== lastAlive)
-                {
+                if (alive !== lastAlive) {
                     lastAlive = alive;
                     bar.setCount(alive, totalMon);
                     bar.setPct(totalMon > 0 ? (totalMon - alive) / totalMon : 0);
                 }
             }
             const result = tickBattle(deltaMs / 1000);
-            if (result)
-            {
+            if (result) {
                 const b = getActiveBattle();
-                if (b)
-                {
-                    while (lastEntryLen < b.sum.entries.length)
-                    {
+                if (b) {
+                    while (lastEntryLen < b.sum.entries.length) {
                         logBuf.unshift(b.sum.entries[lastEntryLen]!);
-                        if (logBuf.length > LOG_LINES)
-                        {
+                        if (logBuf.length > LOG_LINES) {
                             logBuf.length = LOG_LINES;
                         }
                         lastEntryLen += 1;
@@ -1052,11 +918,9 @@ function mountBattleProcess (
                 showResult(result.win);
             }
         },
-        destroy: () =>
-        {
+        destroy: () => {
             endTimer?.remove(false);
-            if (!finished && getActiveBattle()?.running)
-            {
+            if (!finished && getActiveBattle()?.running) {
                 forceEndBattle(false);
             }
             clearBattle();

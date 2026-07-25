@@ -2,6 +2,7 @@
  * Thin pub/sub for domain → UI (port of utils.emitter).
  * Not a gameplay rule engine — only notifies listeners after state changes.
  */
+import type { NpcVisit } from './npcSystem';
 
 export type GameBusEventMap = {
     /** Any survival attribute changed; payload is the delta. */
@@ -32,6 +33,7 @@ export type GameBusEventMap = {
         sitesRaided?: number[];
     };
     craft_changed: { bid: number };
+    npc_visit: NpcVisit;
     facility_changed: { bid: number };
     build_upgrade_started: { bid: number; nextLevel: number; createTime: number };
     build_upgraded: { bid: number; level: number };
@@ -72,53 +74,45 @@ type Handler<T> = (payload: T) => void;
 
 const listeners = new Map<string, Set<Handler<unknown>>>();
 
-export function gameBusOn<K extends keyof GameBusEventMap> (
+export function gameBusOn<K extends keyof GameBusEventMap>(
     eventName: K,
     handler: Handler<GameBusEventMap[K]>,
-): void
-{
+): void {
     const key = eventName as string;
     let set = listeners.get(key);
-    if (!set)
-    {
+    if (!set) {
         set = new Set();
         listeners.set(key, set);
     }
     set.add(handler as Handler<unknown>);
 }
 
-export function gameBusOff<K extends keyof GameBusEventMap> (
+export function gameBusOff<K extends keyof GameBusEventMap>(
     eventName: K,
     handler: Handler<GameBusEventMap[K]>,
-): void
-{
+): void {
     const set = listeners.get(eventName as string);
-    if (!set)
-    {
+    if (!set) {
         return;
     }
     set.delete(handler as Handler<unknown>);
 }
 
-export function gameBusEmit<K extends keyof GameBusEventMap> (
+export function gameBusEmit<K extends keyof GameBusEventMap>(
     eventName: K,
     payload?: GameBusEventMap[K],
-): void
-{
+): void {
     const set = listeners.get(eventName as string);
-    if (!set || set.size === 0)
-    {
+    if (!set || set.size === 0) {
         return;
     }
     // Copy so handlers can unsubscribe during emit.
-    for (const handler of [...set])
-    {
+    for (const handler of [...set]) {
         (handler as Handler<GameBusEventMap[K]>)(payload as GameBusEventMap[K]);
     }
 }
 
 /** Drop all listeners (call on game stop / leave MainScene). */
-export function gameBusClear (): void
-{
+export function gameBusClear(): void {
     listeners.clear();
 }

@@ -29,8 +29,7 @@ import { gameBusEmit } from './gameBus';
 import { flushBagToStorage } from './inventory';
 import { unlockNpc } from './npcSystem';
 
-export function defaultMapState (): SessionState['map']
-{
+export function defaultMapState(): SessionState['map'] {
     const home = getSiteConfig(HOME_SITE_ID)!;
     const starter = createSiteState(STARTER_SITE_ID);
     return {
@@ -43,29 +42,24 @@ export function defaultMapState (): SessionState['map']
     };
 }
 
-function randomInt (min: number, max: number): number
-{
+function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /** Original utils.getRoundRandom, including its inclusive 0..total roll. */
-function rollWeightedLoot (entries: readonly WeightedSiteLoot[]): WeightedSiteLoot
-{
+function rollWeightedLoot(entries: readonly WeightedSiteLoot[]): WeightedSiteLoot {
     const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
-    if (total < 0 || entries.length === 0)
-    {
+    if (total < 0 || entries.length === 0) {
         throw new Error('Site loot table must contain at least one non-negative entry.');
     }
 
     const roll = randomInt(0, total);
     let cumulative = 0;
     let selected = entries[entries.length - 1]!;
-    for (const entry of entries)
-    {
+    for (const entry of entries) {
         cumulative += entry.weight;
         selected = entry;
-        if (roll <= cumulative)
-        {
+        if (roll <= cumulative) {
             break;
         }
     }
@@ -73,10 +67,8 @@ function rollWeightedLoot (entries: readonly WeightedSiteLoot[]): WeightedSiteLo
 }
 
 /** Original utils.getRandomItemId wildcard matcher. */
-function resolveLootItemId (pattern: string): number
-{
-    if (!pattern.includes('*'))
-    {
+function resolveLootItemId(pattern: string): number {
+    if (!pattern.includes('*')) {
         return Number(pattern);
     }
 
@@ -84,31 +76,28 @@ function resolveLootItemId (pattern: string): number
         .map(Number)
         .filter((itemId) => !RANDOM_LOOT_EXCLUDED_SET.has(itemId));
     let offset = 0;
-    for (let index = 0; index < pattern.length; index++, offset += 2)
-    {
-        if (pattern[index] === '*')
-        {
+    for (let index = 0; index < pattern.length; index++, offset += 2) {
+        if (pattern[index] === '*') {
             continue;
         }
 
         const length = offset === 6 ? 1 : 2;
         const segment = pattern.substr(index, length);
-        candidates = candidates.filter((itemId) => String(itemId).substr(offset, length) === segment);
+        candidates = candidates.filter(
+            (itemId) => String(itemId).substr(offset, length) === segment,
+        );
         index++;
     }
 
-    if (candidates.length === 0)
-    {
+    if (candidates.length === 0) {
         throw new Error(`Site loot wildcard ${pattern} resolved to no items.`);
     }
     return candidates[randomInt(0, candidates.length - 1)]!;
 }
 
-function generateWorkLoot (siteId: number, workCount: number): SiteLoot[][]
-{
+function generateWorkLoot(siteId: number, workCount: number): SiteLoot[][] {
     const pools = Array.from({ length: workCount }, () => [] as number[]);
-    if (pools.length === 0)
-    {
+    if (pools.length === 0) {
         return [];
     }
 
@@ -116,51 +105,41 @@ function generateWorkLoot (siteId: number, workCount: number): SiteLoot[][]
     const produce = getSiteProduceConfig(siteId);
     const itemIds: number[] = [];
     let remainingValue = (produce?.produceValue ?? 0) * (getSession()?.talent === 103 ? 1.1 : 1);
-    while (remainingValue > 0)
-    {
-        if (!produce)
-        {
+    while (remainingValue > 0) {
+        if (!produce) {
             break;
         }
         const itemId = resolveLootItemId(rollWeightedLoot(produce.produceList).itemId);
         const item = ITEM_CONFIG[itemId];
-        if (!item)
-        {
+        if (!item) {
             throw new Error(`Site loot item ${itemId} does not exist.`);
         }
         remainingValue -= item.value;
         itemIds.push(itemId);
     }
 
-    for (const fixed of config.fixedProduceList)
-    {
-        for (let num = 0; num < fixed.num; num++)
-        {
+    for (const fixed of config.fixedProduceList) {
+        for (let num = 0; num < fixed.num; num++) {
             itemIds.push(fixed.itemId);
         }
     }
 
-    for (const itemId of itemIds)
-    {
+    for (const itemId of itemIds) {
         pools[randomInt(0, pools.length - 1)]!.push(itemId);
     }
 
-    return pools.map((pool) =>
-    {
+    return pools.map((pool) => {
         const counts = new Map<number, number>();
-        for (const itemId of pool)
-        {
+        for (const itemId of pool) {
             counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
         }
         return [...counts].map(([itemId, num]) => ({ itemId, num }));
     });
 }
 
-export function createSiteState (siteId: number): SiteState
-{
+export function createSiteState(siteId: number): SiteState {
     const config = getSiteConfig(siteId);
-    if (!config)
-    {
+    if (!config) {
         return {
             siteId,
             step: 0,
@@ -173,8 +152,7 @@ export function createSiteState (siteId: number): SiteState
     }
 
     const battleRooms: SiteRoom[] = [];
-    for (let index = 0; index < config.battleRoom; index++)
-    {
+    for (let index = 0; index < config.battleRoom; index++) {
         const low = config.difficulty[0] ?? 1;
         const high = config.difficulty[1] ?? low;
         const difficulty = randomInt(low, high);
@@ -195,20 +173,15 @@ export function createSiteState (siteId: number): SiteState
     // then randomly interleave every remaining battle/work room.
     const rooms: SiteRoom[] = [];
     let roomCount = battleRooms.length + workRooms.length;
-    if (workRooms.length > 0)
-    {
+    if (workRooms.length > 0) {
         rooms.unshift(workRooms.splice(randomInt(0, workRooms.length - 1), 1)[0]!);
         roomCount--;
     }
-    while (roomCount-- > 0)
-    {
+    while (roomCount-- > 0) {
         const index = randomInt(0, roomCount);
-        if (index > battleRooms.length - 1)
-        {
+        if (index > battleRooms.length - 1) {
             rooms.unshift(workRooms.splice(index - battleRooms.length, 1)[0]!);
-        }
-        else
-        {
+        } else {
             rooms.unshift(battleRooms.splice(index, 1)[0]!);
         }
     }
@@ -217,7 +190,6 @@ export function createSiteState (siteId: number): SiteState
         siteId,
         step: 0,
         rooms,
-        lootVersion: 2,
         storage: {},
         haveNewItems: false,
         closed: false,
@@ -225,72 +197,42 @@ export function createSiteState (siteId: number): SiteState
     };
 }
 
-function isPristineLegacySite (site: SiteState): boolean
-{
-    return site.lootVersion !== 2
-        && site.step === 0
-        && Object.keys(site.storage).length === 0
-        && !site.haveNewItems
-        && !site.closed
-        && !site.ended;
-}
-
-export function ensureSite (siteId: number): SiteState | null
-{
+export function ensureSite(siteId: number): SiteState | null {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return null;
     }
     const existing = session.map.sites[siteId];
-    if (existing)
-    {
-        if (!isPristineLegacySite(existing))
-        {
-            return existing;
-        }
-
-        const migrated = createSiteState(siteId);
-        mutateSession((live) =>
-        {
-            live.map.sites[siteId] = migrated;
-        });
-        return migrated;
+    if (existing) {
+        return existing;
     }
-    if (!session.map.unlocked.includes(siteId))
-    {
+    if (!session.map.unlocked.includes(siteId)) {
         return null;
     }
     const created = createSiteState(siteId);
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         live.map.sites[siteId] = created;
     });
     return created;
 }
 
-export function getSite (siteId: number): SiteState | null
-{
+export function getSite(siteId: number): SiteState | null {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return null;
     }
     return session.map.sites[siteId] ?? null;
 }
 
-export function currentRoom (siteId: number): SiteRoom | null
-{
+export function currentRoom(siteId: number): SiteRoom | null {
     const site = getSite(siteId);
-    if (!site || site.step >= site.rooms.length)
-    {
+    if (!site || site.step >= site.rooms.length) {
         return null;
     }
     return site.rooms[site.step] ?? null;
 }
 
-export function roomEnd (siteId: number, won: boolean): { advanced: boolean; siteEnded: boolean }
-{
+export function roomEnd(siteId: number, won: boolean): { advanced: boolean; siteEnded: boolean } {
     let advanced = false;
     let siteEnded = false;
     let doneWorkType: number | null = null;
@@ -298,69 +240,55 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
     const unlockedNames: string[] = [];
     const unlockedNpcIds: number[] = [];
 
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         const site = live.map.sites[siteId];
-        if (!site || !won)
-        {
+        if (!site || !won) {
             return;
         }
         const doneRoom = site.rooms[site.step];
-        if (doneRoom?.type === 'work')
-        {
+        if (doneRoom?.type === 'work') {
             doneWorkType = doneRoom.workType ?? 0;
         }
         site.step += 1;
         advanced = true;
-        if (site.step >= site.rooms.length)
-        {
+        if (site.step >= site.rooms.length) {
             site.ended = true;
             siteEnded = true;
             const cfg = getSiteConfig(siteId);
             siteName = cfg?.name ?? '';
             // siteEnd → unlockValue.site
-            for (const unlockId of cfg?.unlockSites ?? [])
-            {
-                if (!live.map.unlocked.includes(unlockId))
-                {
+            for (const unlockId of cfg?.unlockSites ?? []) {
+                if (!live.map.unlocked.includes(unlockId)) {
                     live.map.unlocked.push(unlockId);
                     const name = getSiteConfig(unlockId)?.name;
-                    if (name)
-                    {
+                    if (name) {
                         unlockedNames.push(name);
                     }
                 }
             }
             // Site completion reveals NPCs through their own persistent state.
-            for (const npcId of cfg?.unlockNpcs ?? [])
-            {
+            for (const npcId of cfg?.unlockNpcs ?? []) {
                 unlockedNpcIds.push(npcId);
             }
         }
     });
 
-    if (advanced)
-    {
+    if (advanced) {
         // 1117 你打开了箱子/桌子/柜子 (after work room)
-        if (doneWorkType !== null)
-        {
+        if (doneWorkType !== null) {
             const labels = ['箱子', '桌子', '柜子'];
             appendSessionLog(`你打开了${labels[doneWorkType] ?? '箱子'}`);
         }
-        if (siteEnded)
-        {
+        if (siteEnded) {
             // 1119 你彻底清除了%s里的全部威胁！
-            if (siteName)
-            {
+            if (siteName) {
                 appendSessionLog(`你彻底清除了${siteName}里的全部威胁！`);
             }
             // 1104 新地点 %s 解锁！
-            for (const name of unlockedNames)
-            {
+            for (const name of unlockedNames) {
                 appendSessionLog(`新地点 ${name} 解锁！`);
             }
-            for (const npcId of unlockedNpcIds)
-            {
+            for (const npcId of unlockedNpcIds) {
                 unlockNpc(npcId);
             }
         }
@@ -369,10 +297,8 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
     return { advanced, siteEnded };
 }
 
-export function playerOut (): void
-{
-    mutateSession((live) =>
-    {
+export function playerOut(): void {
+    mutateSession((live) => {
         live.isAtHome = false;
         live.isAtSite = false;
         live.nowSiteId = null;
@@ -381,23 +307,19 @@ export function playerOut (): void
     gameBusEmit('session_updated');
 }
 
-export function playerGoHome (): void
-{
+export function playerGoHome(): void {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return;
     }
     const wasOutside = !session.isAtHome;
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         live.isAtHome = true;
         live.isAtSite = false;
         live.nowSiteId = null;
         live.map.pos = { ...live.map.homePos };
     });
-    if (wasOutside)
-    {
+    if (wasOutside) {
         flushBagToStorage();
         appendSessionLog('你回到了家。');
     }
@@ -405,41 +327,32 @@ export function playerGoHome (): void
 }
 
 /** Finish an already-timed journey by placing the player at its destination. */
-export function arriveAt (siteId: number): boolean
-{
+export function arriveAt(siteId: number): boolean {
     const session = getSession();
     const cfg = getSiteConfig(siteId);
-    if (!session || !cfg)
-    {
+    if (!session || !cfg) {
         return false;
     }
-    if (!session.map.unlocked.includes(siteId) && siteId !== HOME_SITE_ID)
-    {
+    if (!session.map.unlocked.includes(siteId) && siteId !== HOME_SITE_ID) {
         return false;
     }
 
-    if (siteId === HOME_SITE_ID)
-    {
+    if (siteId === HOME_SITE_ID) {
         playerGoHome();
-    }
-    else
-    {
+    } else {
         enterSite(siteId);
     }
     return true;
 }
 
-export function enterSite (siteId: number): void
-{
+export function enterSite(siteId: number): void {
     ensureSite(siteId);
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         live.isAtHome = false;
         live.isAtSite = true;
         live.nowSiteId = siteId;
         const cfg = getSiteConfig(siteId);
-        if (cfg)
-        {
+        if (cfg) {
             live.map.pos = { ...cfg.coordinate };
         }
     });
@@ -448,10 +361,8 @@ export function enterSite (siteId: number): void
     gameBusEmit('session_updated');
 }
 
-export function leaveSite (): void
-{
-    mutateSession((live) =>
-    {
+export function leaveSite(): void {
+    mutateSession((live) => {
         live.isAtSite = false;
         live.nowSiteId = null;
     });
@@ -484,44 +395,35 @@ export type TravelEncounter = {
  * Original: every RandomBattleConfig.distance units, stage-weighted probability.
  * Returns the first hit (P0: single overlay), or null.
  */
-export function rollTravelEncounter (distance: number): TravelEncounter | null
-{
+export function rollTravelEncounter(distance: number): TravelEncounter | null {
     const session = getSession();
-    if (!session || distance < RANDOM_BATTLE_DISTANCE)
-    {
+    if (!session || distance < RANDOM_BATTLE_DISTANCE) {
         return null;
     }
 
     const stage = getStageFromHour(session.hour);
     const config = RANDOM_BATTLE_BY_STAGE[stage];
     const checks = Math.floor(distance / RANDOM_BATTLE_DISTANCE);
-    for (let i = 0; i < checks; i++)
-    {
-        if (Math.random() > config.probability)
-        {
+    for (let i = 0; i < checks; i++) {
+        if (Math.random() > config.probability) {
             continue;
         }
         const [minDiff, maxDiff] = config.difficulty;
-        const difficulty =
-            minDiff + Math.floor(Math.random() * (maxDiff - minDiff + 1));
-        // P0 monster packs only cover difficulty 1; clamp for pack lookup.
-        const monsters = rollMonsterList(Math.min(difficulty, 1));
+        const difficulty = minDiff + Math.floor(Math.random() * (maxDiff - minDiff + 1));
+        const monsters = rollMonsterList(difficulty);
         appendSessionLog('遭遇僵尸！');
         return { difficulty, monsters };
     }
     return null;
 }
 
-export function planTravel (siteId: number): TravelPlan | null
-{
+export function planTravel(siteId: number): TravelPlan | null {
     const session = getSession();
     const cfg = getSiteConfig(siteId);
-    if (!session || !cfg)
-    {
+    if (!session || !cfg) {
         return null;
     }
-    if (!session.map.unlocked.includes(siteId) && siteId !== HOME_SITE_ID)
-    {
+    if (!session.map.unlocked.includes(siteId) && siteId !== HOME_SITE_ID) {
         return null;
     }
     const target = siteId === HOME_SITE_ID ? session.map.homePos : cfg.coordinate;
@@ -541,41 +443,33 @@ export function planTravel (siteId: number): TravelPlan | null
 /**
  * Instant travel with game-time jump (P0: skip random roadside battles).
  */
-export function travelTo (siteId: number, onArrived?: () => void): boolean
-{
+export function travelTo(siteId: number, onArrived?: () => void): boolean {
     const plan = planTravel(siteId);
-    if (!plan)
-    {
+    if (!plan) {
         return false;
     }
 
     const jump = Math.min(plan.gameSeconds, 6 * 3600);
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         applyGameTimeToSession(live, live.gameTime + jump);
     });
 
     const arrived = arriveAt(plan.siteId);
-    if (arrived)
-    {
+    if (arrived) {
         onArrived?.();
     }
     return arrived;
 }
 
-export function fillTempLootFromRoom (siteId: number): SiteLoot[]
-{
+export function fillTempLootFromRoom(siteId: number): SiteLoot[] {
     const room = currentRoom(siteId);
-    if (room?.type !== 'work')
-    {
+    if (room?.type !== 'work') {
         return [];
     }
     const loot = (room.loot ?? []).map((row) => ({ ...row }));
-    mutateSession((live) =>
-    {
+    mutateSession((live) => {
         live.tempLoot = {};
-        for (const row of loot)
-        {
+        for (const row of loot) {
             live.tempLoot[row.itemId] = (live.tempLoot[row.itemId] ?? 0) + row.num;
         }
     });
@@ -584,21 +478,16 @@ export function fillTempLootFromRoom (siteId: number): SiteLoot[]
 }
 
 /** Flush remaining temp loot into site storage (work room leave). */
-export function flushTempToSite (siteId: number): void
-{
-    mutateSession((live) =>
-    {
+export function flushTempToSite(siteId: number): void {
+    mutateSession((live) => {
         const site = live.map.sites[siteId];
-        if (!site)
-        {
+        if (!site) {
             live.tempLoot = {};
             return;
         }
-        for (const [idText, num] of Object.entries(live.tempLoot))
-        {
+        for (const [idText, num] of Object.entries(live.tempLoot)) {
             const itemId = Number(idText);
-            if (!Number.isFinite(itemId) || num <= 0)
-            {
+            if (!Number.isFinite(itemId) || num <= 0) {
                 continue;
             }
             site.storage[itemId] = (site.storage[itemId] ?? 0) + num;
@@ -609,11 +498,9 @@ export function flushTempToSite (siteId: number): void
     gameBusEmit('session_updated');
 }
 
-export function siteStorageCount (siteId: number): number
-{
+export function siteStorageCount(siteId: number): number {
     const site = getSite(siteId);
-    if (!site)
-    {
+    if (!site) {
         return 0;
     }
     return Object.values(site.storage).reduce((sum, n) => sum + n, 0);
