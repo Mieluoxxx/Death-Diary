@@ -12,13 +12,8 @@
  */
 
 import type { GameObjects, Scene } from 'phaser';
-import {
-    buildLevelName,
-} from '../data/buildStrings';
-import {
-    getBuildLevel,
-    getStorageCount,
-} from '../session/sessionStore';
+import { buildLevelName } from '../data/buildStrings';
+import { getBuildLevel, getStorageCount } from '../session/sessionStore';
 import {
     BuildUpgradeType,
     canUpgradeBuild,
@@ -26,11 +21,7 @@ import {
     isBuildUpgrading,
     startBuildUpgrade,
 } from '../systems/buildSystem';
-import {
-    type CraftActionView,
-    clickCraftAction,
-    listCraftActions,
-} from '../systems/craftSystem';
+import { type CraftActionView, clickCraftAction, listCraftActions } from '../systems/craftSystem';
 import {
     clickFacilityAction,
     type FacilityActionView,
@@ -39,12 +30,7 @@ import {
 import { gameBusOff, gameBusOn } from '../systems/gameBus';
 import { addAtlasButton } from './atlasButton';
 import { mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-    uiWordWrap,
-} from './uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 export type BuildPanelHandle = {
     root: GameObjects.Container;
@@ -67,20 +53,18 @@ const ACTION_ROW_HEIGHT = 120;
  */
 const CONTENT_Y_NUDGE = 14;
 
-export function openBuildPanel (
+export function openBuildPanel(
     scene: Scene,
     bid: number,
     opts?: {
         onClose?: () => void;
         onUpgraded?: (bid: number, level: number) => void;
     },
-): BuildPanelHandle
-{
+): BuildPanelHandle {
     const existing = scene.children.list.find(
         (child) => (child as GameObjects.Container).name === 'buildPanel',
     );
-    if (existing)
-    {
+    if (existing) {
         existing.destroy(true);
     }
 
@@ -103,18 +87,14 @@ export function openBuildPanel (
     );
 
     // Bottom chrome — same sprite as Home bottom frame.
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_bg_bottom.png')) {
         root.add(
-            scene.add
-                .image(width / 2, bgBottomY, 'ui', 'frame_bg_bottom.png')
-                .setOrigin(0.5, 1),
+            scene.add.image(width / 2, bgBottomY, 'ui', 'frame_bg_bottom.png').setOrigin(0.5, 1),
         );
     }
 
     // Divider under title bar.
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_line.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_line.png')) {
         root.add(
             scene.add.image(width / 2, toScreenY(CONTENT_TOP_LOCAL_Y), 'ui', 'frame_line.png'),
         );
@@ -134,10 +114,8 @@ export function openBuildPanel (
 
     let closed = false;
     let actionScroll: ScrollViewportHandle | null = null;
-    const closePanel = () =>
-    {
-        if (closed)
-        {
+    const closePanel = () => {
+        if (closed) {
             return;
         }
         closed = true;
@@ -153,26 +131,21 @@ export function openBuildPanel (
     };
 
     // Back (left)
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_back.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_back.png')) {
         const back = scene.add
             .image(toScreenX(60), titleY, 'ui', 'btn_back.png')
             .setInteractive({ useHandCursor: true });
         root.add(back);
         back.on('pointerdown', () => back.setAlpha(0.7));
         back.on('pointerout', () => back.setAlpha(1));
-        back.on('pointerup', () =>
-        {
+        back.on('pointerup', () => {
             back.setAlpha(1);
-            if (isBuildUpgrading(bid))
-            {
+            if (isBuildUpgrading(bid)) {
                 return;
             }
             closePanel();
         });
-    }
-    else
-    {
+    } else {
         const back = scene.add
             .rectangle(toScreenX(60), titleY, 82, 39, 0x333333)
             .setInteractive({ useHandCursor: true });
@@ -181,12 +154,10 @@ export function openBuildPanel (
     }
 
     // Shop (right) — deferred, visual parity only.
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_shop.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_shop.png')) {
         const shop = scene.add.image(toScreenX(BG_WIDTH - 60), titleY, 'ui', 'btn_shop.png');
         root.add(shop);
-        if (scene.textures.get('ui').has('btn_shop_highlight.png'))
-        {
+        if (scene.textures.get('ui').has('btn_shop_highlight.png')) {
             const highlight = scene.add.image(shop.x, shop.y, 'ui', 'btn_shop_highlight.png');
             root.add(highlight);
             scene.tweens.add({
@@ -211,18 +182,17 @@ export function openBuildPanel (
     let iconBg: GameObjects.Image | GameObjects.Rectangle;
     // Icons sit a touch low in the row so they align with the white action button.
     const iconLocalY = 4;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png')) {
         iconBg = scene.add.image(iconBgX, iconLocalY, 'ui', 'build_icon_bg.png');
-    }
-    else
-    {
+    } else {
         iconBg = scene.add.rectangle(iconBgX, iconLocalY, 110, 73, 0x444444);
     }
     row.add(iconBg);
 
     // Placeholder; texture set in refreshUpgradeRow.
-    const buildIcon = scene.add.image(iconBgX, iconLocalY, 'ui', 'build_icon_bg.png').setVisible(false);
+    const buildIcon = scene.add
+        .image(iconBgX, iconLocalY, 'ui', 'build_icon_bg.png')
+        .setVisible(false);
     row.add(buildIcon);
 
     // Cost / condition text area (left of action button)
@@ -247,16 +217,14 @@ export function openBuildPanel (
     const pbY = 36;
     let pbBg: GameObjects.Image | GameObjects.Rectangle;
     let pbFill: GameObjects.Rectangle;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png')) {
         pbBg = scene.add.image(textLeft, pbY, 'ui', 'pb_bg.png').setOrigin(0, 0.5);
         row.add(pbBg);
         const fillW = scene.textures.get('ui').has('pb.png')
             ? scene.textures.get('ui').get('pb.png').width
             : 264;
         pbFill = scene.add.rectangle(textLeft, pbY, 1, 13, 0x8fbf6a).setOrigin(0, 0.5);
-        if (scene.textures.get('ui').has('pb.png'))
-        {
+        if (scene.textures.get('ui').has('pb.png')) {
             // use crop on pb sprite instead when available
             const pbImg = scene.add.image(textLeft, pbY, 'ui', 'pb.png').setOrigin(0, 0.5);
             row.add(pbImg);
@@ -265,9 +233,7 @@ export function openBuildPanel (
         }
         row.add(pbFill);
         void fillW;
-    }
-    else
-    {
+    } else {
         pbBg = scene.add.rectangle(textLeft, pbY, 268, 17, 0x555555).setOrigin(0, 0.5);
         pbFill = scene.add.rectangle(textLeft, pbY, 1, 13, 0x8fbf6a).setOrigin(0, 0.5);
         row.add(pbBg);
@@ -278,8 +244,10 @@ export function openBuildPanel (
     const actionBtnLabel = '升级';
     let actionBtn: ReturnType<typeof addAtlasButton> | GameObjects.Container | null = null;
     const actionX = BG_WIDTH / 2 - 10 - 79;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
-    {
+    if (
+        scene.textures.exists('ui') &&
+        scene.textures.get('ui').has('btn_common_white_normal.png')
+    ) {
         actionBtn = addAtlasButton(scene, actionX, 0, {
             atlas: 'ui',
             frame: 'btn_common_white_normal.png',
@@ -292,12 +260,9 @@ export function openBuildPanel (
 
     // ── Section "操作" ──
     const sectionY = rowTopY + UPGRADE_ROW_HEIGHT + SECTION_HEIGHT / 2;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_section_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('frame_section_bg.png')) {
         root.add(scene.add.image(width / 2, sectionY, 'ui', 'frame_section_bg.png'));
-    }
-    else
-    {
+    } else {
         root.add(scene.add.rectangle(width / 2, sectionY, 584, 45, 0xe8e0d0));
     }
     root.add(
@@ -324,14 +289,12 @@ export function openBuildPanel (
         inputBlocker: true,
     });
 
-    // Rows are authored with x=0 as horizontal center (legacy createCommonListItem).
+    // Rows are authored with x=0 as horizontal center.
     const actionListRoot = scene.add.container(BG_WIDTH / 2, 0);
     actionScroll.content.add(actionListRoot);
 
-    const rebuildActionList = (level: number) =>
-    {
-        if (!actionScroll || closed)
-        {
+    const rebuildActionList = (level: number) => {
+        if (!actionScroll || closed) {
             return;
         }
         const prevOffset = actionScroll.getOffset();
@@ -342,8 +305,7 @@ export function openBuildPanel (
         const facilityActions = listFacilityActions(bid);
         const craftActions = listCraftActions(bid);
 
-        if (facilityActions.length === 0 && craftActions.length === 0)
-        {
+        if (facilityActions.length === 0 && craftActions.length === 0) {
             actionListRoot.add(
                 scene.add
                     .text(0, 40, level < 0 ? '建造后解锁操作。' : '暂无操作。', {
@@ -362,24 +324,34 @@ export function openBuildPanel (
         }
 
         let rowIndex = 0;
-        facilityActions.forEach((action) =>
-        {
-            mountFacilityRow(scene, actionListRoot, action, rowIndex, (msg) =>
-            {
-                costText.setText(msg);
-                costText.setColor('#ff5555');
-                clearItemIcons();
-            }, () => Boolean(actionScroll?.didDrag()));
+        facilityActions.forEach((action) => {
+            mountFacilityRow(
+                scene,
+                actionListRoot,
+                action,
+                rowIndex,
+                (msg) => {
+                    costText.setText(msg);
+                    costText.setColor('#ff5555');
+                    clearItemIcons();
+                },
+                () => Boolean(actionScroll?.didDrag()),
+            );
             rowIndex += 1;
         });
-        craftActions.forEach((action) =>
-        {
-            mountCraftRow(scene, actionListRoot, action, rowIndex, (msg) =>
-            {
-                costText.setText(msg);
-                costText.setColor('#ff5555');
-                clearItemIcons();
-            }, () => Boolean(actionScroll?.didDrag()));
+        craftActions.forEach((action) => {
+            mountCraftRow(
+                scene,
+                actionListRoot,
+                action,
+                rowIndex,
+                (msg) => {
+                    costText.setText(msg);
+                    costText.setColor('#ff5555');
+                    clearItemIcons();
+                },
+                () => Boolean(actionScroll?.didDrag()),
+            );
             rowIndex += 1;
         });
 
@@ -387,41 +359,36 @@ export function openBuildPanel (
         actionScroll.setOffset(prevOffset);
     };
 
-    const setProgress = (pct: number) =>
-    {
+    const setProgress = (pct: number) => {
         const clamped = Math.max(0, Math.min(100, pct));
         const maxW = 264;
         const w = Math.max(1, (maxW * clamped) / 100);
         const pbImg = (pbFill as unknown as { _pbImg?: GameObjects.Image })._pbImg;
-        if (pbImg && scene.textures.exists('ui') && scene.textures.get('ui').has('pb.png'))
-        {
+        if (pbImg && scene.textures.exists('ui') && scene.textures.get('ui').has('pb.png')) {
             const frame = scene.textures.get('ui').get('pb.png');
-            pbImg.setCrop(0, 0, Math.max(1, Math.floor(frame.width * clamped / 100)), frame.height);
+            pbImg.setCrop(
+                0,
+                0,
+                Math.max(1, Math.floor((frame.width * clamped) / 100)),
+                frame.height,
+            );
             pbImg.setVisible(clamped > 0);
-        }
-        else
-        {
+        } else {
             pbFill.width = w;
             pbFill.setVisible(clamped > 0);
         }
     };
 
-    const clearItemIcons = () =>
-    {
+    const clearItemIcons = () => {
         itemIcons.removeAll(true);
     };
 
-    const showCostIcons = (
-        costs: Array<{ itemId: number; num: number; ok?: boolean }>,
-    ) =>
-    {
+    const showCostIcons = (costs: Array<{ itemId: number; num: number; ok?: boolean }>) => {
         clearItemIcons();
         let x = 0;
-        costs.forEach((cost) =>
-        {
+        costs.forEach((cost) => {
             const frame = `icon_item_${cost.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame))
-            {
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame)) {
                 const icon = scene.add.image(x, 0, 'icon', frame).setScale(0.3).setOrigin(0, 0.5);
                 itemIcons.add(icon);
                 x += icon.displayWidth + 2;
@@ -439,14 +406,11 @@ export function openBuildPanel (
         });
     };
 
-    const setActionEnabled = (enabled: boolean, label?: string) =>
-    {
-        if (label && actionBtn && 'setLabel' in actionBtn)
-        {
+    const setActionEnabled = (enabled: boolean, label?: string) => {
+        if (label && actionBtn && 'setLabel' in actionBtn) {
             actionBtn.setLabel(label);
         }
-        if (actionBtn)
-        {
+        if (actionBtn) {
             actionBtn.setAlpha(enabled ? 1 : 0.45);
             // Disable hit via alpha gate in tryUpgrade.
         }
@@ -454,13 +418,11 @@ export function openBuildPanel (
 
     let actionEnabled = false;
 
-    const refreshUpgradeRow = () =>
-    {
+    const refreshUpgradeRow = () => {
         const level = getBuildLevel(bid);
         titleText.setText(buildLevelName(bid, level));
 
-        if (isBuildUpgrading(bid))
-        {
+        if (isBuildUpgrading(bid)) {
             costText.setText('');
             clearItemIcons();
             setProgress(getUpgradeProgress(bid));
@@ -471,12 +433,10 @@ export function openBuildPanel (
         }
 
         const check = canUpgradeBuild(bid);
-        if (check.type === BuildUpgradeType.MAX_LEVEL)
-        {
+        if (check.type === BuildUpgradeType.MAX_LEVEL) {
             // Show current max icon
             const iconFrame = `build_${bid}_${Math.max(0, level)}.png`;
-            if (scene.textures.exists('build') && scene.textures.get('build').has(iconFrame))
-            {
+            if (scene.textures.exists('build') && scene.textures.get('build').has(iconFrame)) {
                 buildIcon.setTexture('build', iconFrame).setVisible(true);
             }
             costText.setText('已升至最高级');
@@ -492,33 +452,24 @@ export function openBuildPanel (
         const nextLevel = check.nextLevel ?? level + 1;
         const minutes = check.nextConfig?.createTime ?? 0;
         const iconFrame = `build_${bid}_${nextLevel}.png`;
-        if (scene.textures.exists('build') && scene.textures.get('build').has(iconFrame))
-        {
+        if (scene.textures.exists('build') && scene.textures.get('build').has(iconFrame)) {
             buildIcon.setTexture('build', iconFrame).setVisible(true);
-        }
-        else
-        {
+        } else {
             buildIcon.setVisible(false);
         }
 
-        const btnLabel = level < 0
-            ? `建造(${minutes}分)`
-            : `升级(${minutes}分)`;
+        const btnLabel = level < 0 ? `建造(${minutes}分)` : `升级(${minutes}分)`;
 
-        if (check.type === BuildUpgradeType.CONDITION && check.condition)
-        {
+        if (check.type === BuildUpgradeType.CONDITION && check.condition) {
             const needName = buildLevelName(check.condition.bid, check.condition.level);
             costText.setText(`你没有${needName}!`);
             costText.setColor('#ff5555');
             clearItemIcons();
             setActionEnabled(false, btnLabel);
             actionEnabled = false;
-        }
-        else
-        {
+        } else {
             costText.setText('');
-            const costs = (check.cost ?? check.nextConfig?.cost ?? []).map((item) =>
-            {
+            const costs = (check.cost ?? check.nextConfig?.cost ?? []).map((item) => {
                 const have = getStorageCount(item.itemId);
                 return {
                     itemId: item.itemId,
@@ -530,8 +481,7 @@ export function openBuildPanel (
             const can = check.type === BuildUpgradeType.UPGRADABLE;
             setActionEnabled(can, btnLabel);
             actionEnabled = can;
-            if (!can)
-            {
+            if (!can) {
                 // still show costs in red via ok flags
             }
         }
@@ -540,26 +490,20 @@ export function openBuildPanel (
         rebuildActionList(level);
     };
 
-    const tryUpgrade = () =>
-    {
-        if (!actionEnabled || isBuildUpgrading(bid))
-        {
+    const tryUpgrade = () => {
+        if (!actionEnabled || isBuildUpgrading(bid)) {
             refreshUpgradeRow();
             return;
         }
         startBuildUpgrade(bid, {
             onProgress: setProgress,
             onComplete: () => refreshUpgradeRow(),
-            onFail: (reason) =>
-            {
-                if (reason === 'vigour')
-                {
+            onFail: (reason) => {
+                if (reason === 'vigour') {
                     costText.setText('精力不足，无法操作。');
                     costText.setColor('#ff5555');
                     clearItemIcons();
-                }
-                else
-                {
+                } else {
                     refreshUpgradeRow();
                 }
             },
@@ -570,44 +514,34 @@ export function openBuildPanel (
     const onProgressBus = (payload: {
         channel: { kind: string; id: number; actionId?: number };
         percentage: number;
-    }) =>
-    {
-        if (payload.channel.id !== bid)
-        {
+    }) => {
+        if (payload.channel.id !== bid) {
             return;
         }
-        if (payload.channel.kind === 'build_upgrade')
-        {
+        if (payload.channel.kind === 'build_upgrade') {
             setProgress(payload.percentage);
             return;
         }
-        if (payload.channel.kind === 'craft' || payload.channel.kind === 'facility')
-        {
+        if (payload.channel.kind === 'craft' || payload.channel.kind === 'facility') {
             // Rebuild action rows so per-row percentage / sleeping hint refresh.
             rebuildActionList(getBuildLevel(bid));
         }
     };
-    const onUpgradedBus = (payload: { bid: number; level: number }) =>
-    {
-        if (payload.bid !== bid)
-        {
+    const onUpgradedBus = (payload: { bid: number; level: number }) => {
+        if (payload.bid !== bid) {
             return;
         }
         refreshUpgradeRow();
         opts?.onUpgraded?.(payload.bid, payload.level);
     };
     const onSession = () => refreshUpgradeRow();
-    const onCraftChanged = (payload: { bid: number }) =>
-    {
-        if (payload.bid === bid)
-        {
+    const onCraftChanged = (payload: { bid: number }) => {
+        if (payload.bid === bid) {
             refreshUpgradeRow();
         }
     };
-    const onFacilityChanged = (payload: { bid: number }) =>
-    {
-        if (payload.bid === bid)
-        {
+    const onFacilityChanged = (payload: { bid: number }) => {
+        if (payload.bid === bid) {
             refreshUpgradeRow();
         }
     };
@@ -626,23 +560,21 @@ export function openBuildPanel (
     };
 }
 
-function mountCraftRow (
+function mountCraftRow(
     scene: Scene,
     parent: GameObjects.Container,
     action: CraftActionView,
     index: number,
     onFail: (msg: string) => void,
     wasDragging: () => boolean,
-): void
-{
+): void {
     const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
     const row = scene.add.container(0, rowY);
     parent.add(row);
 
     const iconX = -BG_WIDTH / 2 + 20 + 55;
     const iconY = 4;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png')) {
         row.add(scene.add.image(iconX, iconY, 'ui', 'build_icon_bg.png'));
     }
 
@@ -652,32 +584,29 @@ function mountCraftRow (
     const iconFrame = `icon_item_${action.produceItemId}.png`;
     const trapFrame = `build_action_${action.bid}_0.png`;
     if (
-        action.kind !== 'stove'
-        && scene.textures.exists('icon')
-        && scene.textures.get('icon').has(iconFrame)
-    )
-    {
+        action.kind !== 'stove' &&
+        scene.textures.exists('icon') &&
+        scene.textures.get('icon').has(iconFrame)
+    ) {
         // 84 * 0.9 ≈ 76 — sits inside 110×73 slot without looking tiny.
         row.add(scene.add.image(iconX, iconY, 'icon', iconFrame).setScale(0.9));
-    }
-    else if (scene.textures.exists('build') && scene.textures.get('build').has(trapFrame))
-    {
+    } else if (scene.textures.exists('build') && scene.textures.get('build').has(trapFrame)) {
         row.add(scene.add.image(iconX, iconY, 'build', trapFrame));
-    }
-    else if (scene.textures.exists('build') && scene.textures.get('build').has(`build_${action.bid}_0.png`))
-    {
+    } else if (
+        scene.textures.exists('build') &&
+        scene.textures.get('build').has(`build_${action.bid}_0.png`)
+    ) {
         row.add(scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`));
     }
 
     const textLeft = -BG_WIDTH / 2 + 140;
-    if (action.hint)
-    {
+    if (action.hint) {
         const color =
             action.hintColor === 'red'
                 ? '#ff5555'
                 : action.hintColor === 'white'
-                    ? '#ffffff'
-                    : '#cccccc';
+                  ? '#ffffff'
+                  : '#cccccc';
         row.add(
             scene.add
                 .text(textLeft, iconY - 18, action.hint, {
@@ -688,17 +617,16 @@ function mountCraftRow (
                 })
                 .setOrigin(0, 0.5),
         );
-    }
-    else if (action.step === 0 && !action.isActioning)
-    {
+    } else if (action.step === 0 && !action.isActioning) {
         // Cost icons
         let cx = textLeft;
-        action.costRows.forEach((cost) =>
-        {
+        action.costRows.forEach((cost) => {
             const frame = `icon_item_${cost.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame))
-            {
-                const icon = scene.add.image(cx, iconY - 10, 'icon', frame).setScale(0.28).setOrigin(0, 0.5);
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame)) {
+                const icon = scene.add
+                    .image(cx, iconY - 10, 'icon', frame)
+                    .setScale(0.28)
+                    .setOrigin(0, 0.5);
                 row.add(icon);
                 cx += icon.displayWidth + 2;
             }
@@ -718,32 +646,40 @@ function mountCraftRow (
 
     // Progress bar
     const pbY = iconY + 22;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png')) {
         row.add(scene.add.image(textLeft, pbY, 'ui', 'pb_bg.png').setOrigin(0, 0.5));
-        if (scene.textures.get('ui').has('pb.png') && action.percentage > 0)
-        {
+        if (scene.textures.get('ui').has('pb.png') && action.percentage > 0) {
             const frame = scene.textures.get('ui').get('pb.png');
             const fill = scene.add.image(textLeft, pbY, 'ui', 'pb.png').setOrigin(0, 0.5);
-            fill.setCrop(0, 0, Math.max(1, Math.floor(frame.width * action.percentage / 100)), frame.height);
+            fill.setCrop(
+                0,
+                0,
+                Math.max(1, Math.floor((frame.width * action.percentage) / 100)),
+                frame.height,
+            );
             row.add(fill);
         }
-    }
-    else
-    {
+    } else {
         row.add(scene.add.rectangle(textLeft + 134, pbY, 268, 12, 0x444444).setOrigin(0.5, 0.5));
-        if (action.percentage > 0)
-        {
+        if (action.percentage > 0) {
             row.add(
                 scene.add
-                    .rectangle(textLeft, pbY, Math.max(2, 268 * action.percentage / 100), 10, 0x8fbf6a)
+                    .rectangle(
+                        textLeft,
+                        pbY,
+                        Math.max(2, (268 * action.percentage) / 100),
+                        10,
+                        0x8fbf6a,
+                    )
                     .setOrigin(0, 0.5),
             );
         }
     }
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
-    {
+    if (
+        scene.textures.exists('ui') &&
+        scene.textures.get('ui').has('btn_common_white_normal.png')
+    ) {
         const btn = addAtlasButton(scene, BG_WIDTH / 2 - 90, 0, {
             atlas: 'ui',
             frame: 'btn_common_white_normal.png',
@@ -752,74 +688,61 @@ function mountCraftRow (
             enabled: !action.actionDisabled,
             onClick: action.actionDisabled
                 ? undefined
-                : () =>
-                {
-                    if (wasDragging())
-                    {
-                        return;
-                    }
-                    const res = clickCraftAction(action.bid, action.formulaId);
-                    if (!res.ok)
-                    {
-                        onFail(res.msg);
-                    }
-                },
+                : () => {
+                      if (wasDragging()) {
+                          return;
+                      }
+                      const res = clickCraftAction(action.bid, action.formulaId);
+                      if (!res.ok) {
+                          onFail(res.msg);
+                      }
+                  },
         });
         row.add(btn);
     }
 }
 
-function mountFacilityRow (
+function mountFacilityRow(
     scene: Scene,
     parent: GameObjects.Container,
     action: FacilityActionView,
     index: number,
     onFail: (msg: string) => void,
     wasDragging: () => boolean,
-): void
-{
+): void {
     const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
     const row = scene.add.container(0, rowY);
     parent.add(row);
 
     const iconX = -BG_WIDTH / 2 + 20 + 55;
     const iconY = 4;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('build_icon_bg.png')) {
         row.add(scene.add.image(iconX, iconY, 'ui', 'build_icon_bg.png'));
     }
     // iconHint is typically build_action_* (110×73) — full size matches build_icon_bg.
     // Fallback build_{bid}_0 is the same atlas size.
-    if (scene.textures.exists('build') && scene.textures.get('build').has(action.iconHint))
-    {
+    if (scene.textures.exists('build') && scene.textures.get('build').has(action.iconHint)) {
         row.add(scene.add.image(iconX, iconY, 'build', action.iconHint));
-    }
-    else if (
-        scene.textures.exists('build')
-        && scene.textures.get('build').has(`build_action_${action.bid}_0.png`)
-    )
-    {
-        row.add(
-            scene.add.image(iconX, iconY, 'build', `build_action_${action.bid}_0.png`),
-        );
-    }
-    else if (
-        scene.textures.exists('build')
-        && scene.textures.get('build').has(`build_${action.bid}_0.png`)
-    )
-    {
+    } else if (
+        scene.textures.exists('build') &&
+        scene.textures.get('build').has(`build_action_${action.bid}_0.png`)
+    ) {
+        row.add(scene.add.image(iconX, iconY, 'build', `build_action_${action.bid}_0.png`));
+    } else if (
+        scene.textures.exists('build') &&
+        scene.textures.get('build').has(`build_${action.bid}_0.png`)
+    ) {
         row.add(scene.add.image(iconX, iconY, 'build', `build_${action.bid}_0.png`));
     }
 
     const textLeft = -BG_WIDTH / 2 + 140;
-    if (action.hint)
-    {
+    if (action.hint) {
         const color =
             action.hintColor === 'red'
                 ? '#ff5555'
                 : action.hintColor === 'white'
-                    ? '#ffffff'
-                    : '#cccccc';
+                  ? '#ffffff'
+                  : '#cccccc';
         row.add(
             scene.add
                 .text(textLeft, iconY - 18, action.hint, {
@@ -830,15 +753,11 @@ function mountFacilityRow (
                 })
                 .setOrigin(0, 0.5),
         );
-    }
-    else if (!action.isActioning && action.costRows.length > 0)
-    {
+    } else if (!action.isActioning && action.costRows.length > 0) {
         let cx = textLeft;
-        action.costRows.forEach((cost) =>
-        {
+        action.costRows.forEach((cost) => {
             const frame = `icon_item_${cost.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame))
-            {
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame)) {
                 const icon = scene.add
                     .image(cx, iconY - 10, 'icon', frame)
                     .setScale(0.28)
@@ -861,11 +780,9 @@ function mountFacilityRow (
     }
 
     const pbY = iconY + 22;
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png'))
-    {
+    if (scene.textures.exists('ui') && scene.textures.get('ui').has('pb_bg.png')) {
         row.add(scene.add.image(textLeft, pbY, 'ui', 'pb_bg.png').setOrigin(0, 0.5));
-        if (scene.textures.get('ui').has('pb.png') && action.percentage > 0)
-        {
+        if (scene.textures.get('ui').has('pb.png') && action.percentage > 0) {
             const frame = scene.textures.get('ui').get('pb.png');
             const fill = scene.add.image(textLeft, pbY, 'ui', 'pb.png').setOrigin(0, 0.5);
             fill.setCrop(
@@ -878,8 +795,10 @@ function mountFacilityRow (
         }
     }
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_white_normal.png'))
-    {
+    if (
+        scene.textures.exists('ui') &&
+        scene.textures.get('ui').has('btn_common_white_normal.png')
+    ) {
         const btn = addAtlasButton(scene, BG_WIDTH / 2 - 90, 0, {
             atlas: 'ui',
             frame: 'btn_common_white_normal.png',
@@ -888,18 +807,15 @@ function mountFacilityRow (
             enabled: !action.actionDisabled,
             onClick: action.actionDisabled
                 ? undefined
-                : () =>
-                {
-                    if (wasDragging())
-                    {
-                        return;
-                    }
-                    const res = clickFacilityAction(action.bid, action.actionId);
-                    if (!res.ok)
-                    {
-                        onFail(res.msg);
-                    }
-                },
+                : () => {
+                      if (wasDragging()) {
+                          return;
+                      }
+                      const res = clickFacilityAction(action.bid, action.actionId);
+                      if (!res.ok) {
+                          onFail(res.msg);
+                      }
+                  },
         });
         row.add(btn);
     }

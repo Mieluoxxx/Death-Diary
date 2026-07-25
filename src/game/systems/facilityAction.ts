@@ -3,11 +3,7 @@
  * Chair (bid 10) ports RestBuildAction / DrinkBuildAction + buildActionConfig.
  */
 
-import {
-    CHAIR_ACTIONS,
-    DOG_FEED_ACTION,
-    MINEFIELD_ACTION,
-} from '../data/buildActionConfig';
+import { CHAIR_ACTIONS, DOG_FEED_ACTION, MINEFIELD_ACTION } from '../data/buildActionConfig';
 import { getItemDef } from '../data/itemConfig';
 import {
     appendSessionLog,
@@ -28,9 +24,7 @@ import {
     startTimedProgress,
     timedProgressPercentage,
 } from './timedProgress';
-import {
-    type TimerCallbackHandle,
-} from './timeClock';
+import type { TimerCallbackHandle } from './timeClock';
 
 export type FacilityCostRow = {
     itemId: number;
@@ -52,9 +46,7 @@ export type FacilityActionView = {
     actionDisabled: boolean;
 };
 
-export type FacilityClickResult =
-    | { ok: true; msg?: string }
-    | { ok: false; msg: string };
+export type FacilityClickResult = { ok: true; msg?: string } | { ok: false; msg: string };
 
 type ChairJob = {
     actionId: number;
@@ -66,8 +58,7 @@ type ChairJob = {
 
 const chairJobs = new Map<number, ChairJob>();
 
-function costRowsFor (costs: Array<{ itemId: number; num: number }>): FacilityCostRow[]
-{
+function costRowsFor(costs: Array<{ itemId: number; num: number }>): FacilityCostRow[] {
     const session = getSession();
     return costs.map((c) => ({
         itemId: c.itemId,
@@ -76,49 +67,40 @@ function costRowsFor (costs: Array<{ itemId: number; num: number }>): FacilityCo
     }));
 }
 
-function chairLevelIndex (): number
-{
+function chairLevelIndex(): number {
     const level = getBuildLevel(10);
     const idx = Math.max(0, level);
     return Math.min(idx, CHAIR_ACTIONS.length - 1);
 }
 
-function chairConfig (actionId: number)
-{
+function chairConfig(actionId: number) {
     const levelCfg = CHAIR_ACTIONS[chairLevelIndex()]!;
     return levelCfg[actionId] ?? levelCfg[0]!;
 }
 
-function itemTitle (itemId: number): string
-{
+function itemTitle(itemId: number): string {
     return getItemDef(itemId).name;
 }
 
 /** Busy rest/drink on chair. */
-function chairBusy (): boolean
-{
-    for (const job of chairJobs.values())
-    {
-        if (job.isActioning)
-        {
+function chairBusy(): boolean {
+    for (const job of chairJobs.values()) {
+        if (job.isActioning) {
             return true;
         }
     }
     return false;
 }
 
-export function listFacilityActions (bid: number): FacilityActionView[]
-{
+export function listFacilityActions(bid: number): FacilityActionView[] {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return [];
     }
     const level = getBuildLevel(bid);
 
     // Bed (9)
-    if (bid === 9)
-    {
+    if (bid === 9) {
         const locked = level < 0;
         // Any sleep action occupies the bed (original activeBtnIndex exclusivity).
         const sleepBusy = [0, 1, 2].some((actionId) =>
@@ -130,15 +112,14 @@ export function listFacilityActions (bid: number): FacilityActionView[]
         const activeId = activeSleep?.channel.actionId;
         const pct = sleepBusy
             ? timedProgressPercentage({
-                kind: 'facility',
-                id: 9,
-                actionId: activeId,
-            })
+                  kind: 'facility',
+                  id: 9,
+                  actionId: activeId,
+              })
             : 0;
 
         const rows: FacilityActionView[] = [];
-        for (const actionId of [0, 1, 2] as const)
-        {
+        for (const actionId of [0, 1, 2] as const) {
             const hints = ['睡1个小时', '睡4个小时', '睡到天亮'] as const;
             const thisBusy = isTimedProgressActive({ kind: 'facility', id: 9, actionId });
             const anyOtherBusy = sleepBusy && !thisBusy;
@@ -152,8 +133,8 @@ export function listFacilityActions (bid: number): FacilityActionView[]
                 hint: locked
                     ? '你没有睡袋!'
                     : thisBusy
-                        ? '进入睡眠，身体和精力得到恢复'
-                        : hints[actionId],
+                      ? '进入睡眠，身体和精力得到恢复'
+                      : hints[actionId],
                 hintColor: locked ? 'red' : 'white',
                 costRows: [],
                 actionLabel: '睡觉',
@@ -164,8 +145,7 @@ export function listFacilityActions (bid: number): FacilityActionView[]
     }
 
     // Chair (10): coffee rest + Luo drink
-    if (bid === 10)
-    {
+    if (bid === 10) {
         const locked = level < 0;
         const levelIdx = Math.max(0, level);
         const actions: FacilityActionView[] = [];
@@ -175,32 +155,29 @@ export function listFacilityActions (bid: number): FacilityActionView[]
             const cfg = chairConfig(0);
             const job = chairJobs.get(0);
             const busy = Boolean(job?.isActioning);
-            const pct = busy && job && job.totalTime > 0
-                ? Math.min(100, (job.pastTime / job.totalTime) * 100)
-                : 0;
+            const pct =
+                busy && job && job.totalTime > 0
+                    ? Math.min(100, (job.pastTime / job.totalTime) * 100)
+                    : 0;
             const rows = costRowsFor(cfg.cost);
             let hint: string | undefined;
             let hintColor: FacilityActionView['hintColor'];
             let disabled = locked;
 
-            if (locked)
-            {
+            if (locked) {
                 hint = '你没有椅子!';
                 hintColor = 'red';
                 disabled = true;
-            }
-            else if (busy)
-            {
-                hint = levelIdx >= 2
-                    ? '伴随着音乐和咖啡，你仿佛回到了从前的时光'
-                    : levelIdx >= 1
-                        ? '柔软的沙发和香醇的咖啡让你感到放松'
-                        : '你享受着一杯热咖啡';
+            } else if (busy) {
+                hint =
+                    levelIdx >= 2
+                        ? '伴随着音乐和咖啡，你仿佛回到了从前的时光'
+                        : levelIdx >= 1
+                          ? '柔软的沙发和香醇的咖啡让你感到放松'
+                          : '你享受着一杯热咖啡';
                 hintColor = 'white';
                 disabled = true;
-            }
-            else
-            {
+            } else {
                 disabled = rows.some((r) => !r.ok) || chairBusy();
             }
 
@@ -219,37 +196,33 @@ export function listFacilityActions (bid: number): FacilityActionView[]
         }
 
         // index 1: drink — Luo only
-        if (session.role === 'LUO')
-        {
+        if (session.role === 'LUO') {
             const cfg = chairConfig(1);
             const job = chairJobs.get(1);
             const busy = Boolean(job?.isActioning);
-            const pct = busy && job && job.totalTime > 0
-                ? Math.min(100, (job.pastTime / job.totalTime) * 100)
-                : 0;
+            const pct =
+                busy && job && job.totalTime > 0
+                    ? Math.min(100, (job.pastTime / job.totalTime) * 100)
+                    : 0;
             const rows = costRowsFor(cfg.cost);
             let hint: string | undefined;
             let hintColor: FacilityActionView['hintColor'];
             let disabled = locked;
 
-            if (locked)
-            {
+            if (locked) {
                 hint = '你没有椅子!';
                 hintColor = 'red';
                 disabled = true;
-            }
-            else if (busy)
-            {
-                hint = levelIdx >= 2
-                    ? '微醺的时候，连光线都变得柔和'
-                    : levelIdx >= 1
-                        ? '酒的辛辣驱散了空气中的恶臭和血腥，仿佛世界回归了正常'
-                        : '一杯烈酒下肚，你感到身体暖活起来';
+            } else if (busy) {
+                hint =
+                    levelIdx >= 2
+                        ? '微醺的时候，连光线都变得柔和'
+                        : levelIdx >= 1
+                          ? '酒的辛辣驱散了空气中的恶臭和血腥，仿佛世界回归了正常'
+                          : '一杯烈酒下肚，你感到身体暖活起来';
                 hintColor = 'white';
                 disabled = true;
-            }
-            else
-            {
+            } else {
                 disabled = rows.some((r) => !r.ok) || chairBusy();
             }
 
@@ -271,143 +244,133 @@ export function listFacilityActions (bid: number): FacilityActionView[]
     }
 
     // Dog house (12)
-    if (bid === 12 && level >= 0)
-    {
+    if (bid === 12 && level >= 0) {
         const active = session.dogStarve > 0;
         const canFeed = session.dogStarve < session.dogStarveMax;
         const rows = costRowsFor([...DOG_FEED_ACTION.cost]);
         const okCost = rows.every((r) => r.ok);
-        return [{
-            bid,
-            actionId: 0,
-            iconHint: 'build_12_0.png',
-            isActioning: false,
-            percentage: 0,
-            hint: active ? '狗很有精神' : '狗饿得厉害，无法协助防御',
-            hintColor: active ? 'white' : 'red',
-            costRows: rows,
-            actionLabel: `喂食(${DOG_FEED_ACTION.makeTime}分)`,
-            actionDisabled: !canFeed || !okCost,
-        }];
+        return [
+            {
+                bid,
+                actionId: 0,
+                iconHint: 'build_12_0.png',
+                isActioning: false,
+                percentage: 0,
+                hint: active ? '狗很有精神' : '狗饿得厉害，无法协助防御',
+                hintColor: active ? 'white' : 'red',
+                costRows: rows,
+                actionLabel: `喂食(${DOG_FEED_ACTION.makeTime}分)`,
+                actionDisabled: !canFeed || !okCost,
+            },
+        ];
     }
 
     // Bonfire / fireplace (5)
-    if (bid === 5 && level >= 0)
-    {
+    if (bid === 5 && level >= 0) {
         const fuel = session.bonfireFuel ?? 0;
         const rows = costRowsFor([{ itemId: 1101011, num: 1 }]);
         const okCost = rows.every((r) => r.ok);
-        return [{
-            bid,
-            actionId: 0,
-            iconHint: 'build_5_0.png',
-            isActioning: fuel > 0,
-            percentage: fuel > 0 ? Math.min(100, (fuel / 6) * 100) : 0,
-            hint: fuel > 0 ? `燃烧中 燃料${fuel}/6` : '添加木材生火取暖',
-            hintColor: fuel > 0 ? 'white' : 'gray',
-            costRows: rows,
-            actionLabel: fuel >= 6 ? '燃料已满' : '添柴',
-            actionDisabled: fuel >= 6 || !okCost,
-        }];
+        return [
+            {
+                bid,
+                actionId: 0,
+                iconHint: 'build_5_0.png',
+                isActioning: fuel > 0,
+                percentage: fuel > 0 ? Math.min(100, (fuel / 6) * 100) : 0,
+                hint: fuel > 0 ? `燃烧中 燃料${fuel}/6` : '添加木材生火取暖',
+                hintColor: fuel > 0 ? 'white' : 'gray',
+                costRows: rows,
+                actionLabel: fuel >= 6 ? '燃料已满' : '添柴',
+                actionDisabled: fuel >= 6 || !okCost,
+            },
+        ];
     }
 
     // Minefield (17)
-    if (bid === 17 && level >= 0)
-    {
+    if (bid === 17 && level >= 0) {
         const armed = session.isBombActive;
         const rows = costRowsFor([...MINEFIELD_ACTION.cost]);
         const okCost = rows.every((r) => r.ok);
-        return [{
-            bid,
-            actionId: 0,
-            iconHint: 'build_17_0.png',
-            isActioning: false,
-            percentage: 0,
-            hint: armed ? '雷区已布置，可抵御一次夜袭' : '布置雷区以抵御夜袭',
-            hintColor: armed ? 'white' : 'gray',
-            costRows: rows,
-            actionLabel: armed ? '已激活' : `布置(${MINEFIELD_ACTION.makeTime}分)`,
-            actionDisabled: armed || !okCost,
-        }];
+        return [
+            {
+                bid,
+                actionId: 0,
+                iconHint: 'build_17_0.png',
+                isActioning: false,
+                percentage: 0,
+                hint: armed ? '雷区已布置，可抵御一次夜袭' : '布置雷区以抵御夜袭',
+                hintColor: armed ? 'white' : 'gray',
+                costRows: rows,
+                actionLabel: armed ? '已激活' : `布置(${MINEFIELD_ACTION.makeTime}分)`,
+                actionDisabled: armed || !okCost,
+            },
+        ];
     }
 
     // Electric fence (19)
-    if (bid === 19 && level >= 0)
-    {
+    if (bid === 19 && level >= 0) {
         const on = session.electricFenceActive;
-        return [{
-            bid,
-            actionId: 0,
-            iconHint: 'build_19_0.png',
-            isActioning: false,
-            percentage: 0,
-            hint: on ? '电网运行中' : '启动电网抵御夜袭（需发电厂）',
-            hintColor: on ? 'white' : 'gray',
-            costRows: [],
-            actionLabel: on ? '关闭' : '启动',
-            actionDisabled: false,
-        }];
+        return [
+            {
+                bid,
+                actionId: 0,
+                iconHint: 'build_19_0.png',
+                isActioning: false,
+                percentage: 0,
+                hint: on ? '电网运行中' : '启动电网抵御夜袭（需发电厂）',
+                hintColor: on ? 'white' : 'gray',
+                costRows: [],
+                actionLabel: on ? '关闭' : '启动',
+                actionDisabled: false,
+            },
+        ];
     }
 
     return [];
 }
 
-export function clickFacilityAction (bid: number, actionId: number): FacilityClickResult
-{
+export function clickFacilityAction(bid: number, actionId: number): FacilityClickResult {
     const session = getSession();
-    if (!session)
-    {
+    if (!session) {
         return { ok: false, msg: '无存档' };
     }
 
     // Bonfire add fuel
-    if (bid === 5)
-    {
+    if (bid === 5) {
         return addBonfireFuel();
     }
 
     // Bed sleep
-    if (bid === 9)
-    {
-        if (getBuildLevel(9) < 0)
-        {
+    if (bid === 9) {
+        if (getBuildLevel(9) < 0) {
             return { ok: false, msg: '你没有睡袋!' };
         }
-        if ([0, 1, 2].some((id) => isTimedProgressActive({ kind: 'facility', id: 9, actionId: id })))
-        {
+        if (
+            [0, 1, 2].some((id) => isTimedProgressActive({ kind: 'facility', id: 9, actionId: id }))
+        ) {
             return { ok: false, msg: '已经在睡觉' };
         }
         let hours = 1;
-        if (actionId === 1)
-        {
+        if (actionId === 1) {
             hours = 4;
-        }
-        else if (actionId === 2)
-        {
+        } else if (actionId === 2) {
             hours = 8;
         }
         const gameSeconds = hours * 3600;
-        mutateSession((live) =>
-        {
+        mutateSession((live) => {
             live.isInSleep = true;
         });
         startTimedProgress({
             channel: { kind: 'facility', id: 9, actionId },
             duration: gameSeconds,
             accelerate: true,
-            onEnd: () =>
-            {
-                mutateSession((live) =>
-                {
+            onEnd: () => {
+                mutateSession((live) => {
                     live.isInSleep = false;
                 });
                 const live = getSession();
-                if (live)
-                {
-                    appendSessionLog(
-                        '你醒了。',
-                        `第${live.day}天 ${formatClock(live)}`,
-                    );
+                if (live) {
+                    appendSessionLog('你醒了。', `第${live.day}天 ${formatClock(live)}`);
                 }
                 gameBusEmit('facility_changed', { bid: 9 });
                 gameBusEmit('session_updated');
@@ -420,34 +383,27 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
     }
 
     // Chair rest / drink
-    if (bid === 10)
-    {
-        if (getBuildLevel(10) < 0)
-        {
+    if (bid === 10) {
+        if (getBuildLevel(10) < 0) {
             return { ok: false, msg: '你没有椅子!' };
         }
-        if (actionId === 1 && session.role !== 'LUO')
-        {
+        if (actionId === 1 && session.role !== 'LUO') {
             return { ok: false, msg: '只有老罗会在这里喝酒' };
         }
-        if (!checkVigourOk())
-        {
+        if (!checkVigourOk()) {
             return { ok: false, msg: '精力不足，无法操作。' };
         }
-        if (chairBusy())
-        {
+        if (chairBusy()) {
             return { ok: false, msg: '正在休息中' };
         }
 
         const cfg = chairConfig(actionId);
-        if (!validateStorageItems(cfg.cost))
-        {
+        if (!validateStorageItems(cfg.cost)) {
             return { ok: false, msg: '材料不足' };
         }
 
         const makeTime = Math.max(1, cfg.makeTime * 60);
-        // Track chair job via timedProgress channel for listFacilityActions.
-        // Keep chairJobs map for busy checks / legacy fields.
+        // Track chair jobs for busy checks and per-action progress.
         const job: ChairJob = {
             actionId,
             isActioning: true,
@@ -461,27 +417,23 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
             channel: { kind: 'facility', id: 10, actionId },
             duration: makeTime,
             accelerate: true,
-            onTick: (timedJob) =>
-            {
+            onTick: (timedJob) => {
                 job.pastTime = timedJob.pastTime;
             },
-            onEnd: () =>
-            {
+            onEnd: () => {
                 job.isActioning = false;
                 job.handle = null;
                 job.pastTime = 0;
                 chairJobs.delete(actionId);
 
-                if (!validateStorageItems(cfg.cost))
-                {
+                if (!validateStorageItems(cfg.cost)) {
                     gameBusEmit('facility_changed', { bid: 10 });
                     gameBusEmit('session_updated');
                     return;
                 }
                 costStorageItems(cfg.cost);
 
-                if (Math.random() <= (cfg.effect.spirit_chance ?? 1))
-                {
+                if (Math.random() <= (cfg.effect.spirit_chance ?? 1)) {
                     changeSpirit(cfg.effect.spirit);
                 }
 
@@ -489,17 +441,13 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
                 const name = itemTitle(first.itemId);
                 const stock = getSession()?.storage[first.itemId] ?? 0;
                 const live = getSession();
-                if (live)
-                {
-                    if (actionId === 1)
-                    {
+                if (live) {
+                    if (actionId === 1) {
                         appendSessionLog(
                             `你静静地待了一会儿，（喝了一瓶酒（${name}当前库存：${stock}）），尝试着放松自己`,
                             `第${live.day}天 ${formatClock(live)}`,
                         );
-                    }
-                    else
-                    {
+                    } else {
                         appendSessionLog(
                             `你静静地待了一会儿，（喝了一杯咖啡（${name}当前库存：${stock}）），尝试着放松自己`,
                             `第${live.day}天 ${formatClock(live)}`,
@@ -520,19 +468,15 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         return { ok: true };
     }
 
-    if (bid === 12)
-    {
-        if (session.dogStarve >= session.dogStarveMax)
-        {
+    if (bid === 12) {
+        if (session.dogStarve >= session.dogStarveMax) {
             return { ok: false, msg: '狗已经吃饱了' };
         }
-        if (!validateStorageItems([...DOG_FEED_ACTION.cost]))
-        {
+        if (!validateStorageItems([...DOG_FEED_ACTION.cost])) {
             return { ok: false, msg: '缺少肉' };
         }
         costStorageItems([...DOG_FEED_ACTION.cost]);
-        mutateSession((live) =>
-        {
+        mutateSession((live) => {
             live.dogStarve = live.dogStarveMax;
         });
         gameBusEmit('facility_changed', { bid });
@@ -540,19 +484,15 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         return { ok: true, msg: '狗吃饱了，会协助抵御夜袭' };
     }
 
-    if (bid === 17)
-    {
-        if (session.isBombActive)
-        {
+    if (bid === 17) {
+        if (session.isBombActive) {
             return { ok: false, msg: '雷区已布置' };
         }
-        if (!validateStorageItems([...MINEFIELD_ACTION.cost]))
-        {
+        if (!validateStorageItems([...MINEFIELD_ACTION.cost])) {
             return { ok: false, msg: '缺少自制炸药' };
         }
         costStorageItems([...MINEFIELD_ACTION.cost]);
-        mutateSession((live) =>
-        {
+        mutateSession((live) => {
             live.isBombActive = true;
         });
         gameBusEmit('facility_changed', { bid });
@@ -560,10 +500,8 @@ export function clickFacilityAction (bid: number, actionId: number): FacilityCli
         return { ok: true, msg: '雷区已布置' };
     }
 
-    if (bid === 19)
-    {
-        mutateSession((live) =>
-        {
+    if (bid === 19) {
+        mutateSession((live) => {
             live.electricFenceActive = !live.electricFenceActive;
         });
         gameBusEmit('facility_changed', { bid });

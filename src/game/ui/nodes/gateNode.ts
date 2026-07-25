@@ -7,29 +7,18 @@
 
 import { getSession } from '../../session/sessionStore';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
-import {
-    getBagCapacity,
-    getBagWeight,
-    transferItems,
-} from '../../systems/inventory';
+import { getBagCapacity, getBagWeight, transferItems } from '../../systems/inventory';
 import { playerOut } from '../../systems/mapSystem';
 import { mountEquipStrip } from '../equipStrip';
+import { createItemDetailModel } from '../itemDetailContext';
+import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { addSectionBar } from '../sectionBar';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from '../uiFont';
-import {
-    ITEM_GRID_COLUMNS,
-    mountItemGrid,
-    transferFailMessage,
-} from './itemGrid';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
 
-export function mountGateNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setTitle('大门');
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(true);
@@ -73,15 +62,26 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         getCounts: () => getSession()?.bag ?? {},
         emptyText: '',
         compact: true,
-        onTap: (itemId) =>
-        {
+        onTap: (itemId) => {
             equip.closeDropDown();
             const res = transferItems('bag', 'storage', itemId, 1);
-            if (!res.ok)
-            {
+            if (!res.ok) {
                 ctx.showToast(transferFailMessage(res));
             }
             refresh();
+        },
+        onInspect: (itemId) => {
+            equip.closeDropDown();
+            openItemDetailDialog(
+                ctx.scene,
+                createItemDetailModel(
+                    itemId,
+                    { kind: 'bag' },
+                    {
+                        onToast: (msg) => ctx.showToast(msg),
+                    },
+                ),
+            );
         },
     });
 
@@ -97,23 +97,32 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
         getCounts: () => getSession()?.storage ?? {},
         emptyText: '',
         compact: true,
-        onTap: (itemId) =>
-        {
+        onTap: (itemId) => {
             equip.closeDropDown();
             const res = transferItems('storage', 'bag', itemId, 1);
-            if (!res.ok)
-            {
+            if (!res.ok) {
                 ctx.showToast(transferFailMessage(res));
             }
             refresh();
         },
+        onInspect: (itemId) => {
+            equip.closeDropDown();
+            openItemDetailDialog(
+                ctx.scene,
+                createItemDetailModel(
+                    itemId,
+                    { kind: 'storage' },
+                    {
+                        onToast: (msg) => ctx.showToast(msg),
+                    },
+                ),
+            );
+        },
     });
 
-    function refresh (): void
-    {
+    function refresh(): void {
         const live = getSession();
-        if (!live)
-        {
+        if (!live) {
             return;
         }
         const cur = getBagWeight(live);
@@ -130,19 +139,16 @@ export function mountGateNode (ctx: NodeMountContext): NodeMountResult
     gameBusOn('session_updated', onSession);
 
     return {
-        onLeft: () =>
-        {
+        onLeft: () => {
             equip.closeDropDown();
             ctx.back();
         },
-        onRight: () =>
-        {
+        onRight: () => {
             equip.closeDropDown();
             playerOut();
             ctx.forward(NavNode.GATE_OUT);
         },
-        destroy: () =>
-        {
+        destroy: () => {
             gameBusOff('session_updated', onSession);
             equip.destroy();
             bagGrid.destroy();

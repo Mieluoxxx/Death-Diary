@@ -56,7 +56,12 @@ export type ScrollViewportHandle = {
     didDrag: () => boolean;
     isDragging: () => boolean;
     inView: (screenX: number, screenY: number) => boolean;
-    worldBounds: () => { left: number; right: number; top: number; bottom: number };
+    worldBounds: () => {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+    };
     /** Register an interactive target whose input is culled when scrolled out. */
     trackHit: (entry: ScrollHit) => void;
     clearHits: () => void;
@@ -67,12 +72,11 @@ export type ScrollViewportHandle = {
     destroy: () => void;
 };
 
-export function mountScrollViewport (
+export function mountScrollViewport(
     scene: Scene,
     parent: GameObjects.Container,
     opts: ScrollViewportOptions,
-): ScrollViewportHandle
-{
+): ScrollViewportHandle {
     const axis: ScrollAxis = opts.axis ?? 'y';
     const wheelFactor = opts.wheelFactor ?? 0.5;
     const dragThreshold = opts.dragThreshold ?? 6;
@@ -87,12 +91,9 @@ export function mountScrollViewport (
     host.add(content);
 
     // World-space mask; FilterMask is WebGL-safe (GeometryMask is Canvas-only in Phaser 4).
-    const maskRect = scene.add
-        .rectangle(0, 0, viewW, viewH, 0xffffff)
-        .setVisible(false);
+    const maskRect = scene.add.rectangle(0, 0, viewW, viewH, 0xffffff).setVisible(false);
 
-    const syncMask = () =>
-    {
+    const syncMask = () => {
         const m = host.getWorldTransformMatrix();
         const center = m.transformPoint(viewW / 2, viewH / 2);
         maskRect.setPosition(center.x, center.y);
@@ -101,18 +102,11 @@ export function mountScrollViewport (
     syncMask();
 
     content.enableFilters();
-    if (content.filters)
-    {
-        content.filters.internal.addMask(
-            maskRect,
-            false,
-            scene.cameras.main,
-            'world',
-        );
+    if (content.filters) {
+        content.filters.internal.addMask(maskRect, false, scene.cameras.main, 'world');
     }
 
-    if (useBlocker)
-    {
+    if (useBlocker) {
         const inputBlocker = scene.add
             .rectangle(viewW / 2, viewH / 2, viewW, viewH, 0xffffff, 0.001)
             .setInteractive({ useHandCursor: false });
@@ -131,8 +125,7 @@ export function mountScrollViewport (
 
     const viewExtent = () => (axis === 'y' ? viewH : viewW);
 
-    const worldBounds = () =>
-    {
+    const worldBounds = () => {
         const m = host.getWorldTransformMatrix();
         const tl = m.transformPoint(0, 0);
         const br = m.transformPoint(viewW, viewH);
@@ -144,60 +137,43 @@ export function mountScrollViewport (
         };
     };
 
-    const inView = (screenX: number, screenY: number) =>
-    {
+    const inView = (screenX: number, screenY: number) => {
         const b = worldBounds();
-        return screenX >= b.left
-            && screenX <= b.right
-            && screenY >= b.top
-            && screenY <= b.bottom;
+        return screenX >= b.left && screenX <= b.right && screenY >= b.top && screenY <= b.bottom;
     };
 
-    const syncHits = () =>
-    {
+    const syncHits = () => {
         const m = content.getWorldTransformMatrix();
         const b = worldBounds();
-        for (const entry of hits)
-        {
-            const p = axis === 'y'
-                ? m.transformPoint(0, entry.local)
-                : m.transformPoint(entry.local, 0);
+        for (const entry of hits) {
+            const p =
+                axis === 'y' ? m.transformPoint(0, entry.local) : m.transformPoint(entry.local, 0);
             const coord = axis === 'y' ? p.y : p.x;
             const minEdge = axis === 'y' ? b.top : b.left;
             const maxEdge = axis === 'y' ? b.bottom : b.right;
-            const visible =
-                coord + entry.half > minEdge && coord - entry.half < maxEdge;
+            const visible = coord + entry.half > minEdge && coord - entry.half < maxEdge;
             const enabled = Boolean(entry.hit.input?.enabled);
-            if (visible && !enabled)
-            {
+            if (visible && !enabled) {
                 entry.hit.setInteractive({ useHandCursor: true });
-            }
-            else if (!visible && enabled)
-            {
+            } else if (!visible && enabled) {
                 entry.hit.disableInteractive();
             }
         }
     };
 
-    const applyOffset = () =>
-    {
+    const applyOffset = () => {
         const minOffset = Math.min(0, viewExtent() - contentSize);
         offset = Math.max(minOffset, Math.min(0, offset));
-        if (axis === 'y')
-        {
+        if (axis === 'y') {
             content.y = offset;
-        }
-        else
-        {
+        } else {
             content.x = offset;
         }
         syncHits();
     };
 
-    const onPointerDown = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!inView(pointer.x, pointer.y))
-        {
+    const onPointerDown = (pointer: Phaser.Input.Pointer) => {
+        if (!inView(pointer.x, pointer.y)) {
             return;
         }
         dragging = true;
@@ -206,44 +182,32 @@ export function mountScrollViewport (
         dragStart = axis === 'y' ? pointer.y : pointer.x;
     };
 
-    const onPointerMove = (pointer: Phaser.Input.Pointer) =>
-    {
-        if (!dragging || !pointer.isDown)
-        {
+    const onPointerMove = (pointer: Phaser.Input.Pointer) => {
+        if (!dragging || !pointer.isDown) {
             return;
         }
         const cur = axis === 'y' ? pointer.y : pointer.x;
         const delta = cur - dragStart;
-        if (Math.abs(delta) > dragThreshold)
-        {
+        if (Math.abs(delta) > dragThreshold) {
             didDragFlag = true;
         }
-        if (didDragFlag)
-        {
+        if (didDragFlag) {
             offset = dragBase + delta;
             applyOffset();
         }
     };
 
-    const onPointerUp = () =>
-    {
+    const onPointerUp = () => {
         dragging = false;
     };
 
-    const onWheel = (
-        pointer: Phaser.Input.Pointer,
-        _gos: unknown,
-        dx: number,
-        dy: number,
-    ) =>
-    {
-        if (!inView(pointer.x, pointer.y))
-        {
+    const onWheel = (pointer: Phaser.Input.Pointer, _gos: unknown, dx: number, dy: number) => {
+        if (!inView(pointer.x, pointer.y)) {
             return;
         }
         // Vertical wheel scrolls vertical lists; also drives horizontal strips
         // (common touchpad path, matches dialogSmall status strip).
-        const delta = axis === 'y' ? dy : (Math.abs(dx) > Math.abs(dy) ? dx : dy);
+        const delta = axis === 'y' ? dy : Math.abs(dx) > Math.abs(dy) ? dx : dy;
         offset -= delta * wheelFactor;
         applyOffset();
     };
@@ -259,15 +223,13 @@ export function mountScrollViewport (
         axis,
         width: viewW,
         height: viewH,
-        setContentSize: (size: number) =>
-        {
+        setContentSize: (size: number) => {
             contentSize = Math.max(0, size);
             applyOffset();
         },
         getContentSize: () => contentSize,
         getOffset: () => offset,
-        setOffset: (next: number) =>
-        {
+        setOffset: (next: number) => {
             offset = next;
             applyOffset();
         },
@@ -275,18 +237,15 @@ export function mountScrollViewport (
         isDragging: () => dragging,
         inView,
         worldBounds,
-        trackHit: (entry: ScrollHit) =>
-        {
+        trackHit: (entry: ScrollHit) => {
             hits.push(entry);
         },
-        clearHits: () =>
-        {
+        clearHits: () => {
             hits.length = 0;
         },
         syncHits,
         syncMask,
-        destroy: () =>
-        {
+        destroy: () => {
             scene.input.off('pointerdown', onPointerDown);
             scene.input.off('pointermove', onPointerMove);
             scene.input.off('pointerup', onPointerUp);

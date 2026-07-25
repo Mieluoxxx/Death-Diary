@@ -12,29 +12,17 @@
 import { getSiteConfig } from '../../data/siteConfig';
 import { getSession } from '../../session/sessionStore';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
-import {
-    getBagCapacity,
-    getBagWeight,
-    transferAll,
-    transferItems,
-} from '../../systems/inventory';
+import { getBagCapacity, getBagWeight, transferAll, transferItems } from '../../systems/inventory';
 import { addAtlasButton } from '../atlasButton';
 import { mountEquipStrip } from '../equipStrip';
+import { createItemDetailModel } from '../itemDetailContext';
+import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { addSectionBar } from '../sectionBar';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from '../uiFont';
-import {
-    ITEM_GRID_COLUMNS,
-    mountItemGrid,
-    transferFailMessage,
-} from './itemGrid';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
 
-export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountSiteStorageNode(ctx: NodeMountContext): NodeMountResult {
     const siteId = Number(ctx.userData);
     const cfg = getSiteConfig(siteId);
     // Original: title = site.getName(), left-aligned like SiteNode.
@@ -82,15 +70,26 @@ export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
         getCounts: () => getSession()?.bag ?? {},
         emptyText: '',
         compact: true,
-        onTap: (itemId) =>
-        {
+        onTap: (itemId) => {
             equip.closeDropDown();
             const res = transferItems('bag', 'site', itemId, 1, siteId);
-            if (!res.ok)
-            {
+            if (!res.ok) {
                 ctx.showToast(transferFailMessage(res));
             }
             refresh();
+        },
+        onInspect: (itemId) => {
+            equip.closeDropDown();
+            openItemDetailDialog(
+                ctx.scene,
+                createItemDetailModel(
+                    itemId,
+                    { kind: 'bag' },
+                    {
+                        onToast: (msg) => ctx.showToast(msg),
+                    },
+                ),
+            );
         },
     });
 
@@ -103,12 +102,10 @@ export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
         label: '全部拿取',
         labelColor: '#f5f0e6',
         labelSizeTier: 'COMMON_3',
-        onClick: () =>
-        {
+        onClick: () => {
             equip.closeDropDown();
             const { moved, blocked } = transferAll('site', 'bag', siteId);
-            if (blocked > 0)
-            {
+            if (blocked > 0) {
                 ctx.showToast(`拿取${moved}，负重不足剩余${blocked}`);
             }
             refresh();
@@ -117,29 +114,23 @@ export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
     ctx.scene.children.remove(takeAll);
     ctx.content.add(takeAll);
 
-    if (takeAll.list[1] && 'setOrigin' in takeAll.list[1])
-    {
+    if (takeAll.list[1] && 'setOrigin' in takeAll.list[1]) {
         const label = takeAll.list[1] as Phaser.GameObjects.Text;
         label.setOrigin(0.3, 0.5);
         label.setX(18);
     }
     if (
-        ctx.scene.textures.exists('ui')
-        && ctx.scene.textures.get('ui').has('btn_icon_take_all.png')
-    )
-    {
-        const hand = ctx.scene.add
-            .image(-52, 0, 'ui', 'btn_icon_take_all.png')
-            .setOrigin(0.5);
+        ctx.scene.textures.exists('ui') &&
+        ctx.scene.textures.get('ui').has('btn_icon_take_all.png')
+    ) {
+        const hand = ctx.scene.add.image(-52, 0, 'ui', 'btn_icon_take_all.png').setOrigin(0.5);
         takeAll.add(hand);
         const bg = takeAll.list[0];
-        if (bg)
-        {
+        if (bg) {
             takeAll.sendToBack(bg);
         }
         takeAll.bringToTop(hand);
-        if (takeAll.list[1] && takeAll.list[1] !== hand && takeAll.list[1] !== bg)
-        {
+        if (takeAll.list[1] && takeAll.list[1] !== hand && takeAll.list[1] !== bg) {
             takeAll.bringToTop(takeAll.list[1]);
         }
     }
@@ -153,23 +144,26 @@ export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
         getCounts: () => getSession()?.map.sites[siteId]?.storage ?? {},
         emptyText: '',
         compact: true,
-        onTap: (itemId) =>
-        {
+        onTap: (itemId) => {
             equip.closeDropDown();
             const res = transferItems('site', 'bag', itemId, 1, siteId);
-            if (!res.ok)
-            {
+            if (!res.ok) {
                 ctx.showToast(transferFailMessage(res));
             }
             refresh();
         },
+        onInspect: (itemId) => {
+            equip.closeDropDown();
+            openItemDetailDialog(
+                ctx.scene,
+                createItemDetailModel(itemId, { kind: 'site', siteId }),
+            );
+        },
     });
 
-    const refresh = () =>
-    {
+    const refresh = () => {
         const live = getSession();
-        if (!live)
-        {
+        if (!live) {
             return;
         }
         const cur = getBagWeight(live);
@@ -185,13 +179,11 @@ export function mountSiteStorageNode (ctx: NodeMountContext): NodeMountResult
     gameBusOn('session_updated', onSession);
 
     return {
-        onLeft: () =>
-        {
+        onLeft: () => {
             equip.closeDropDown();
             ctx.back();
         },
-        destroy: () =>
-        {
+        destroy: () => {
             gameBusOff('session_updated', onSession);
             equip.destroy();
             bagGrid.destroy();

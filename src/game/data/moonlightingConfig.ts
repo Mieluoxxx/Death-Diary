@@ -21,7 +21,12 @@ export const MOONLIGHTING_CONFIG = {
         { dayMin: 41, dayMax: 50, strengthMin: 15, strengthMax: 25 },
         { dayMin: 51, dayMax: 60, strengthMin: 20, strengthMax: 30 },
         { dayMin: 61, dayMax: 70, strengthMin: 30, strengthMax: 35 },
-        { dayMin: 71, dayMax: Number.MAX_SAFE_INTEGER, strengthMin: 30, strengthMax: 36 },
+        {
+            dayMin: 71,
+            dayMax: Number.MAX_SAFE_INTEGER,
+            strengthMin: 30,
+            strengthMax: 36,
+        },
     ] as const satisfies readonly StrengthBand[],
 } as const;
 

@@ -12,14 +12,11 @@
 import type { GameObjects } from 'phaser';
 import { getSession, type ItemCounts } from '../../session/sessionStore';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
-import { openItemDialog } from '../itemDialog';
+import { createItemDetailModel } from '../itemDetailContext';
+import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { mountScrollViewport } from '../scrollViewport';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from '../uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
 import {
     ITEM_CELL_PITCH_X,
     ITEM_CELL_PITCH_Y,
@@ -46,55 +43,44 @@ const SECTION_TITLE_H = 50;
 
 type ItemRow = { itemId: number; num: number };
 
-function groupStorageItems (counts: ItemCounts): Record<string, ItemRow[]>
-{
+function groupStorageItems(counts: ItemCounts): Record<string, ItemRow[]> {
     const groups: Record<string, ItemRow[]> = {};
-    for (const sec of STORAGE_SECTIONS)
-    {
+    for (const sec of STORAGE_SECTIONS) {
         groups[sec.key] = [];
     }
 
-    for (const [idText, num] of Object.entries(counts))
-    {
+    for (const [idText, num] of Object.entries(counts)) {
         const itemId = Number(idText);
-        if (!Number.isFinite(itemId) || num <= 0)
-        {
+        if (!Number.isFinite(itemId) || num <= 0) {
             continue;
         }
-        if (STORAGE_DISPLAY_HIDE.has(itemId))
-        {
+        if (STORAGE_DISPLAY_HIDE.has(itemId)) {
             continue;
         }
         const idStr = String(itemId);
         let placed = false;
-        for (const sec of STORAGE_SECTIONS)
-        {
-            if (!sec.prefix)
-            {
+        for (const sec of STORAGE_SECTIONS) {
+            if (!sec.prefix) {
                 continue;
             }
-            if (idStr.startsWith(sec.prefix))
-            {
+            if (idStr.startsWith(sec.prefix)) {
                 groups[sec.key].push({ itemId, num });
                 placed = true;
                 break;
             }
         }
-        if (!placed)
-        {
+        if (!placed) {
             groups.other.push({ itemId, num });
         }
     }
 
-    for (const key of Object.keys(groups))
-    {
+    for (const key of Object.keys(groups)) {
         groups[key].sort((a, b) => a.itemId - b.itemId);
     }
     return groups;
 }
 
-export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
-{
+export function mountStorageNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setTitle('仓库');
     ctx.setLeftEnabled(true);
     // Original: rightBtn false; shop is a separate SpriteButton on the title bar.
@@ -112,18 +98,15 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
     // Shop cart — original (bgW-60, actionBarBaseHeight=803).
     const titleY = ctx.toScreenY(803);
     const shopX = ctx.toScreenX(ctx.bgWidth - 60);
-    if (ctx.scene.textures.exists('ui') && ctx.scene.textures.get('ui').has('btn_shop.png'))
-    {
+    if (ctx.scene.textures.exists('ui') && ctx.scene.textures.get('ui').has('btn_shop.png')) {
         const shop = ctx.scene.add
             .image(shopX, titleY, 'ui', 'btn_shop.png')
             .setInteractive({ useHandCursor: true });
         ctx.content.add(shop);
-        shop.on('pointerup', () =>
-        {
+        shop.on('pointerup', () => {
             ctx.showToast('商店暂未开放');
         });
-        if (ctx.scene.textures.get('ui').has('btn_shop_highlight.png'))
-        {
+        if (ctx.scene.textures.get('ui').has('btn_shop_highlight.png')) {
             const highlight = ctx.scene.add.image(shopX, titleY, 'ui', 'btn_shop_highlight.png');
             ctx.content.add(highlight);
             ctx.scene.tweens.add({
@@ -147,8 +130,7 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
 
     let lastStorageKey = '';
 
-    const storageKey = (counts: ItemCounts): string =>
-    {
+    const storageKey = (counts: ItemCounts): string => {
         const entries = Object.entries(counts)
             .filter(([, num]) => (num ?? 0) > 0)
             .map(([id, num]) => `${id}:${num}`)
@@ -156,15 +138,13 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         return entries.join('|');
     };
 
-    const rebuild = (force = false) =>
-    {
+    const rebuild = (force = false) => {
         const live = getSession();
         const counts = live?.storage ?? {};
         const key = storageKey(counts);
         // Survival ticks emit session_updated constantly — skip no-op rebuilds
         // so scroll position is not torn down mid-drag.
-        if (!force && key === lastStorageKey)
-        {
+        if (!force && key === lastStorageKey) {
             return;
         }
         lastStorageKey = key;
@@ -178,11 +158,9 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
         let y = 0;
         let any = false;
 
-        for (const sec of STORAGE_SECTIONS)
-        {
+        for (const sec of STORAGE_SECTIONS) {
             const items = groups[sec.key] ?? [];
-            if (items.length === 0)
-            {
+            if (items.length === 0) {
                 continue;
             }
             any = true;
@@ -202,27 +180,33 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
             );
 
             const gridTop = y + SECTION_TITLE_H;
-            items.forEach((row, index) =>
-            {
+            items.forEach((row, index) => {
                 const col = index % ITEM_GRID_COLUMNS;
                 const r = Math.floor(index / ITEM_GRID_COLUMNS);
                 const cx = col * ITEM_CELL_PITCH_X + ITEM_CELL_PITCH_X / 2;
                 const cy = gridTop + r * ITEM_CELL_PITCH_Y + ITEM_CELL_PITCH_Y / 2;
-                addItemCell(ctx, scroll.content, cx, cy, row.itemId, row.num, (hit) =>
-                {
-                    scroll.trackHit({
-                        hit,
-                        local: cy,
-                        half: ITEM_CELL_PITCH_Y / 2,
-                    });
-                }, () => scroll.didDrag());
+                addItemCell(
+                    ctx,
+                    scroll.content,
+                    cx,
+                    cy,
+                    row.itemId,
+                    row.num,
+                    (hit) => {
+                        scroll.trackHit({
+                            hit,
+                            local: cy,
+                            half: ITEM_CELL_PITCH_Y / 2,
+                        });
+                    },
+                    () => scroll.didDrag(),
+                );
             });
 
             y += sectionH;
         }
 
-        if (!any)
-        {
+        if (!any) {
             scroll.content.add(
                 ctx.scene.add
                     .text(tableWidth / 2, 40, '仓库空空如也', {
@@ -234,9 +218,7 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
                     .setOrigin(0.5, 0),
             );
             scroll.setContentSize(80);
-        }
-        else
-        {
+        } else {
             scroll.setContentSize(y + 24);
         }
 
@@ -250,15 +232,14 @@ export function mountStorageNode (ctx: NodeMountContext): NodeMountResult
 
     return {
         onLeft: () => ctx.back(),
-        destroy: () =>
-        {
+        destroy: () => {
             gameBusOff('session_updated', onSession);
             scroll.destroy();
         },
     };
 }
 
-function addItemCell (
+function addItemCell(
     ctx: NodeMountContext,
     parent: GameObjects.Container,
     cx: number,
@@ -267,30 +248,25 @@ function addItemCell (
     num: number,
     trackHit: (hit: GameObjects.Rectangle) => void,
     didDrag: () => boolean,
-): void
-{
+): void {
     const cell = ctx.scene.add.container(cx, cy);
     parent.add(cell);
 
-    const isEquipLike = itemId >= 1300000 && itemId < 1400000
-        && !(itemId >= 1305000 && itemId < 1306000);
+    const isEquipLike =
+        itemId >= 1300000 && itemId < 1400000 && !(itemId >= 1305000 && itemId < 1306000);
     const bgFrame = isEquipLike ? 'item_equip_bg.png' : 'item_bg.png';
     const face = ITEM_CELL_SIZE;
 
-    if (ctx.scene.textures.exists('ui') && ctx.scene.textures.get('ui').has(bgFrame))
-    {
+    if (ctx.scene.textures.exists('ui') && ctx.scene.textures.get('ui').has(bgFrame)) {
         const bg = ctx.scene.add.image(0, 0, 'ui', bgFrame);
         bg.setDisplaySize(face, face);
         cell.add(bg);
-    }
-    else
-    {
+    } else {
         cell.add(ctx.scene.add.rectangle(0, 0, face, face, 0x2a2a2a));
     }
 
     const iconFrame = `icon_item_${itemId}.png`;
-    if (ctx.scene.textures.exists('icon') && ctx.scene.textures.get('icon').has(iconFrame))
-    {
+    if (ctx.scene.textures.exists('icon') && ctx.scene.textures.get('icon').has(iconFrame)) {
         const icon = ctx.scene.add.image(0, 0, 'icon', iconFrame);
         const maxDim = Math.max(icon.width, icon.height, 1);
         icon.setScale((face * 0.95) / maxDim);
@@ -315,16 +291,20 @@ function addItemCell (
         .rectangle(0, 0, ITEM_CELL_PITCH_X - 2, ITEM_CELL_PITCH_Y - 2, 0xffffff, 0.001)
         .setInteractive({ useHandCursor: true });
     cell.add(hit);
-    hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-    {
-        if (pointer.getDistance() > 8 || didDrag())
-        {
+    hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.getDistance() > 8 || didDrag()) {
             return;
         }
-        openItemDialog(ctx.scene, itemId, {
-            from: 'storage',
-            onToast: (msg) => ctx.showToast(msg),
-        });
+        openItemDetailDialog(
+            ctx.scene,
+            createItemDetailModel(
+                itemId,
+                { kind: 'storage' },
+                {
+                    onToast: (msg) => ctx.showToast(msg),
+                },
+            ),
+        );
     });
     trackHit(hit);
 }

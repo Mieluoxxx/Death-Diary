@@ -1,6 +1,7 @@
 import type { SessionState } from '../session/sessionStore';
 import { formatClock } from '../session/sessionStore';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
+import { findAttrBand } from '../data/playerAttrEffect';
 
 /**
  * Port of Buried-City string ids used by topFrame showStatusDialog /
@@ -217,40 +218,30 @@ const STATUS_COPY: Record<StatusInfoId, Record<LangCode, StatusCopy>> = {
 
 const SEASON_KEYS = ['season_fall', 'season_winter', 'season_spring', 'season_summer'] as const;
 
-export function getStatusCopy (
-    stringId: StatusInfoId,
-    lan: LangCode = getLanguage(),
-): StatusCopy
-{
+export function getStatusCopy(stringId: StatusInfoId, lan: LangCode = getLanguage()): StatusCopy {
     return STATUS_COPY[stringId][lan] ?? STATUS_COPY[stringId].zh;
 }
 
 /** statusDialog title template: 当前:%s */
-export function formatCurrentValue (value: string, lan: LangCode = getLanguage()): string
-{
-    if (lan === 'en')
-    {
+export function formatCurrentValue(value: string, lan: LangCode = getLanguage()): string {
+    if (lan === 'en') {
         return `Current: ${value}`;
     }
-    if (lan === 'ja')
-    {
+    if (lan === 'ja') {
         return `現在: ${value}`;
     }
-    if (lan === 'zh-Hant')
-    {
+    if (lan === 'zh-Hant') {
         return `當前:${value}`;
     }
     return `当前:${value}`;
 }
 
-export function formatStatusValue (
+export function formatStatusValue(
     stringId: StatusInfoId,
     session: SessionState,
     lan: LangCode = getLanguage(),
-): string
-{
-    switch (stringId)
-    {
+): string {
+    switch (stringId) {
         case 1:
             return String(session.day);
         case 2:
@@ -268,6 +259,48 @@ export function formatStatusValue (
 
 export type AttrKey = 'injury' | 'infect' | 'starve' | 'vigour' | 'spirit' | 'hp';
 
+type BandLabelAttr = Exclude<AttrKey, 'hp'>;
+
+/** Original string_{lang}.js attr_name arrays; index = original effect-band id − 1. */
+const ATTR_BAND_COPY: Record<BandLabelAttr, Record<LangCode, readonly (string | null)[]>> = {
+    starve: {
+        zh: ['严重饥饿', '非常饿', '饥饿'],
+        'zh-Hant': ['嚴重饑餓', '非常餓', '饑餓'],
+        ja: ['非常に飢えている', '本当に飢えている', '飢えている'],
+        en: ['Seriously starving', 'Starving', 'Hungry'],
+    },
+    vigour: {
+        zh: ['困顿', '疲乏', '疲倦'],
+        'zh-Hant': ['困頓', '疲乏', '疲倦'],
+        ja: ['疲れ果てる', '本当に疲れている', '疲れている'],
+        en: ['Exhausted', 'Fatigued', 'Tired'],
+    },
+    spirit: {
+        zh: ['崩溃', '沮丧', '不安'],
+        'zh-Hant': ['崩潰', '沮喪', '不安'],
+        ja: ['崩壊する', '落ち込んでいる', '不安'],
+        en: ['Breakdown', 'Depressed', 'Upset'],
+    },
+    injury: {
+        zh: [null, '皮外伤', '轻伤', '重伤', '严重创伤'],
+        'zh-Hant': [null, '皮肉傷', '輕傷', '重傷', '嚴重創傷'],
+        ja: [null, '外傷', '軽傷', '重傷', '酷い外傷'],
+        en: [null, 'Injured', 'Slightly injured', 'Severely injured', 'Fatally injured'],
+    },
+    infect: {
+        zh: [null, '轻微感染', '中度感染', '重度感染', '免疫崩溃'],
+        'zh-Hant': [null, '輕微感染', '中度感染', '重度感染', '免疫崩潰'],
+        ja: [null, '軽微な感染', '感染', '酷い感染', '免疫システムが崩壊'],
+        en: [
+            null,
+            'Light infection',
+            'Medium infection',
+            'Severe infection',
+            'Immune system collapse',
+        ],
+    },
+};
+
 /** Original topFrame stringId for each attr button. */
 export const ATTR_STATUS_ID: Record<AttrKey, StatusInfoId> = {
     hp: 5,
@@ -279,17 +312,16 @@ export const ATTR_STATUS_ID: Record<AttrKey, StatusInfoId> = {
 };
 
 /**
- * Simplified getAttrStr for the web slice: show numeric value
- * (full range-name tables deferred with player systems).
+ * Original Player.getAttrStr: HP remains numeric; other attributes display
+ * their effect-band label and intentionally show no text in a healthy band.
  */
-export function formatAttrValue (
-    attr: AttrKey,
-    session: SessionState,
-): string
-{
-    if (attr === 'hp')
-    {
+export function formatAttrValue(attr: AttrKey, session: SessionState): string {
+    if (attr === 'hp') {
         return `${session.attrs.hp}/${session.attrs.hpMax}`;
     }
-    return String(Math.round(session.attrs[attr]));
+    const band = findAttrBand(attr, session.attrs[attr]);
+    if (!band) {
+        return '';
+    }
+    return ATTR_BAND_COPY[attr][getLanguage()][band.id - 1] ?? '';
 }

@@ -9,22 +9,18 @@ import { getItemDef } from '../../data/itemConfig';
 import type { ItemCounts } from '../../session/sessionStore';
 import { listItems, type TransferResult } from '../../systems/inventory';
 import { mountScrollViewport } from '../scrollViewport';
-import {
-    UI_FONT_FAMILY,
-    UI_FONT_SIZE,
-    UI_TEXT_RESOLUTION,
-} from '../uiFont';
+import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
 
 export const ITEM_CELL_SIZE = 84;
 export const ITEM_CELL_PITCH_X = 110;
 export const ITEM_CELL_PITCH_Y = 100;
 export const ITEM_GRID_COLUMNS = 5;
 
-export function resolveItemName (itemId: number): string
-{
+const INSPECT_PRESS_MS = 450;
+
+export function resolveItemName(itemId: number): string {
     const fromConfig = getItemDef(itemId).name;
-    if (fromConfig && !fromConfig.startsWith('物品'))
-    {
+    if (fromConfig && !fromConfig.startsWith('物品')) {
         return fromConfig;
     }
     return itemNameFromStrings(itemId);
@@ -36,7 +32,7 @@ export type ItemGridHandle = {
     destroy: () => void;
 };
 
-export function mountItemGrid (
+export function mountItemGrid(
     scene: Scene,
     parent: GameObjects.Container,
     opts: {
@@ -46,13 +42,14 @@ export function mountItemGrid (
         height: number;
         getCounts: () => ItemCounts;
         onTap?: (itemId: number) => void;
+        /** Long press preserves the primary tap action while opening common details. */
+        onInspect?: (itemId: number) => void;
         emptyText?: string;
         columns?: number;
         /** Dense icon grid (gate bag/storage) — original 84 face / 110×100 pitch. */
         compact?: boolean;
     },
-): ItemGridHandle
-{
+): ItemGridHandle {
     const compact = Boolean(opts.compact);
     const columns = opts.columns ?? (compact ? ITEM_GRID_COLUMNS : 4);
     const cellW = compact ? ITEM_CELL_PITCH_X : opts.width / columns;
@@ -70,17 +67,14 @@ export function mountItemGrid (
         inputBlocker: true,
     });
 
-    const refresh = () =>
-    {
+    const refresh = () => {
         scroll.syncMask();
         scroll.content.removeAll(true);
         scroll.clearHits();
 
         const items = listItems(opts.getCounts());
-        if (items.length === 0)
-        {
-            if (opts.emptyText)
-            {
+        if (items.length === 0) {
+            if (opts.emptyText) {
                 scroll.content.add(
                     scene.add
                         .text(opts.width / 2, 40, opts.emptyText, {
@@ -96,8 +90,7 @@ export function mountItemGrid (
             return;
         }
 
-        items.forEach((row, index) =>
-        {
+        items.forEach((row, index) => {
             const col = index % columns;
             const r = Math.floor(index / columns);
             const cx = offsetX + col * cellW + cellW / 2;
@@ -105,25 +98,19 @@ export function mountItemGrid (
             const cell = scene.add.container(cx, cy);
             scroll.content.add(cell);
 
-            const isEquipLike =
-                row.itemId >= 1301000
-                && row.itemId < 1305000;
+            const isEquipLike = row.itemId >= 1301000 && row.itemId < 1305000;
             const bgFrame = isEquipLike ? 'item_equip_bg.png' : 'item_bg.png';
 
-            if (scene.textures.exists('ui') && scene.textures.get('ui').has(bgFrame))
-            {
+            if (scene.textures.exists('ui') && scene.textures.get('ui').has(bgFrame)) {
                 const bg = scene.add.image(0, 0, 'ui', bgFrame);
                 bg.setDisplaySize(face, face);
                 cell.add(bg);
-            }
-            else
-            {
+            } else {
                 cell.add(scene.add.rectangle(0, 0, face, face, 0x2a2a2a));
             }
 
             const iconFrame = `icon_item_${row.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame))
-            {
+            if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame)) {
                 const icon = scene.add.image(0, 0, 'icon', iconFrame);
                 const maxDim = Math.max(icon.width, icon.height, 1);
                 icon.setScale((face * 0.95) / maxDim);
@@ -144,8 +131,7 @@ export function mountItemGrid (
                     .setOrigin(1, 1),
             );
 
-            if (!compact)
-            {
+            if (!compact) {
                 cell.add(
                     scene.add
                         .text(0, half + 6, resolveItemName(row.itemId), {
@@ -164,14 +150,20 @@ export function mountItemGrid (
                 .rectangle(0, 0, cellW - 2, cellH - 2, 0xffffff, 0.001)
                 .setInteractive({ useHandCursor: true });
             cell.add(hit);
-            hit.on('pointerup', (pointer: Phaser.Input.Pointer) =>
-            {
+            let pressedAt = 0;
+            hit.on('pointerdown', () => {
+                pressedAt = performance.now();
+            });
+            hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
                 if (
-                    pointer.getDistance() > 8
-                    || scroll.didDrag()
-                    || !scroll.inView(pointer.x, pointer.y)
-                )
-                {
+                    pointer.getDistance() > 8 ||
+                    scroll.didDrag() ||
+                    !scroll.inView(pointer.x, pointer.y)
+                ) {
+                    return;
+                }
+                if (opts.onInspect && performance.now() - pressedAt >= INSPECT_PRESS_MS) {
+                    opts.onInspect(row.itemId);
                     return;
                 }
                 opts.onTap?.(row.itemId);
@@ -191,18 +183,14 @@ export function mountItemGrid (
     };
 }
 
-export function transferFailMessage (res: TransferResult): string
-{
-    if (res.ok)
-    {
+export function transferFailMessage(res: TransferResult): string {
+    if (res.ok) {
         return '';
     }
-    if (res.reason === 'overweight')
-    {
+    if (res.reason === 'overweight') {
         return '负重不足，无法放入背包';
     }
-    if (res.reason === 'not_enough')
-    {
+    if (res.reason === 'not_enough') {
         return '数量不足';
     }
     return '无法转移';
