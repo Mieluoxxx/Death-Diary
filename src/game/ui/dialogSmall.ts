@@ -1,7 +1,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { getLanguage, t } from '../settings/settingsStore';
 import { addAtlasButton } from './atlasButton';
-import { mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
+import { isScrollTap, mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 /**
@@ -34,10 +34,10 @@ export type StatusQuickItem = {
 
 export type StatusDialogConfig = {
     iconFrame?: string | null;
-    iconAtlas?: 'icon' | 'ui';
+    iconAtlas?: 'icon' | 'ui' | 'build';
     title: string;
-    /** Already formatted value line, e.g. "当前:1" */
-    currentLine: string;
+    /** Already formatted value line, e.g. "当前:1". Omit for pure description dialogs. */
+    currentLine?: string;
     description: string;
     /**
      * Optional horizontal quick-use strip (original createItemListSliders).
@@ -134,21 +134,24 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
         titleText.setFontSize(UI_FONT_SIZE.COMMON_2);
     }
 
-    const currentY = Math.min(
-        titleText.y + titleText.height + 2,
-        titleBottomY - UI_FONT_SIZE.COMMON_3 - 4,
-    );
-    const currentText = scene.add
-        .text(titleTextX, currentY, config.currentLine, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-            color: '#111111',
-            wordWrap: uiWordWrap(titleWrapWidth),
-            maxLines: 1,
-        })
-        .setOrigin(0, 0);
-    root.add(currentText);
+    if (config.currentLine) {
+        const currentY = Math.min(
+            titleText.y + titleText.height + 2,
+            titleBottomY - UI_FONT_SIZE.COMMON_3 - 4,
+        );
+        root.add(
+            scene.add
+                .text(titleTextX, currentY, config.currentLine, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color: '#111111',
+                    wordWrap: uiWordWrap(titleWrapWidth),
+                    maxLines: 1,
+                })
+                .setOrigin(0, 0),
+        );
+    }
 
     // Description only in contentNode (height = dialog - title - action).
     // Leave a bottom band for the quick-item strip when present (original 100px table).
@@ -255,11 +258,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
                 .setInteractive({ useHandCursor: true });
             const itemId = row.itemId;
             hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-                if (
-                    pointer.getDistance() > 8 ||
-                    stripScroll?.didDrag() ||
-                    !stripScroll?.inView(pointer.x, pointer.y)
-                ) {
+                if (!stripScroll || !isScrollTap(stripScroll, pointer)) {
                     return;
                 }
                 config.onQuickItemTap?.(itemId);

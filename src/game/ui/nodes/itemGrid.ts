@@ -8,7 +8,7 @@ import { itemName as itemNameFromStrings } from '../../data/buildStrings';
 import { getItemDef } from '../../data/itemConfig';
 import type { ItemCounts } from '../../session/sessionStore';
 import { listItems, type TransferResult } from '../../systems/inventory';
-import { mountScrollViewport } from '../scrollViewport';
+import { isScrollTap, mountScrollViewport } from '../scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
 
 export const ITEM_CELL_SIZE = 84;
@@ -155,11 +155,7 @@ export function mountItemGrid(
                 pressedAt = performance.now();
             });
             hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-                if (
-                    pointer.getDistance() > 8 ||
-                    scroll.didDrag() ||
-                    !scroll.inView(pointer.x, pointer.y)
-                ) {
+                if (!isScrollTap(scroll, pointer)) {
                     return;
                 }
                 if (opts.onInspect && performance.now() - pressedAt >= INSPECT_PRESS_MS) {

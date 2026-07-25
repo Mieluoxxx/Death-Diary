@@ -7,7 +7,8 @@
  * - Drag + wheel, with didDrag so cell taps can ignore scroll gestures
  *
  * Content is always local to `content` (0,0 at viewport top-left).
- * Callers rebuild children into `content`, then `setContentSize` + optional `trackHit`.
+ * Prefer `addScrollHit` / `trackScrollButton` + `isScrollTap` over raw setInteractive
+ * inside scroll content — those wire culling and tap guards in one place.
  */
 
 import type { GameObjects, Scene } from 'phaser';
@@ -71,6 +72,78 @@ export type ScrollViewportHandle = {
     syncMask: () => void;
     destroy: () => void;
 };
+
+/** Minimal surface for tap guards (full handle or a pick of it). */
+export type ScrollTapGuard = Pick<ScrollViewportHandle, 'didDrag' | 'inView'>;
+
+/** Objects that expose the real setInteractive target for scroll culling. */
+export type ScrollButtonHit = {
+    hitTarget: GameObjects.Image | GameObjects.Rectangle | GameObjects.Zone;
+    hitHalfY: number;
+};
+
+/**
+ * Unified scroll-content tap check: not a drag, pointer still in the viewport,
+ * and movement stayed under the click threshold.
+ */
+export function isScrollTap(
+    guard: ScrollTapGuard,
+    pointer: Phaser.Input.Pointer,
+    maxDistance = 8,
+): boolean {
+    return (
+        pointer.getDistance() <= maxDistance &&
+        !guard.didDrag() &&
+        guard.inView(pointer.x, pointer.y)
+    );
+}
+
+/**
+ * Create a transparent hit rect, register it for out-of-view culling, and attach
+ * an onTap that already runs through {@link isScrollTap}.
+ *
+ * `x`/`y` are parent-local (usually row or content). `axisLocal` is the hit
+ * center along the scroll axis in **content-local** coordinates for trackHit.
+ */
+export function addScrollHit(
+    scene: Scene,
+    scroll: ScrollViewportHandle,
+    opts: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        axisLocal: number;
+        useHandCursor?: boolean;
+        onTap: (pointer: Phaser.Input.Pointer) => void;
+    },
+): GameObjects.Rectangle {
+    const hit = scene.add
+        .rectangle(opts.x, opts.y, opts.width, opts.height, 0xffffff, 0.001)
+        .setInteractive({ useHandCursor: opts.useHandCursor !== false });
+    hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (!isScrollTap(scroll, pointer)) {
+            return;
+        }
+        opts.onTap(pointer);
+    });
+    const half = (scroll.axis === 'y' ? opts.height : opts.width) / 2;
+    scroll.trackHit({ hit, local: opts.axisLocal, half });
+    return hit;
+}
+
+/** Register an atlas/button hitTarget so scroll culling can disable it off-screen. */
+export function trackScrollButton(
+    scroll: ScrollViewportHandle,
+    btn: ScrollButtonHit,
+    axisLocal: number,
+): void {
+    scroll.trackHit({
+        hit: btn.hitTarget,
+        local: axisLocal,
+        half: btn.hitHalfY,
+    });
+}
 
 export function mountScrollViewport(
     scene: Scene,

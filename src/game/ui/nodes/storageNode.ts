@@ -15,7 +15,7 @@ import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { createItemDetailModel } from '../itemDetailContext';
 import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
-import { mountScrollViewport } from '../scrollViewport';
+import { isScrollTap, mountScrollViewport, type ScrollViewportHandle } from '../scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
 import {
     ITEM_CELL_PITCH_X,
@@ -185,22 +185,7 @@ export function mountStorageNode(ctx: NodeMountContext): NodeMountResult {
                 const r = Math.floor(index / ITEM_GRID_COLUMNS);
                 const cx = col * ITEM_CELL_PITCH_X + ITEM_CELL_PITCH_X / 2;
                 const cy = gridTop + r * ITEM_CELL_PITCH_Y + ITEM_CELL_PITCH_Y / 2;
-                addItemCell(
-                    ctx,
-                    scroll.content,
-                    cx,
-                    cy,
-                    row.itemId,
-                    row.num,
-                    (hit) => {
-                        scroll.trackHit({
-                            hit,
-                            local: cy,
-                            half: ITEM_CELL_PITCH_Y / 2,
-                        });
-                    },
-                    () => scroll.didDrag(),
-                );
+                addItemCell(ctx, scroll, scroll.content, cx, cy, row.itemId, row.num);
             });
 
             y += sectionH;
@@ -241,13 +226,12 @@ export function mountStorageNode(ctx: NodeMountContext): NodeMountResult {
 
 function addItemCell(
     ctx: NodeMountContext,
+    scroll: ScrollViewportHandle,
     parent: GameObjects.Container,
     cx: number,
     cy: number,
     itemId: number,
     num: number,
-    trackHit: (hit: GameObjects.Rectangle) => void,
-    didDrag: () => boolean,
 ): void {
     const cell = ctx.scene.add.container(cx, cy);
     parent.add(cell);
@@ -292,7 +276,7 @@ function addItemCell(
         .setInteractive({ useHandCursor: true });
     cell.add(hit);
     hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-        if (pointer.getDistance() > 8 || didDrag()) {
+        if (!isScrollTap(scroll, pointer)) {
             return;
         }
         openItemDetailDialog(
@@ -306,5 +290,9 @@ function addItemCell(
             ),
         );
     });
-    trackHit(hit);
+    scroll.trackHit({
+        hit,
+        local: cy,
+        half: ITEM_CELL_PITCH_Y / 2,
+    });
 }

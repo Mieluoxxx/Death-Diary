@@ -3,6 +3,10 @@ import { uiSpriteBtnTextStyle } from './uiFont';
 
 export type AtlasButton = GameObjects.Container & {
     setLabel: (label: string) => void;
+    /** The object that actually received setInteractive — for scroll.trackHit. */
+    readonly hitTarget: GameObjects.Image;
+    /** Half-height of hitTarget; use as ScrollHit.half for vertical lists. */
+    readonly hitHalfY: number;
 };
 
 export function addAtlasButton(
@@ -43,6 +47,13 @@ export function addAtlasButton(
     }
 
     const c = scene.add.container(x, y, parts) as AtlasButton;
+    // Construct-time fields; readonly to consumers.
+    const mutable = c as AtlasButton & {
+        hitTarget: GameObjects.Image;
+        hitHalfY: number;
+    };
+    mutable.hitTarget = img;
+    mutable.hitHalfY = Math.max(1, img.displayHeight / 2);
 
     if (enabled && opts.onClick) {
         img.on('pointerdown', () => {
