@@ -5,6 +5,13 @@
  */
 
 import { BULLET_ID, HAND_ITEM_ID } from '../data/itemConfig';
+import {
+    getNpcDef,
+    NPC_IDS,
+    ROLE_NPC_ID,
+    type NpcId,
+    type NpcReward,
+} from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
 
 export type RoleKey = 'STRANGER' | 'LUO' | 'YAZI';
@@ -39,6 +46,17 @@ export type SessionLogEntry = {
 
 export type ItemCounts = Record<number, number>;
 
+/** Persistent per-NPC state; NPC data/behavior is defined in data/npcConfig. */
+export type NpcState = {
+    unlocked: boolean;
+    reputation: number;
+    /** Highest reputation already processed for rewards/trade unlocks. */
+    maxReputation: number;
+    storage: ItemCounts;
+    tradingCount: number;
+    pendingRewards: NpcReward[];
+};
+
 /** EquipmentPos: 0 gun, 1 weapon, 2 equip, 3 tool. Weapon default HAND=1. */
 export type EquipState = Record<0 | 1 | 2 | 3, number>;
 
@@ -59,6 +77,8 @@ export type SiteRoom =
 export type SiteState = {
     siteId: number;
     step: number;
+    /** Version of the generated room-loot algorithm. */
+    lootVersion?: 2;
     rooms: SiteRoom[];
     storage: ItemCounts;
     haveNewItems: boolean;
@@ -68,9 +88,9 @@ export type SiteState = {
 
 export type MapState = {
     pos: { x: number; y: number };
+    /** Role-specific home location. Never infer this from static site 100 data. */
+    homePos: { x: number; y: number };
     unlocked: number[];
-    /** NPC homes unlocked on the map (optional; older saves omit). */
-    unlockedNpcs?: number[];
     sites: Record<number, SiteState>;
 };
 
@@ -98,6 +118,8 @@ export type SessionState = {
     navigation: NavEntry[];
     /** Map position + unlocked sites + site progress. */
     map: MapState;
+    /** NPC affinity, trade stock, gifts and map visibility. */
+    npcs: Record<NpcId, NpcState>;
     /** Work-room temp loot before flush to site/bag. */
     tempLoot: ItemCounts;
     isAtSite: boolean;
@@ -238,12 +260,39 @@ function defaultEquip (): EquipState
     };
 }
 
-function defaultMap (): MapState
+function defaultNpcs (): Record<NpcId, NpcState>
 {
-    const home = getSiteConfig(HOME_SITE_ID);
+    const state = (): NpcState => ({
+        unlocked: false,
+        reputation: 0,
+        maxReputation: 0,
+        storage: {},
+        tradingCount: 0,
+        pendingRewards: [],
+    });
     return {
-        pos: home ? { ...home.coordinate } : { x: 45, y: 50 },
-        unlocked: [HOME_SITE_ID, STARTER_SITE_ID],
+        1: state(),
+        2: state(),
+        3: state(),
+        4: state(),
+        5: state(),
+        6: state(),
+    };
+}
+
+function defaultMap (role: RoleKey): MapState
+{
+    const fallback = getSiteConfig(HOME_SITE_ID)?.coordinate ?? { x: 45, y: 50 };
+    const homePos = getNpcDef(ROLE_NPC_ID[role])?.coordinate ?? fallback;
+    const roleSites: Record<RoleKey, number[]> = {
+        STRANGER: [203],
+        LUO: [20, 21],
+        YAZI: [41, 43, 204],
+    };
+    return {
+        pos: { ...homePos },
+        homePos: { ...homePos },
+        unlocked: [HOME_SITE_ID, STARTER_SITE_ID, ...roleSites[role]],
         sites: {},
     };
 }
@@ -336,7 +385,8 @@ function normalizeSession (raw: SessionState): SessionState
         bag: raw.bag ?? defaultBag(),
         equip: normalizeEquip(raw.equip),
         navigation: Array.isArray(raw.navigation) ? raw.navigation : [{ nodeName: 'HomeNode' }],
-        map: normalizeMap(raw.map),
+        map: normalizeMap(raw.map, role),
+        npcs: normalizeNpcs(raw.npcs, raw.map),
         tempLoot: raw.tempLoot ?? {},
         isAtSite: Boolean(raw.isAtSite),
         nowSiteId: typeof raw.nowSiteId === 'number' ? raw.nowSiteId : null,
@@ -425,9 +475,9 @@ function normalizeEquip (raw: EquipState | undefined): EquipState
     };
 }
 
-function normalizeMap (raw: MapState | undefined): MapState
+function normalizeMap (raw: MapState | undefined, role: RoleKey): MapState
 {
-    const base = defaultMap();
+    const base = defaultMap(role);
     if (!raw || typeof raw !== 'object')
     {
         return base;
@@ -436,11 +486,53 @@ function normalizeMap (raw: MapState | undefined): MapState
         pos: raw.pos && typeof raw.pos.x === 'number'
             ? { x: raw.pos.x, y: raw.pos.y }
             : base.pos,
+        homePos: raw.homePos && typeof raw.homePos.x === 'number'
+            ? { x: raw.homePos.x, y: raw.homePos.y }
+            : base.homePos,
         unlocked: Array.isArray(raw.unlocked) && raw.unlocked.length > 0
             ? raw.unlocked
             : base.unlocked,
         sites: raw.sites && typeof raw.sites === 'object' ? raw.sites : {},
     };
+}
+
+function normalizeNpcs (raw: unknown, legacyMap: unknown): Record<NpcId, NpcState>
+{
+    const states = defaultNpcs();
+    const rawRecord = raw && typeof raw === 'object'
+        ? raw as Partial<Record<NpcId, Partial<NpcState>>>
+        : {};
+    for (const npcId of NPC_IDS)
+    {
+        const saved = rawRecord[npcId];
+        if (!saved)
+        {
+            continue;
+        }
+        states[npcId] = {
+            unlocked: Boolean(saved.unlocked),
+            reputation: Math.max(0, Math.min(10, Number(saved.reputation) || 0)),
+            maxReputation: Math.max(0, Math.min(10, Number(saved.maxReputation) || 0)),
+            storage: saved.storage && typeof saved.storage === 'object' ? saved.storage : {},
+            tradingCount: Math.max(0, Number(saved.tradingCount) || 0),
+            pendingRewards: Array.isArray(saved.pendingRewards) ? saved.pendingRewards : [],
+        };
+    }
+    // One-time migration of the previous map-only unlock list.
+    const legacy = legacyMap && typeof legacyMap === 'object'
+        ? (legacyMap as { unlockedNpcs?: unknown }).unlockedNpcs
+        : undefined;
+    if (Array.isArray(legacy))
+    {
+        for (const npcId of legacy)
+        {
+            if (typeof npcId === 'number' && NPC_IDS.includes(npcId as NpcId))
+            {
+                states[npcId as NpcId].unlocked = true;
+            }
+        }
+    }
+    return states;
 }
 
 /** True if every known building is level 0 (pre-facility-migration save). */
@@ -474,7 +566,8 @@ export function createNewSession (role: RoleKey, talent: TalentId): SessionState
         bag: defaultBag(),
         equip: defaultEquip(),
         navigation: [{ nodeName: 'HomeNode' }],
-        map: defaultMap(),
+        map: defaultMap(role),
+        npcs: defaultNpcs(),
         tempLoot: {},
         isAtSite: false,
         nowSiteId: null,
@@ -551,12 +644,16 @@ export function updateSession (partial: Partial<SessionState>): SessionState
         map: partial.map
             ? {
                 pos: partial.map.pos ?? current.map.pos,
+                homePos: partial.map.homePos ?? current.map.homePos,
                 unlocked: partial.map.unlocked ?? current.map.unlocked,
                 sites: partial.map.sites
                     ? { ...current.map.sites, ...partial.map.sites }
                     : current.map.sites,
             }
             : current.map,
+        npcs: partial.npcs
+            ? { ...current.npcs, ...partial.npcs }
+            : current.npcs,
         tempLoot: partial.tempLoot ?? current.tempLoot,
     };
     if (typeof partial.gameTime === 'number')

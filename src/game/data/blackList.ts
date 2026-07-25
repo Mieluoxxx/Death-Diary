@@ -32,3 +32,9 @@ export const STORAGE_LOST_BLACKLIST: readonly number[] = [
 ];
 
 export const STORAGE_LOST_SET = new Set(STORAGE_LOST_BLACKLIST);
+
+/** Items excluded when wildcard site loot expands (original blackList.randomLoop). */
+export const RANDOM_LOOT_EXCLUDED_SET = new Set<number>([
+    1305023, 1305024, 1106013, 1106054, 1304024, 1305034, 1305044, 1305053,
+    1305064, 1303033, 1303044, 1102053, 1107012, 1107022, 1107032, 1107042,
+]);

@@ -1,8 +1,10 @@
 /**
- * Map / Site progression for P0 (HOME + starter site 201).
- * Ports map.js / site.js subset: unlock, genRooms, roomEnd, travel arrive.
+ * Map / Site progression.
+ * Ports map.js / site.js: unlock graph, genRooms, roomEnd, travel arrive.
  */
 
+import { RANDOM_LOOT_EXCLUDED_SET } from '../data/blackList';
+import { ITEM_CONFIG } from '../data/itemConfig';
 import { rollMonsterList } from '../data/monsterConfig';
 import {
     getSiteConfig,
@@ -12,6 +14,7 @@ import {
     STARTER_SITE_ID,
     travelTimeSeconds,
 } from '../data/siteConfig';
+import { getSiteProduceConfig, type WeightedSiteLoot } from '../data/siteProduceConfig';
 import {
     appendSessionLog,
     applyGameTimeToSession,
@@ -24,6 +27,7 @@ import {
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';
 import { flushBagToStorage } from './inventory';
+import { unlockNpc } from './npcSystem';
 
 export function defaultMapState (): SessionState['map']
 {
@@ -31,11 +35,125 @@ export function defaultMapState (): SessionState['map']
     const starter = createSiteState(STARTER_SITE_ID);
     return {
         pos: { ...home.coordinate },
+        homePos: { ...home.coordinate },
         unlocked: [HOME_SITE_ID, STARTER_SITE_ID],
         sites: {
             [STARTER_SITE_ID]: starter,
         },
     };
+}
+
+function randomInt (min: number, max: number): number
+{
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/** Original utils.getRoundRandom, including its inclusive 0..total roll. */
+function rollWeightedLoot (entries: readonly WeightedSiteLoot[]): WeightedSiteLoot
+{
+    const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+    if (total < 0 || entries.length === 0)
+    {
+        throw new Error('Site loot table must contain at least one non-negative entry.');
+    }
+
+    const roll = randomInt(0, total);
+    let cumulative = 0;
+    let selected = entries[entries.length - 1]!;
+    for (const entry of entries)
+    {
+        cumulative += entry.weight;
+        selected = entry;
+        if (roll <= cumulative)
+        {
+            break;
+        }
+    }
+    return selected;
+}
+
+/** Original utils.getRandomItemId wildcard matcher. */
+function resolveLootItemId (pattern: string): number
+{
+    if (!pattern.includes('*'))
+    {
+        return Number(pattern);
+    }
+
+    let candidates = Object.keys(ITEM_CONFIG)
+        .map(Number)
+        .filter((itemId) => !RANDOM_LOOT_EXCLUDED_SET.has(itemId));
+    let offset = 0;
+    for (let index = 0; index < pattern.length; index++, offset += 2)
+    {
+        if (pattern[index] === '*')
+        {
+            continue;
+        }
+
+        const length = offset === 6 ? 1 : 2;
+        const segment = pattern.substr(index, length);
+        candidates = candidates.filter((itemId) => String(itemId).substr(offset, length) === segment);
+        index++;
+    }
+
+    if (candidates.length === 0)
+    {
+        throw new Error(`Site loot wildcard ${pattern} resolved to no items.`);
+    }
+    return candidates[randomInt(0, candidates.length - 1)]!;
+}
+
+function generateWorkLoot (siteId: number, workCount: number): SiteLoot[][]
+{
+    const pools = Array.from({ length: workCount }, () => [] as number[]);
+    if (pools.length === 0)
+    {
+        return [];
+    }
+
+    const config = getSiteConfig(siteId)!;
+    const produce = getSiteProduceConfig(siteId);
+    const itemIds: number[] = [];
+    let remainingValue = (produce?.produceValue ?? 0) * (getSession()?.talent === 103 ? 1.1 : 1);
+    while (remainingValue > 0)
+    {
+        if (!produce)
+        {
+            break;
+        }
+        const itemId = resolveLootItemId(rollWeightedLoot(produce.produceList).itemId);
+        const item = ITEM_CONFIG[itemId];
+        if (!item)
+        {
+            throw new Error(`Site loot item ${itemId} does not exist.`);
+        }
+        remainingValue -= item.value;
+        itemIds.push(itemId);
+    }
+
+    for (const fixed of config.fixedProduceList)
+    {
+        for (let num = 0; num < fixed.num; num++)
+        {
+            itemIds.push(fixed.itemId);
+        }
+    }
+
+    for (const itemId of itemIds)
+    {
+        pools[randomInt(0, pools.length - 1)]!.push(itemId);
+    }
+
+    return pools.map((pool) =>
+    {
+        const counts = new Map<number, number>();
+        for (const itemId of pool)
+        {
+            counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
+        }
+        return [...counts].map(([itemId, num]) => ({ itemId, num }));
+    });
 }
 
 export function createSiteState (siteId: number): SiteState
@@ -55,15 +173,11 @@ export function createSiteState (siteId: number): SiteState
     }
 
     const battleRooms: SiteRoom[] = [];
-    const battleCount = config.battleRoom;
-    const workCount = config.workRoom;
-    const diffRange = config.difficulty;
-
-    for (let i = 0; i < battleCount; i++)
+    for (let index = 0; index < config.battleRoom; index++)
     {
-        const lo = diffRange[0] ?? 1;
-        const hi = diffRange[1] ?? lo;
-        const difficulty = lo + Math.floor(Math.random() * (hi - lo + 1));
+        const low = config.difficulty[0] ?? 1;
+        const high = config.difficulty[1] ?? low;
+        const difficulty = randomInt(low, high);
         battleRooms.push({
             type: 'battle',
             difficulty,
@@ -71,45 +185,54 @@ export function createSiteState (siteId: number): SiteState
         });
     }
 
-    const lootPools: SiteLoot[][] = [];
-    if (workCount > 0)
-    {
-        for (let i = 0; i < workCount; i++)
-        {
-            lootPools.push([]);
-        }
-        lootPools[workCount - 1] = config.fixedProduceList.map((row) => ({
-            itemId: row.itemId,
-            num: row.num,
-        }));
-    }
-
-    const workRooms: SiteRoom[] = lootPools.map((list) => ({
+    const workRooms: SiteRoom[] = generateWorkLoot(siteId, config.workRoom).map((loot) => ({
         type: 'work' as const,
-        workType: Math.floor(Math.random() * 3),
-        loot: list,
+        workType: randomInt(0, 2),
+        loot,
     }));
 
-    const ordered: SiteRoom[] = [];
+    // Original Site.genRooms: guarantee one randomly selected work room is last,
+    // then randomly interleave every remaining battle/work room.
+    const rooms: SiteRoom[] = [];
+    let roomCount = battleRooms.length + workRooms.length;
     if (workRooms.length > 0)
     {
-        const endWork = workRooms.pop()!;
-        ordered.push(...battleRooms, ...workRooms, endWork);
+        rooms.unshift(workRooms.splice(randomInt(0, workRooms.length - 1), 1)[0]!);
+        roomCount--;
     }
-    else
+    while (roomCount-- > 0)
     {
-        ordered.push(...battleRooms);
+        const index = randomInt(0, roomCount);
+        if (index > battleRooms.length - 1)
+        {
+            rooms.unshift(workRooms.splice(index - battleRooms.length, 1)[0]!);
+        }
+        else
+        {
+            rooms.unshift(battleRooms.splice(index, 1)[0]!);
+        }
     }
 
     return {
         siteId,
         step: 0,
-        rooms: ordered,
+        rooms,
+        lootVersion: 2,
         storage: {},
         haveNewItems: false,
         closed: false,
         ended: false,
     };
+}
+
+function isPristineLegacySite (site: SiteState): boolean
+{
+    return site.lootVersion !== 2
+        && site.step === 0
+        && Object.keys(site.storage).length === 0
+        && !site.haveNewItems
+        && !site.closed
+        && !site.ended;
 }
 
 export function ensureSite (siteId: number): SiteState | null
@@ -119,9 +242,20 @@ export function ensureSite (siteId: number): SiteState | null
     {
         return null;
     }
-    if (session.map.sites[siteId])
+    const existing = session.map.sites[siteId];
+    if (existing)
     {
-        return session.map.sites[siteId];
+        if (!isPristineLegacySite(existing))
+        {
+            return existing;
+        }
+
+        const migrated = createSiteState(siteId);
+        mutateSession((live) =>
+        {
+            live.map.sites[siteId] = migrated;
+        });
+        return migrated;
     }
     if (!session.map.unlocked.includes(siteId))
     {
@@ -162,6 +296,7 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
     let doneWorkType: number | null = null;
     let siteName = '';
     const unlockedNames: string[] = [];
+    const unlockedNpcIds: number[] = [];
 
     mutateSession((live) =>
     {
@@ -183,7 +318,7 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
             siteEnded = true;
             const cfg = getSiteConfig(siteId);
             siteName = cfg?.name ?? '';
-            // siteEnd unlocks
+            // siteEnd → unlockValue.site
             for (const unlockId of cfg?.unlockSites ?? [])
             {
                 if (!live.map.unlocked.includes(unlockId))
@@ -195,6 +330,11 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
                         unlockedNames.push(name);
                     }
                 }
+            }
+            // Site completion reveals NPCs through their own persistent state.
+            for (const npcId of cfg?.unlockNpcs ?? [])
+            {
+                unlockedNpcIds.push(npcId);
             }
         }
     });
@@ -218,6 +358,10 @@ export function roomEnd (siteId: number, won: boolean): { advanced: boolean; sit
             for (const name of unlockedNames)
             {
                 appendSessionLog(`新地点 ${name} 解锁！`);
+            }
+            for (const npcId of unlockedNpcIds)
+            {
+                unlockNpc(npcId);
             }
         }
         gameBusEmit('session_updated');
@@ -250,11 +394,7 @@ export function playerGoHome (): void
         live.isAtHome = true;
         live.isAtSite = false;
         live.nowSiteId = null;
-        const home = getSiteConfig(HOME_SITE_ID);
-        if (home)
-        {
-            live.map.pos = { ...home.coordinate };
-        }
+        live.map.pos = { ...live.map.homePos };
     });
     if (wasOutside)
     {
@@ -359,7 +499,8 @@ export function planTravel (siteId: number): TravelPlan | null
     {
         return null;
     }
-    const distance = mapDistance(session.map.pos, cfg.coordinate);
+    const target = siteId === HOME_SITE_ID ? session.map.homePos : cfg.coordinate;
+    const distance = mapDistance(session.map.pos, target);
     const gameSeconds = Math.max(1, Math.round(travelTimeSeconds(distance)));
     // Keep actor tween short; original scales real duration with velocity.
     const realSeconds = Math.min(8, Math.max(1.5, gameSeconds / 1800));
