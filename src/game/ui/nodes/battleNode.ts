@@ -18,7 +18,7 @@ import {
     startBattle,
     tickBattle,
 } from '../../systems/battleSystem';
-import { EquipPosMap } from '../../systems/inventory';
+import { EquipPosMap, testWeaponBroken } from '../../systems/inventory';
 import {
     currentRoom,
     fillTempLootFromRoom,
@@ -594,7 +594,7 @@ function mountWorkProcess(
     ctx: NodeMountContext,
     siteId: number,
     minutes: number,
-    _itemId: number,
+    itemId: number,
     workType: number,
 ): NodeMountResult {
     ctx.setLeftEnabled(false);
@@ -630,6 +630,10 @@ function mountWorkProcess(
                 bar.setPct(1);
                 fillTempLootFromRoom(siteId);
                 roomEnd(siteId, true);
+                // Original createWorkProcessView end: bag.testWeaponBroken(itemId).
+                if (itemId && itemId !== HAND_ITEM_ID) {
+                    testWeaponBroken(itemId);
+                }
                 // Pass workType so loot title is 箱子/桌子/柜子 (original userData.room).
                 ctx.replace(NavNode.WORK_ROOM_STORAGE, { siteId, workType });
                 return;

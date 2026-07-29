@@ -15,7 +15,7 @@ import {
 } from '../session/sessionStore';
 import { Music, Sound, insertMusic, playEffect, playWeaponAttack, resumeMusic } from './audioManager';
 import { gameBusEmit } from './gameBus';
-import { EquipPosMap, getArmorDef } from './inventory';
+import { EquipPosMap, getArmorDef, testWeaponBroken } from './inventory';
 import { VIGOUR_IMMUNE_BUFF_ITEM_ID } from '../data/itemEffects';
 import { changeAttr, isBuffActive } from './playerAttrs';
 import { pauseTimeClock, resumeTimeClock } from './timeClock';
@@ -580,18 +580,9 @@ function consumeBattleSupplies(battle: BattleState): void {
                 if (itemId === HAND_ITEM_ID) {
                     continue;
                 }
-                const probability = getItemDef(itemId).effectWeapon?.brokenProbability ?? 0;
-                if (probability <= 0 || Math.random() >= probability) {
-                    continue;
+                if (testWeaponBroken(itemId)) {
+                    battle.sum.brokenWeapons?.push(itemId);
                 }
-                consume(itemId, 1);
-                if (session.equip[EquipPosMap.GUN] === itemId) {
-                    session.equip[EquipPosMap.GUN] = 0;
-                }
-                if (session.equip[EquipPosMap.WEAPON] === itemId) {
-                    session.equip[EquipPosMap.WEAPON] = HAND_ITEM_ID;
-                }
-                battle.sum.brokenWeapons?.push(itemId);
             }
         }
     });
