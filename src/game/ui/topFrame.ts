@@ -40,6 +40,71 @@ const SECOND_LINE_LOCAL_Y = 134;
 const THIRD_LINE_LOCAL_Y = 6;
 const THIRD_LINE_HEIGHT = 122;
 
+/**
+ * Port of Buried-City utils.splitLog.
+ * CJK / wide glyphs count as 2, ASCII as 1. Used so each top-frame log slot
+ * is a single visual line (no mid-slot wordWrap growth / overlap).
+ */
+function splitLog(log: string, zhLen = 55, enLen = 55): string[] {
+    const isZh = getLanguage() === 'zh' || getLanguage() === 'zh-Hant';
+    let len = isZh ? zhLen : enLen;
+    const logs: string[] = [];
+    let realLen = 0;
+    let oneLine = '';
+    let tail: string | null = null;
+    let tailRealLen = 0;
+
+    for (let i = 0; i < log.length; i++) {
+        const charCode = log.charCodeAt(i);
+        if (charCode >= 0x0400 && charCode <= 0x04ff) {
+            realLen += 1;
+            tailRealLen += 1;
+            len = 40;
+        } else if (
+            (charCode >= 0x0600 && charCode <= 0x06ff) ||
+            (charCode >= 0x0750 && charCode <= 0x077f)
+        ) {
+            realLen += 1;
+            tailRealLen += 1;
+        } else if (charCode >= 0 && charCode <= 128) {
+            realLen += 1;
+            tailRealLen += 1;
+        } else {
+            realLen += 2;
+            tailRealLen += 2;
+        }
+
+        oneLine += log[i]!;
+
+        if (charCode === 32) {
+            tail = '';
+            tailRealLen = 0;
+        }
+        if (tail != null && charCode !== 32) {
+            tail += log[i]!;
+        }
+
+        if (realLen >= len) {
+            if (tail != null) {
+                oneLine = oneLine.slice(0, oneLine.length - tail.length);
+                logs.push(oneLine);
+                oneLine = tail;
+                realLen = tailRealLen;
+            } else {
+                logs.push(oneLine);
+                oneLine = '';
+                realLen = 0;
+            }
+        } else if (i === log.length - 1) {
+            logs.push(oneLine);
+            oneLine = '';
+            realLen = 0;
+        }
+    }
+
+    return logs.length > 0 ? logs : log ? [log] : [];
+}
+
 type AttrKeyLocal = AttrKey;
 
 export type TopFrameHandle = {
@@ -533,6 +598,9 @@ export function addTopFrame(
     });
 
     // ── thirdLine logs ──
+    // Original: 4 single-line slots @ y = i*30+4 (anchor bottom-left).
+    // Long messages are pre-split via splitLog into separate slots — no wordWrap,
+    // no fixedHeight/crop (those clip CJK glyph tops).
     for (let lineIndex = 0; lineIndex < 4; lineIndex++) {
         const cocosBottomY = THIRD_LINE_LOCAL_Y + lineIndex * 30 + 4;
         const phaserBottomY = topY + FRAME_HEIGHT - cocosBottomY;
@@ -542,7 +610,6 @@ export function addTopFrame(
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
                 color: '#ffffff',
-                wordWrap: uiWordWrap(580),
             })
             .setOrigin(0, 1);
         root.add(lineText);
@@ -550,21 +617,20 @@ export function addTopFrame(
     }
 
     const fillLogLines = (live: SessionState): void => {
-        const recent = live.logs.slice(-4);
-        // Newest at bottom of strip (index 0 in original was lastLog only).
-        // Match original single lastLog on first slot; show history upward.
-        const lines = ['', '', '', ''];
-        if (recent.length === 0 && live.lastLog) {
-            lines[0] = live.lastLog;
-        } else {
-            // oldest of the 4 → top visually (higher lineIndex = higher on screen in Cocos local)
-            // phaser: lineIndex 0 is lowest? cocosBottomY = 6 + i*30 → lineIndex 0 is near bottom of strip
-            // Put newest at lineIndex 0 (bottom of strip area in local coords = top of third line stack...)
-            // Original only showed lastLog on first slot. Show newest first.
-            for (let i = 0; i < 4; i++) {
-                const entry = recent[recent.length - 1 - i];
-                lines[i] = entry ? entry.text : '';
+        // Flatten session logs into single-line visual rows (oldest → newest).
+        const visual: string[] = [];
+        if (live.logs.length > 0) {
+            for (const entry of live.logs) {
+                visual.push(...splitLog(entry.text, 55, 55));
             }
+        } else if (live.lastLog) {
+            visual.push(...splitLog(live.lastLog, 55, 55));
+        }
+        // Keep last 4 rows; lines[0] = newest (bottom slot), lines[3] = oldest.
+        const last4 = visual.slice(-4);
+        const lines = ['', '', '', ''];
+        for (let i = 0; i < last4.length; i++) {
+            lines[i] = last4[last4.length - 1 - i] ?? '';
         }
         logLineTexts.forEach((textObj, index) => {
             textObj.setText(lines[index] ?? '');
