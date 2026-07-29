@@ -11,6 +11,8 @@ import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '..
  *
  * Layout (design 640×1136):
  *   NODE 246×249, 2-col scroll of [108,109,101–107]
+ *   scroll bottom = 100 (Cocos scrollView.y), back btn at y=60 from bottom
+ *   solid footer plate above cards so clipped content never covers Return
  *   bottom: Return (web hides Restore like Android)
  */
 
@@ -18,7 +20,11 @@ const NODE_WIDTH = 246;
 const NODE_HEIGHT = 249;
 const HEIGHT_PADDING = 10;
 const SCROLL_TOP = 80;
-const SCROLL_BOTTOM = 120;
+/** Matches Cocos ShopLayer scrollView.y = 100 (bottom inset). */
+const SCROLL_BOTTOM = 100;
+const DEPTH_SCROLL = 1;
+const DEPTH_FOOTER = 5;
+const DEPTH_BACK = 10;
 
 type PayCard = {
     purchaseId: PermanentIapId;
@@ -56,17 +62,8 @@ export class ShopScene extends Scene {
         const { width, height } = this.scale;
         const lan = getLanguage();
 
-        this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a1a);
-
-        this.add
-            .text(width / 2, 42, t('shop', lan), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                color: '#f0e6d2',
-            })
-            .setOrigin(0.5);
-
+        // Full-screen black — original ShopLayer has no frame_bg_bottom chrome.
+        this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
         const layoutWidth = width;
         const widthPadding = (layoutWidth - 2 * NODE_WIDTH) / 3;
         const rowCount = Math.ceil(SHOP_PERMANENT_IDS.length / 2);
@@ -106,8 +103,23 @@ export class ShopScene extends Scene {
                 0,
             )
             .setInteractive();
-        dragPlane.setDepth(1);
-        this.scrollRoot.setDepth(2);
+        // Scroll under footer/back so list never paints over the bottom band.
+        dragPlane.setDepth(DEPTH_SCROLL);
+        this.scrollRoot.setDepth(DEPTH_SCROLL + 1);
+
+        // Solid footer plate: hard black bottom edge under the scroll clip line.
+        // Original relied on ScrollView clipping + empty space; we also paint a
+        // plate so cards cannot visually leak into the Return zone if mask slips.
+        this.add
+            .rectangle(
+                width / 2,
+                height - SCROLL_BOTTOM / 2,
+                width,
+                SCROLL_BOTTOM,
+                0x000000,
+            )
+            .setDepth(DEPTH_FOOTER)
+            .setInteractive(); // block scroll drag from reaching cards under footer
 
         dragPlane.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             this.dragging = true;
@@ -152,23 +164,25 @@ export class ShopScene extends Scene {
             this.scrollMask?.destroy();
         });
 
-        // Return — Android layout: single centered back button
+        // Return — Android/web layout: single centered back button (Cocos y = 60).
         const backY = height - 60;
         if (
             this.textures.exists('ui') &&
             this.textures.get('ui').has('btn_common_white_normal.png')
         ) {
-            addAtlasButton(this, width / 2, backY, {
+            const backBtn = addAtlasButton(this, width / 2, backY, {
                 atlas: 'ui',
                 frame: 'btn_common_white_normal.png',
                 label: t('return', lan),
                 labelSizeTier: 'COMMON_2',
                 onClick: () => this.scene.start('MainMenu'),
             });
+            backBtn.setDepth(DEPTH_BACK);
         } else {
             const btn = this.add
                 .rectangle(width / 2, backY, 160, 48, 0xe8e0d0)
-                .setInteractive({ useHandCursor: true });
+                .setInteractive({ useHandCursor: true })
+                .setDepth(DEPTH_BACK);
             this.add
                 .text(width / 2, backY, t('return', lan), {
                     fontFamily: UI_FONT_FAMILY,
@@ -176,7 +190,8 @@ export class ShopScene extends Scene {
                     fontSize: '20px',
                     color: '#111',
                 })
-                .setOrigin(0.5);
+                .setOrigin(0.5)
+                .setDepth(DEPTH_BACK);
             btn.on('pointerup', () => this.scene.start('MainMenu'));
         }
     }
