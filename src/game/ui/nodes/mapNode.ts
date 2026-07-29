@@ -15,8 +15,13 @@ import type { GameObjects } from 'phaser';
 import { getNpcCopy, getNpcDef, NPC_IDS } from '../../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
-import { clearBattle, getDodgeProgress, startBattle, tickBattle } from '../../systems/battleSystem';
-import { arriveAt, planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
+import { openRandomBattleDialog } from '../randomBattleDialog';
+import {
+    arriveAt,
+    planTravel,
+    rollTravelEncounter,
+    travelTo,
+} from '../../systems/mapSystem';
 import { accelerateTime } from '../../systems/timeClock';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
@@ -316,15 +321,22 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
                 markers.get(siteId)?.setHighlight(false);
 
                 if (encounter) {
-                    // Pause arrival until dodge encounter resolves (auto 5s win).
-                    runDodgeEncounter(encounter.monsters, () => {
-                        moving = false;
-                        if (!arriveAt(siteId)) {
-                            ctx.showToast('无法前往');
-                            return;
-                        }
-                        enterSite(siteId);
-                    });
+                    // Original: pause travel until RandomBattleDialog resolves.
+                    openRandomBattleDialog(
+                        ctx.scene,
+                        { difficulty: encounter.difficulty, monsters: encounter.monsters },
+                        () => {
+                            if (destroyed) {
+                                return;
+                            }
+                            moving = false;
+                            if (!arriveAt(siteId)) {
+                                ctx.showToast('无法前往');
+                                return;
+                            }
+                            enterSite(siteId);
+                        },
+                    );
                     return;
                 }
 
@@ -334,64 +346,6 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
                     return;
                 }
                 enterSite(siteId);
-            },
-        });
-    }
-
-    function runDodgeEncounter(monsters: number[], onDone: () => void): void {
-        clearBattle();
-        startBattle(monsters, { isDodge: true });
-        const { width, height } = ctx.scene.scale;
-        const overlay = ctx.scene.add.container(0, 0);
-        overlay.setDepth(220);
-        overlay.setName('mapEncounterDodge');
-        ctx.content.add(overlay);
-
-        overlay.add(
-            ctx.scene.add
-                .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
-                .setInteractive(),
-        );
-        overlay.add(
-            ctx.scene.add
-                .text(width / 2, height / 2 - 40, '遭遇僵尸！正在脱离……', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
-                    color: '#ffffff',
-                })
-                .setOrigin(0.5),
-        );
-        const pctText = ctx.scene.add
-            .text(width / 2, height / 2 + 10, '0%', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                color: '#ffcc66',
-            })
-            .setOrigin(0.5);
-        overlay.add(pctText);
-
-        let done = false;
-        const timer = ctx.scene.time.addEvent({
-            delay: 100,
-            loop: true,
-            callback: () => {
-                if (done || destroyed) {
-                    timer.remove(false);
-                    return;
-                }
-                const result = tickBattle(0.1);
-                const pct = Math.floor(getDodgeProgress() * 100);
-                pctText.setText(`${pct}%`);
-                if (result) {
-                    done = true;
-                    timer.remove(false);
-                    overlay.destroy(true);
-                    clearBattle();
-                    ctx.showToast(result.win ? '你甩开了僵尸' : '遭遇失败');
-                    onDone();
-                }
             },
         });
     }
@@ -587,7 +541,11 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
                     enterNpc(npcId);
                 };
                 if (encounter) {
-                    runDodgeEncounter(encounter.monsters, finish);
+                    openRandomBattleDialog(
+                        ctx.scene,
+                        { difficulty: encounter.difficulty, monsters: encounter.monsters },
+                        finish,
+                    );
                     return;
                 }
                 finish();
@@ -608,12 +566,9 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
             ctx.rootTo(NavNode.HOME);
             return;
         }
-        const live = getSession();
-        if (!live || live.nowSiteId !== siteId) {
-            travelTo(siteId);
-        }
         ctx.forward(NavNode.SITE, siteId);
     }
+
 
     return {
         destroy: () => {
