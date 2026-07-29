@@ -16,8 +16,7 @@ import {
 import { Music, Sound, insertMusic, playEffect, playWeaponAttack, resumeMusic } from './audioManager';
 import { gameBusEmit } from './gameBus';
 import { EquipPosMap, getArmorDef, testWeaponBroken } from './inventory';
-import { VIGOUR_IMMUNE_BUFF_ITEM_ID } from '../data/itemEffects';
-import { changeAttr, isBuffActive } from './playerAttrs';
+import { changeAttr, vigourEffect } from './playerAttrs';
 import { pauseTimeClock, resumeTimeClock } from './timeClock';
 
 const LAST_LINE = 5;
@@ -201,9 +200,7 @@ function hasElectricPower(session: SessionState): boolean {
 
 /** Original player.vigourEffect(): only the lowest vigour band doubles cooldowns. */
 function cooldownFor(session: SessionState, base: number): number {
-    const lowVigour =
-        session.attrs.vigour <= 25 && !isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session);
-    return base * (lowVigour ? 2 : 1);
+    return base * vigourEffect(session);
 }
 
 function initialMonsters(monsterIds: number[]): BattleMonster[] {

@@ -529,7 +529,7 @@ export function openBuildPanel(
             onComplete: () => refreshUpgradeRow(),
             onFail: (reason) => {
                 if (reason === 'vigour') {
-                    costText.setText('精力不足，无法操作。');
+                    costText.setText('你太累做不了任何工作，还是先去睡觉吧');
                     costText.setColor('#ff5555');
                     clearItemIcons();
                 } else {

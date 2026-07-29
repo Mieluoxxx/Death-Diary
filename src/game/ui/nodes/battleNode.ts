@@ -19,6 +19,7 @@ import {
     tickBattle,
 } from '../../systems/battleSystem';
 import { EquipPosMap, testWeaponBroken } from '../../systems/inventory';
+import { isLowVigour, vigourEffect } from '../../systems/playerAttrs';
 import {
     currentRoom,
     fillTempLootFromRoom,
@@ -270,7 +271,7 @@ function mountBattleBegin(
     }
 
     // Low vigour warning (1206)
-    if (session && session.attrs.vigour < 30) {
+    if (session && isLowVigour(session)) {
         ctx.content.add(
             ctx.scene.add
                 .text(left, cursorY, '你的精力值过低，攻击速度降为50%！', {
@@ -457,13 +458,10 @@ function listWorkTools(session: ReturnType<typeof getSession>): number[] {
     return ids;
 }
 
-function toolWorkMinutes(itemId: number, vigour: number): number {
-    // Original: HAND=45m, else effect_tool.workingTime; * vigourEffect.
+function toolWorkMinutes(itemId: number, session: ReturnType<typeof getSession>): number {
+    // Original: HAND=45m, else effect_tool.workingTime; * player.vigourEffect().
     let minutes = itemId === HAND_ITEM_ID ? 45 : (getItemDef(itemId).effectTool?.workingTime ?? 45);
-    // vigourEffect: low vigour slows work (simple: <30 → ×2)
-    if (vigour < 30) {
-        minutes = Math.round(minutes * 2);
-    }
+    minutes = Math.round(minutes * vigourEffect(session));
     return minutes;
 }
 
@@ -500,7 +498,6 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
 
     const session = getSession();
     const tools = listWorkTools(session);
-    const vigour = session?.attrs.vigour ?? 80;
     const areaW = ctx.bgWidth - CONTENT_LEFT * 2;
     const areaLeft = ctx.width / 2 - areaW / 2;
     const iconW = 57;
@@ -513,7 +510,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
 
     tools.forEach((itemId, i) => {
         const x = areaLeft + (padding * 2 + iconW) * i + (padding + iconW / 2);
-        const minutes = toolWorkMinutes(itemId, vigour);
+        const minutes = toolWorkMinutes(itemId, session);
 
         // btn_tool background
         if (hasFrame(ctx, 'ui', 'btn_tool.png')) {
