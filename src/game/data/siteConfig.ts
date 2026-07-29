@@ -418,7 +418,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
     202: {
         id: 202,
         name: '???',
-        des: '一台可疑的设备，不依靠外部供电而持续运转，偶尔播发视频，还派发礼物。好吧，先进一段广告，之后死亡之旅会更刺激！',
+        des: '一台可疑的设备，不依靠外部供电而持续运转，偶尔派发礼物。每天可以来这里领取一次补给。',
         coordinate: { x: 130, y: 207 },
         battleRoom: 0,
         workRoom: 0,

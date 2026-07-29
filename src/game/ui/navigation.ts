@@ -16,6 +16,7 @@ import { mountHomeNode } from './nodes/homeNode';
 import { mountMapNode } from './nodes/mapNode';
 import { mountNpcNode } from './nodes/npcNode';
 import { mountRadioNode } from './nodes/radioNode';
+import { mountAdSiteNode } from './nodes/adSiteNode';
 import { mountSiteNode } from './nodes/siteNode';
 import { mountSiteStorageNode } from './nodes/siteStorageNode';
 import { mountStorageNode } from './nodes/storageNode';
@@ -28,6 +29,7 @@ export const NavNode = {
     GATE_OUT: 'GateOutNode',
     MAP: 'MapNode',
     SITE: 'SiteNode',
+    AD_SITE: 'AdSiteNode',
     SITE_STORAGE: 'SiteStorageNode',
     BATTLE_AND_WORK: 'BattleAndWorkNode',
     WORK_ROOM_STORAGE: 'WorkRoomStorageNode',
@@ -95,6 +97,7 @@ const MOUNTERS: Record<string, NodeMounter> = {
     [NavNode.GATE_OUT]: mountGateOutNode,
     [NavNode.MAP]: mountMapNode,
     [NavNode.SITE]: mountSiteNode,
+    [NavNode.AD_SITE]: mountAdSiteNode,
     [NavNode.SITE_STORAGE]: mountSiteStorageNode,
     [NavNode.BATTLE_AND_WORK]: mountBattleNode,
     [NavNode.WORK_ROOM_STORAGE]: mountWorkLootNode,

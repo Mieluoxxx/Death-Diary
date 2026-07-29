@@ -12,6 +12,7 @@
 | `gateOutNode.ts` | `GATE_OUT` | 出门过渡 |
 | `mapNode.ts` | `MAP` | 大地图旅行 |
 | `siteNode.ts` | `SITE` | 地点入口：进度、存放、进入 |
+| `adSiteNode.ts` | `AD_SITE` | 废品站：每日免费补给（无广告） |
 | `siteStorageNode.ts` | `SITE_STORAGE` | 地点物品存放点（上下分栏） |
 | `battleNode.ts` | `BATTLE_AND_WORK` | 战斗/搜刮过程 |
 | `workLootNode.ts` | `WORK_ROOM_STORAGE` | 搜刮收获：背包↔箱子 |

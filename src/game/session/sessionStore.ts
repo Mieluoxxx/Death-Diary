@@ -76,6 +76,8 @@ export type SiteState = {
     haveNewItems: boolean;
     closed: boolean;
     ended: boolean;
+    /** Scrapyard (202): last calendar day a free gift was claimed. */
+    lastGiftDay?: number;
 };
 
 export type MapState = {

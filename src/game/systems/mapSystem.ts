@@ -6,7 +6,9 @@
 import { RANDOM_LOOT_EXCLUDED_SET } from '../data/blackList';
 import { ITEM_CONFIG } from '../data/itemConfig';
 import { rollMonsterList } from '../data/monsterConfig';
+import { AD_REWARD_CONFIG, SCRAPYARD_CLAIMS_PER_DAY } from '../data/adConfig';
 import {
+    AD_SITE_ID,
     getSiteConfig,
     HOME_SITE_ID,
     mapDistance,
@@ -496,6 +498,84 @@ export function flushTempToSite(siteId: number): void {
         live.tempLoot = {};
     });
     gameBusEmit('session_updated');
+}
+
+/** Daily scrapyard claim progress: 0 = ready, 1 = claimed today. */
+export function scrapyardClaimStep(siteId: number = AD_SITE_ID): number {
+    if (siteId !== AD_SITE_ID) {
+        return SCRAPYARD_CLAIMS_PER_DAY;
+    }
+    const session = getSession();
+    if (!session) {
+        return SCRAPYARD_CLAIMS_PER_DAY;
+    }
+    const site = session.map.sites[siteId] ?? ensureSite(siteId);
+    if (!site) {
+        return SCRAPYARD_CLAIMS_PER_DAY;
+    }
+    return (site.lastGiftDay ?? 0) === session.day ? SCRAPYARD_CLAIMS_PER_DAY : 0;
+}
+
+/** Progress caption for AdSite chrome — room-style 进度:cur/total. */
+export function scrapyardProgressStr(siteId: number = AD_SITE_ID): string {
+    return `进度:${scrapyardClaimStep(siteId)}/${SCRAPYARD_CLAIMS_PER_DAY}`;
+}
+
+/** Whether scrapyard free gift is available today (no ads). */
+export function canClaimScrapyardGift(siteId: number = AD_SITE_ID): boolean {
+    return scrapyardClaimStep(siteId) < SCRAPYARD_CLAIMS_PER_DAY;
+}
+
+/**
+ * Claim free scrapyard gift into site storage.
+ * Port of AdSiteNode ad dismiss reward — ads removed; once per day.
+ */
+export function claimScrapyardGift(siteId: number = AD_SITE_ID): SiteLoot[] {
+    if (siteId !== AD_SITE_ID) {
+        return [];
+    }
+    const session = getSession();
+    if (!session) {
+        return [];
+    }
+    ensureSite(siteId);
+    const liveSite = getSite(siteId);
+    if (!liveSite || (liveSite.lastGiftDay ?? 0) === session.day) {
+        return [];
+    }
+
+    const itemIds: number[] = [];
+    let remainingValue = AD_REWARD_CONFIG.produceValue;
+    while (remainingValue > 0) {
+        const itemId = resolveLootItemId(rollWeightedLoot(AD_REWARD_CONFIG.produceList).itemId);
+        const item = ITEM_CONFIG[itemId];
+        if (!item) {
+            throw new Error(`Scrapyard gift item ${itemId} does not exist.`);
+        }
+        remainingValue -= item.value;
+        itemIds.push(itemId);
+    }
+
+    const counts = new Map<number, number>();
+    for (const itemId of itemIds) {
+        counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
+    }
+    const loot: SiteLoot[] = [...counts].map(([itemId, num]) => ({ itemId, num }));
+
+    mutateSession((live) => {
+        const site = live.map.sites[siteId];
+        if (!site) {
+            return;
+        }
+        for (const row of loot) {
+            site.storage[row.itemId] = (site.storage[row.itemId] ?? 0) + row.num;
+        }
+        site.haveNewItems = true;
+        site.lastGiftDay = live.day;
+    });
+    appendSessionLog('你从可疑设备里拿到了补给。');
+    gameBusEmit('session_updated');
+    return loot;
 }
 
 export function siteStorageCount(siteId: number): number {
