@@ -455,7 +455,7 @@ export function clickCraftAction(bid: number, formulaId: number): CraftClickResu
         return { ok: false, msg: '需要商店解锁' };
     }
     if (!checkVigourOk()) {
-        return { ok: false, msg: '精力不足，无法操作。' };
+        return { ok: false, msg: '你太累做不了任何工作，还是先去睡觉吧' };
     }
     if (anyBusyOnBuild(bid)) {
         return { ok: false, msg: '该设施正忙' };

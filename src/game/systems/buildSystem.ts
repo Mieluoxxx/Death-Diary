@@ -21,6 +21,7 @@ import {
 } from '../session/sessionStore';
 import { Sound, playEffect } from './audioManager';
 import { gameBusEmit } from './gameBus';
+import { isLowVigour } from './playerAttrs';
 import { accelerateWorkTime, addTimerCallback, type TimerCallbackHandle } from './timeClock';
 
 export enum BuildUpgradeType {
@@ -38,7 +39,6 @@ export type UpgradeCheckResult = {
     cost?: BuildCostItem[];
 };
 
-const LOW_VIGOUR_THRESHOLD = 25;
 
 /** Active upgrade jobs keyed by bid (one facility at a time per original activeBtnIndex). */
 const activeUpgrades = new Map<
@@ -145,11 +145,8 @@ export function hasAnyActiveUpgrade(): boolean {
 }
 
 export function checkVigourOk(): boolean {
-    const session = getSession();
-    if (!session) {
-        return false;
-    }
-    return session.attrs.vigour > LOW_VIGOUR_THRESHOLD;
+    // Original uiUtil.checkVigour → !player.isLowVigour() (≤25 band + buff 1107032).
+    return !isLowVigour();
 }
 
 /**

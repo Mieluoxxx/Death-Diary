@@ -21,6 +21,7 @@ import {
     tickBattle,
 } from '../systems/battleSystem';
 import { EquipPosMap } from '../systems/inventory';
+import { isLowVigour } from '../systems/playerAttrs';
 import { pauseTimeClock, resumeTimeClock } from '../systems/timeClock';
 import { addAtlasButton } from './atlasButton';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
@@ -334,7 +335,7 @@ export function openRandomBattleDialog(
             contentLayer.add(warn);
             cursorY += warn.height + 8;
         }
-        if (session && session.attrs.vigour < 30) {
+        if (session && isLowVigour(session)) {
             contentLayer.add(
                 scene.add
                     .text(textLeft, cursorY, '你的精力值过低，攻击速度降为50%！', {

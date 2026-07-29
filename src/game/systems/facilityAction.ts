@@ -391,7 +391,7 @@ export function clickFacilityAction(bid: number, actionId: number): FacilityClic
             return { ok: false, msg: '只有老罗会在这里喝酒' };
         }
         if (!checkVigourOk()) {
-            return { ok: false, msg: '精力不足，无法操作。' };
+            return { ok: false, msg: '你太累做不了任何工作，还是先去睡觉吧' };
         }
         if (chairBusy()) {
             return { ok: false, msg: '正在休息中' };

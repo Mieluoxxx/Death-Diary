@@ -111,6 +111,25 @@ export function getAttrBand(key: string, value: number): AttrBand | null {
 }
 
 /**
+ * Original player.isLowVigour: vigour band id===1 (≤25) and no 1107032 buff.
+ */
+export function isLowVigour(session: SessionState | null = getSession()): boolean {
+    if (!session) {
+        return true;
+    }
+    if (isBuffActive(VIGOUR_IMMUNE_BUFF_ITEM_ID, session)) {
+        return false;
+    }
+    const band = findAttrBand('vigour', session.attrs.vigour);
+    return band?.id === 1;
+}
+
+/** Original player.vigourEffect: low vigour → 2 (slower), else 1. */
+export function vigourEffect(session: SessionState | null = getSession()): number {
+    return isLowVigour(session) ? 2 : 1;
+}
+
+/**
  * Change an attribute, clamp, emit bus events, log band crosses, handle death.
  * Mutates the live session in place (caller should already hold it, or we fetch).
  */
