@@ -1,7 +1,10 @@
 /**
  * IAP unlock store for the web slice.
  * Original: IAPPackage + localStorage "IAPRecord".
- * Web: free unlock (no payment bridge); permanent packs 101–109.
+ * Web: free unlock in shop pay dialog only (no payment bridge); permanent packs 101–109.
+ *
+ * Dog house (107) is shop-only: Home must not free-unlock. Buying 107 grants the
+ * permanent flag and creates build 12 (level 0) on the live session when present.
  */
 
 import {
@@ -10,11 +13,14 @@ import {
     type PermanentIapId,
     PURCHASE_LIST,
 } from '../data/purchaseList';
+import { getSession, setBuildLevel } from '../session/sessionStore';
+import { gameBusEmit } from './gameBus';
 
 const STORAGE_KEY = 'buried_city_iap_v1';
-const DOG_HOUSE_IAP_ID = 107;
+export const DOG_HOUSE_IAP_ID = 107;
 const ROLE_LUO_IAP_ID = 108;
 const ROLE_YAZI_IAP_ID = 109;
+const DOG_HOUSE_BUILD_ID = 12;
 
 type IapRecord = Record<string, number>;
 
@@ -64,20 +70,38 @@ export function unlockIap(iapId: number): void {
     const key = String(iapId);
     record[key] = Math.max(1, record[key] ?? 0);
     writeRecord(record);
+    // Original player.restore / home lock callback: IAP 107 → createBuild(12, 0).
+    if (iapId === DOG_HOUSE_IAP_ID) {
+        ensureDogHouseBuilt();
+    }
 }
 
 export function getIapPriceStr(iapId: PermanentIapId): string {
     return getPurchaseConfig(iapId).productPriceStr;
 }
 
+/** If IAP 107 is owned and dog house is still unbuilt, place level 0. */
+export function ensureDogHouseBuilt(): boolean {
+    if (!isDogHouseUnlocked()) {
+        return false;
+    }
+    const session = getSession();
+    if (!session) {
+        return false;
+    }
+    const level = session.buildLevels[DOG_HOUSE_BUILD_ID] ?? -1;
+    if (level >= 0) {
+        return false;
+    }
+    setBuildLevel(DOG_HOUSE_BUILD_ID, 0);
+    gameBusEmit('facility_changed', { bid: DOG_HOUSE_BUILD_ID });
+    gameBusEmit('session_updated');
+    return true;
+}
+
 /** IAP 107 — dog house. */
 export function isDogHouseUnlocked(): boolean {
     return isIapUnlocked(DOG_HOUSE_IAP_ID);
-}
-
-/** Web slice: free unlock dog house. */
-export function unlockDogHouse(): void {
-    unlockIap(DOG_HOUSE_IAP_ID);
 }
 
 export function isRoleLuoUnlocked(): boolean {

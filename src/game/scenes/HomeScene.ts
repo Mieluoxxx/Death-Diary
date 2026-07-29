@@ -2,7 +2,7 @@ import { GameObjects, Scene } from 'phaser';
 import { getSession, type RoleKey, type SessionState } from '../session/sessionStore';
 import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
 import { gameBusClear, gameBusOff, gameBusOn } from '../systems/gameBus';
-import { isDogHouseUnlocked, unlockDogHouse } from '../systems/iapStore';
+import { ensureDogHouseBuilt, isDogHouseUnlocked } from '../systems/iapStore';
 import { openDayLayer } from '../ui/dayLayer';
 import type { NightRaidResult } from '../systems/nightRaidSystem';
 import { debugSkipGameHours, startSurvivalLoop, stopSurvivalLoop } from '../systems/survivalLoop';
@@ -101,6 +101,7 @@ export class HomeScene extends Scene {
                 .setDepth(0);
         }
 
+        ensureDogHouseBuilt();
         this.placeHomeContent(session, width, height);
 
         this.navHost = createNavigationHost(this, {
@@ -227,24 +228,31 @@ export class HomeScene extends Scene {
                 btn.setAlpha(0.55);
             }
 
-            // Original: dog house locked until IAP 107.
+            // Original: dog house locked until IAP 107 — lock icon only.
+            // Purchase must happen in the shop; home never free-unlocks.
             if (spot.bid === 12 && !isDogHouseUnlocked()) {
                 btn.setAlpha(0.4);
                 btn.setInteractive({ useHandCursor: true });
                 btn.on('pointerup', () => {
-                    this.promptDogHouseUnlock();
+                    this.showToast('请前往商店购买狗舍');
                 });
-                const lock = this.add
-                    .text(px, py + 18, '锁', {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: '16px',
-                        color: '#ffd27a',
-                    })
-                    .setOrigin(0.5)
-                    .setDepth(3);
                 this.homeLayer?.add(btn);
-                this.homeLayer?.add(lock);
+                if (
+                    this.textures.exists('icon') &&
+                    this.textures.get('icon').has('icon_iap_lock.png')
+                ) {
+                    const lock = this.add
+                        .image(px, py, 'icon', 'icon_iap_lock.png')
+                        .setOrigin(0.5)
+                        .setDepth(3);
+                    // Scale lock to roughly half the facility button.
+                    const target = Math.max(
+                        24,
+                        Math.min(btn.displayWidth, btn.displayHeight) * 0.55,
+                    );
+                    lock.setScale(target / Math.max(lock.width, lock.height));
+                    this.homeLayer?.add(lock);
+                }
                 this.buildButtons.set(spot.bid, btn);
                 return;
             }
@@ -279,17 +287,6 @@ export class HomeScene extends Scene {
             }
             this.topFrame?.refresh();
         });
-    }
-
-    private promptDogHouseUnlock(): void {
-        // Web slice: free unlock (no payment). Mirrors IAP 107 success path.
-        unlockDogHouse();
-        this.showToast('狗舍已解锁（IAP 107）。可建造狗舍。');
-        const live = getSession();
-        if (live) {
-            const { width, height } = this.scale;
-            this.placeHomeContent(live, width, height);
-        }
     }
 
     private openFacility(bid: number): void {
