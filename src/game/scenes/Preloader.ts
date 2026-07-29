@@ -1,6 +1,7 @@
 import { Scene } from 'phaser';
 import { PRELOAD_ATLAS_KEYS } from '../assets/frames.gen';
 import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
+import { bindAudio, queueMusicLoads } from '../systems/audioManager';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
 
 export class Preloader extends Scene {
@@ -35,11 +36,13 @@ export class Preloader extends Scene {
     preload() {
         // Policy: atlasManifest preload. JSON from gen_frame_multiatlas.mjs.
         queuePreloadAtlases(this, PRELOAD_ATLAS_KEYS);
+        queueMusicLoads(this);
     }
 
     create() {
         // Hand-painted frames: LINEAR (smooth) filtering, not NEAREST pixel-art.
         applyLinearFilter(this, PRELOAD_ATLAS_KEYS);
+        bindAudio(this);
 
         this.scene.start('MainMenu');
     }

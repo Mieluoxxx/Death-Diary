@@ -6,6 +6,7 @@
  */
 
 import { getSession } from '../../session/sessionStore';
+import { Sound, playEffect } from '../../systems/audioManager';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferItems } from '../../systems/inventory';
 import { playerOut } from '../../systems/mapSystem';
@@ -22,7 +23,9 @@ export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setTitle('大门');
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(true);
-
+    // Original GateNode._init: door close + ItemChangeNode exchange open.
+    playEffect(Sound.CLOSE_DOOR);
+    playEffect(Sound.EXCHANGE);
     const contentTop = ctx.toScreenY(770);
     const panelLeft = ctx.width / 2 - ctx.bgWidth / 2;
     const panelWidth = ctx.bgWidth;
@@ -145,6 +148,7 @@ export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
         },
         onRight: () => {
             equip.closeDropDown();
+            playEffect(Sound.FOOT_STEP);
             playerOut();
             ctx.forward(NavNode.GATE_OUT);
         },

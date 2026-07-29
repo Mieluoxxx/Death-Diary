@@ -1,4 +1,5 @@
 import type { GameObjects, Scene } from 'phaser';
+import { Sound, playEffect } from '../systems/audioManager';
 import { loadAtlas } from '../assets/loadAtlas';
 import { getItemDef } from '../data/itemConfig';
 import { getSession } from '../session/sessionStore';
@@ -59,6 +60,10 @@ export async function openDayLayer(
     }
 
     await Promise.all([loadAtlas(scene, 'day'), loadAtlas(scene, 'day2')]);
+
+    if (res.happened) {
+        playEffect(Sound.UNDER_ATTACK_MIDNIGHT);
+    }
 
     const { width, height } = scene.scale;
     const root = scene.add.container(0, 0);

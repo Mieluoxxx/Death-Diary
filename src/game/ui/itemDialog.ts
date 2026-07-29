@@ -6,6 +6,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { ITEM_STRINGS, itemName } from '../data/buildStrings';
 import { getItemDef } from '../data/itemConfig';
+import { playPopup } from '../systems/audioManager';
 import type { ItemDetailModel } from './itemDetailContext';
 import { addAtlasButton } from './atlasButton';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
@@ -49,6 +50,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
     const root = scene.add.container(0, 0);
     root.setDepth(260);
     root.setName('itemDialog');
+    playPopup();
 
     const dim = scene.add
         .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)

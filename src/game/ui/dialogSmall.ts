@@ -1,4 +1,5 @@
 import type { GameObjects, Scene } from 'phaser';
+import { playPopup } from '../systems/audioManager';
 import { getLanguage, t } from '../settings/settingsStore';
 import { addAtlasButton } from './atlasButton';
 import { isScrollTap, mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
@@ -61,6 +62,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
     const root = scene.add.container(0, 0);
     root.setDepth(150);
     root.setName('statusDialog');
+    playPopup();
 
     // Dim — Cocos LayerColor opacity ~200
     const dim = scene.add

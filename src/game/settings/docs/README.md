@@ -12,6 +12,7 @@
 
 - **语言**：`LangCode`（`zh` / `zh-Hant` / `ja` / `en`…）。
 - **`t(key, lan)`**：短键文案（按钮「知道了」、设置项等）。
+- **音乐/音效开关**：`getMusicOn` / `getSfxOn`（localStorage）。实际 BGM 播放在 `systems/audioManager.ts`；设置层通过 `setMusicEnabled` 同步停/播。
 - 状态属性长描述在 `ui/statusCopy.ts`；IAP 文案在本 store。
 - 设置层 UI：`ui/settingLayer.ts`。
 

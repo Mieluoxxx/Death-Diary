@@ -19,6 +19,7 @@ import {
 } from '../session/sessionStore';
 import { getBagCapacity, getBagWeight, getCount } from './inventory';
 import { isIapUnlocked } from './iapStore';
+import { Sound, playEffect } from './audioManager';
 import { gameBusEmit } from './gameBus';
 import { getItemDef, itemWeight } from '../data/itemConfig';
 
@@ -170,6 +171,7 @@ export function giveNpcNeed(npcId: number): NpcActionResult {
         addCount(live.bag, need.itemId, -need.num);
         applyReputationGain(liveState, npc, 1);
     });
+    playEffect(Sound.GOOD_EFFECT);
     appendSessionLog(
         `你向${npc.name}交付了${getItemDef(need.itemId).name}x${need.num}，好感度提升。`,
     );
@@ -252,6 +254,7 @@ export function commitNpcTrade(
         }
         liveState.tradingCount += 1;
     });
+    playEffect(Sound.LOOT);
     appendSessionLog(`你与${npc.name}完成了一次交换。`);
     gameBusEmit('session_updated');
     return { ok: true };
@@ -330,6 +333,7 @@ export function runNpcDailyVisit(random: () => number = Math.random): NpcVisit |
         }
     }
     const visit = { npcId, name: npc.name, kind, deliveredRewards };
+    playEffect(Sound.NPC_KNOCK);
     gameBusEmit('npc_visit', visit);
     gameBusEmit('session_updated');
     return visit;

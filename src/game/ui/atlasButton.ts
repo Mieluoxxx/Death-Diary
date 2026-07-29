@@ -1,4 +1,5 @@
 import type { GameObjects, Scene } from 'phaser';
+import { playClick } from '../systems/audioManager';
 import { uiSpriteBtnTextStyle } from './uiFont';
 
 export type AtlasButton = GameObjects.Container & {
@@ -61,6 +62,7 @@ export function addAtlasButton(
         });
         img.on('pointerup', () => {
             img.setAlpha(1);
+            playClick();
             opts.onClick?.();
         });
         img.on('pointerout', () => img.setAlpha(1));

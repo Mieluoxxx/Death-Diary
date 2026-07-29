@@ -13,6 +13,7 @@ import {
     mutateSession,
     type SessionState,
 } from '../session/sessionStore';
+import { Music, Sound, insertMusic, playEffect, playWeaponAttack, resumeMusic } from './audioManager';
 import { gameBusEmit } from './gameBus';
 import { EquipPosMap, getArmorDef } from './inventory';
 import { VIGOUR_IMMUNE_BUFF_ITEM_ID } from '../data/itemEffects';
@@ -280,6 +281,7 @@ export function startBattle(monsterIds: number[], options: StartBattleOptions = 
     }
 
     pauseTimeClock();
+    insertMusic(Music.BATTLE);
     gameBusEmit('battle_started');
     return activeBattle;
 }
@@ -301,6 +303,7 @@ function killMonster(battle: BattleState, monster: BattleMonster): void {
     monster.hp = 0;
     monster.line = null;
     battle.sum.monsterKilled++;
+    playEffect(Sound.MONSTER_DIE);
     pushLog(battle, `1个${monster.prefix}僵尸倒下了`);
 }
 
@@ -355,6 +358,7 @@ function tickMonsterAttacks(battle: BattleState, realDelta: number): BattleSumRe
         monster.attackCooldown -= realDelta;
         while (monster.attackCooldown <= 0) {
             const harm = Math.max(1, monster.attack - battle.def);
+            playEffect(Sound.MONSTER_ATTACK);
             changeAttr('hp', -harm);
             changeAttr('injury', 1);
             battle.sum.playerHarm += harm;
@@ -417,6 +421,7 @@ function fireGun(battle: BattleState, session: SessionState): void {
             battle.sum.bulletsUsed++;
         }
         battle.usedEquipment.add(gun.itemId);
+        playWeaponAttack(gun.itemId, 'gun');
         pushLog(battle, `你使用${gun.name}向${current.prefix}僵尸射击`);
         const harm = gunHarm(session, gun, current);
         if (harm === Number.MAX_SAFE_INTEGER) {
@@ -441,6 +446,7 @@ function strikeMelee(battle: BattleState): void {
     }
     battle.usedEquipment.add(weapon.itemId);
     battle.sum.meleeHits++;
+    playWeaponAttack(weapon.itemId, 'melee');
     if (weapon.itemId === HAND_ITEM_ID) {
         pushLog(battle, `你狠狠的打了${target.prefix}僵尸一拳`);
     } else {
@@ -459,11 +465,13 @@ function useTool(battle: BattleState): void {
     battle.sum.toolsUsed = (battle.sum.toolsUsed ?? 0) + 1;
     if (tool.kind === 'trap') {
         battle.monsterStopUntil = battle.elapsed + tool.attr.atkCD;
+        playEffect(Sound.TRAP);
         pushLog(battle, `你使用${tool.name}`, '#ff8000');
         pushLog(battle, '僵尸停止移动', '#ff8000');
         return;
     }
 
+    playEffect(Sound.BOMB);
     pushLog(battle, `你使用${tool.name}`, '#ff8000');
     pushLog(battle, `所有僵尸受到${tool.attr.atk}点伤害`, '#ff8000');
     for (const monster of battle.monsters) {
@@ -621,6 +629,7 @@ function endBattle(win: boolean): BattleSumRes {
         appendSessionLog('战斗失败');
     }
     resumeTimeClock();
+    resumeMusic();
     gameBusEmit('battle_ended', battle.sum);
     gameBusEmit('session_updated');
     return battle.sum;

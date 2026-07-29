@@ -7,6 +7,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { getSession, mutateSession, type NavEntry } from '../session/sessionStore';
 import { gameBusEmit } from '../systems/gameBus';
+import { applyNavMusic, playClick } from '../systems/audioManager';
 import { playerGoHome } from '../systems/mapSystem';
 import { mountBattleNode } from './nodes/battleNode';
 import { mountGateNode } from './nodes/gateNode';
@@ -205,7 +206,7 @@ export function createNavigationHost(
         }
     };
 
-    // Back button
+    // Back button (must live on root so chrome depth/visibility covers it)
     if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_back.png')) {
         leftBtn = scene.add
             .image(toScreenX(60), titleY, 'ui', 'btn_back.png')
@@ -217,13 +218,13 @@ export function createNavigationHost(
     }
     root.add(leftBtn);
     leftBtn.on('pointerup', () => {
+        playClick();
         if (activeNode?.onLeft) {
             activeNode.onLeft();
         } else {
             back();
         }
     });
-
     // Forward / action button (right)
     if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_forward.png')) {
         rightBtn = scene.add
@@ -246,6 +247,7 @@ export function createNavigationHost(
         .setVisible(false);
     root.add(rightLabel);
     rightBtn.on('pointerup', () => {
+        playClick();
         activeNode?.onRight?.();
     });
 
@@ -315,6 +317,7 @@ export function createNavigationHost(
             if (mounter) {
                 activeNode = mounter(makeCtx(top.userData));
             }
+            applyNavMusic(nodeName);
             gameBusEmit('nav_changed', { nodeName });
             gameBusEmit('session_updated');
             return;
@@ -335,10 +338,12 @@ export function createNavigationHost(
                     })
                     .setOrigin(0.5),
             );
+            applyNavMusic(nodeName);
             gameBusEmit('nav_changed', { nodeName });
             return;
         }
         activeNode = mounter(makeCtx(top.userData));
+        applyNavMusic(nodeName);
         gameBusEmit('nav_changed', { nodeName });
         gameBusEmit('session_updated');
     };

@@ -20,6 +20,7 @@ import {
     mutateSession,
     type SessionState,
 } from '../session/sessionStore';
+import { Sound, playEffect } from './audioManager';
 import { gameBusEmit } from './gameBus';
 
 export type EquipPos = 0 | 1 | 2 | 3;
@@ -293,15 +294,25 @@ export function transferAll(
     let blocked = 0;
     const snapshot = listItems(from);
     for (const row of snapshot) {
+        // Try whole stack first (fewer mutations); fall back unit-by-unit for weight.
+        const bulk = transferItems(fromKind, toKind, row.itemId, row.num, siteId);
+        if (bulk.ok) {
+            moved += row.num;
+            continue;
+        }
         for (let i = 0; i < row.num; i++) {
-            const res = transferItems(fromKind, toKind, row.itemId, 1, siteId);
-            if (res.ok) {
+            const unit = transferItems(fromKind, toKind, row.itemId, 1, siteId);
+            if (unit.ok) {
                 moved += 1;
             } else {
-                blocked += 1;
+                blocked += row.num - i;
                 break;
             }
         }
+    }
+    if (moved > 0) {
+        // Original ItemChangeNode take-all: single LOOT after bulk move.
+        playEffect(Sound.LOOT);
     }
     return { moved, blocked };
 }

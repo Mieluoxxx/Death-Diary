@@ -7,10 +7,9 @@ import {
     LANG_NAMES,
     type LangCode,
     setLanguage,
-    setMusicOn,
-    setSfxOn,
     t,
 } from '../settings/settingsStore';
+import { playClick, setMusicEnabled, setSfxEnabled } from '../systems/audioManager';
 import { addAtlasButton } from './atlasButton';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from './uiFont';
 
@@ -189,10 +188,13 @@ export function openSettingLayer(
             () => {
                 if (kind === 'music') {
                     musicOn = !musicOn;
-                    setMusicOn(musicOn);
+                    setMusicEnabled(musicOn);
                 } else {
                     sfxOn = !sfxOn;
-                    setSfxOn(sfxOn);
+                    setSfxEnabled(sfxOn);
+                    if (sfxOn) {
+                        playClick();
+                    }
                 }
                 refreshSettingCopy();
                 closeSelector();
@@ -255,6 +257,7 @@ export function openSettingLayer(
                     setLanguage(pendingLan);
                 }
                 root.destroy(true);
+                // Navigation.stopMusic() equivalent before menu BGM.
                 scene.scene.start('MainMenu');
             },
         });

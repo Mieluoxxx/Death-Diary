@@ -1,6 +1,7 @@
 import { type GameObjects, Scene } from 'phaser';
 import { hasSession } from '../session/sessionStore';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
+import { applyMainPageMusic, stopMusic } from '../systems/audioManager';
 import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
 import { openSettingLayer } from '../ui/settingLayer';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
@@ -67,6 +68,7 @@ export class MainMenu extends Scene {
         const btn3Y = bgCenterY + 346;
 
         this.newGameBtn = this.placeBigWhite(bgCenterX, btn1Y, t('newGame', lan), true, () => {
+            stopMusic();
             this.scene.start('Choose');
         });
         this.continueBtn = this.placeBigWhite(
@@ -75,6 +77,7 @@ export class MainMenu extends Scene {
             t('continue', lan),
             canContinue,
             () => {
+                stopMusic();
                 this.scene.start('Home');
             },
         );
@@ -116,6 +119,8 @@ export class MainMenu extends Scene {
                 color: '#888',
             })
             .setOrigin(0, 1);
+
+        applyMainPageMusic();
     }
 
     /**

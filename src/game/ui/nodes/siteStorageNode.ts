@@ -11,6 +11,7 @@
 
 import { getSiteConfig } from '../../data/siteConfig';
 import { getSession } from '../../session/sessionStore';
+import { Sound, playEffect } from '../../systems/audioManager';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferAll, transferItems } from '../../systems/inventory';
 import { addAtlasButton } from '../atlasButton';
@@ -21,7 +22,6 @@ import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { addSectionBar } from '../sectionBar';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
 import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
-
 export function mountSiteStorageNode(ctx: NodeMountContext): NodeMountResult {
     const siteId = Number(ctx.userData);
     const cfg = getSiteConfig(siteId);
@@ -29,6 +29,7 @@ export function mountSiteStorageNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setTitle(cfg?.name ?? `地点${siteId}`, { align: 'left' });
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
+    playEffect(Sound.EXCHANGE);
 
     const bgLeft = ctx.width / 2 - ctx.bgWidth / 2;
     const bgBottom = ctx.bgBottomY;

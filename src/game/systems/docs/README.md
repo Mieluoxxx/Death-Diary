@@ -38,6 +38,7 @@
 | 文件 | 职责 |
 |------|------|
 | `gameBus.ts` | 类型化 pub/sub |
+| `audioManager.ts` | BGM + SFX 路径表、开关、导航曲 / 战斗音 / 设施音（Phaser Sound） |
 
 ## 进度事件
 

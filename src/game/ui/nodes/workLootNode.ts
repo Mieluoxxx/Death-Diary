@@ -12,6 +12,7 @@
  */
 
 import { getSession } from '../../session/sessionStore';
+import { Sound, playEffect } from '../../systems/audioManager';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferAll, transferItems } from '../../systems/inventory';
 import { currentRoom, flushTempToSite, getSite } from '../../systems/mapSystem';
@@ -31,7 +32,6 @@ export type WorkLootUserData = {
     siteId: number;
     workType: number;
 };
-
 export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
     const { siteId, workType } = ctx.userData as WorkLootUserData;
     const boxTitle = WORK_TITLES[Math.max(0, Math.min(2, workType))] ?? '箱子';
@@ -39,6 +39,7 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setTitle(boxTitle);
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
+    playEffect(Sound.EXCHANGE);
 
     const bgLeft = ctx.width / 2 - ctx.bgWidth / 2;
     const bgBottom = ctx.bgBottomY;

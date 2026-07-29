@@ -17,6 +17,7 @@ import {
     type PlayerAttrs,
     type SessionState,
 } from '../session/sessionStore';
+import { Sound, playEffect } from './audioManager';
 import { gameBusEmit } from './gameBus';
 
 export type MutableAttrKey = keyof PlayerAttrs | 'temperature';
@@ -175,6 +176,11 @@ export function changeAttr(key: MutableAttrKey, delta: number): number {
     if (beforeBand && afterBand && beforeBand.id !== afterBand.id) {
         const direction = afterBand.id > beforeBand.id ? '上升' : '下降';
         const label = attrDisplayName(key);
+        // Original player.changeAttr band cross → GOOD/BAD_EFFECT (injury/infect inverted).
+        const bandImproved = afterBand.id > beforeBand.id;
+        const good =
+            key === 'infect' || key === 'injury' ? !bandImproved : bandImproved;
+        playEffect(good ? Sound.GOOD_EFFECT : Sound.BAD_EFFECT);
         appendSessionLog(
             `${label}${direction}（${bandHint(key, afterBand.id)}）`,
             `第${session.day}天 ${formatClock(session)}`,

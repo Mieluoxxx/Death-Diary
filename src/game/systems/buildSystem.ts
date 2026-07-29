@@ -19,6 +19,7 @@ import {
     setBuildLevel,
     validateStorageItems,
 } from '../session/sessionStore';
+import { Sound, playEffect } from './audioManager';
 import { gameBusEmit } from './gameBus';
 import { accelerateWorkTime, addTimerCallback, type TimerCallbackHandle } from './timeClock';
 
@@ -207,6 +208,7 @@ export function startBuildUpgrade(
         end: () => {
             activeUpgrades.delete(bid);
             setBuildLevel(bid, nextLevel);
+            playEffect(Sound.BUILD_UPGRADE);
             const session = getSession();
             const name = buildLevelName(bid, nextLevel);
             if (session) {

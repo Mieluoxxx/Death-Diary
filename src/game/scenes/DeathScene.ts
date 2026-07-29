@@ -11,6 +11,7 @@ import {
     formatSurvivalDuration,
     relivePlayer,
 } from '../systems/deathSystem';
+import { applyDeathMusic } from '../systems/audioManager';
 import { stopSurvivalLoop } from '../systems/survivalLoop';
 import { addAtlasButton } from '../ui/atlasButton';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
@@ -32,6 +33,7 @@ export class DeathScene extends Scene {
         }
 
         stopSurvivalLoop();
+        applyDeathMusic();
 
         const { width, height } = this.scale;
         const bgBottomY = height - BG_BOTTOM_OFFSET;

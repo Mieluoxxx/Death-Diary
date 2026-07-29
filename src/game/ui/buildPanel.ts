@@ -14,6 +14,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { buildActionCopy, buildLevelName } from '../data/buildStrings';
 import { getBuildLevel, getStorageCount } from '../session/sessionStore';
+import { Music, insertMusic, resumeMusic } from '../systems/audioManager';
 import {
     BuildUpgradeType,
     canUpgradeBuild,
@@ -129,6 +130,10 @@ export function openBuildPanel(
             return;
         }
         closed = true;
+        // Original BuildNode.onExit: chair (bid 10) resumes prior BGM.
+        if (bid === 10) {
+            resumeMusic();
+        }
         gameBusOff('progress', onProgressBus);
         gameBusOff('build_upgraded', onUpgradedBus);
         gameBusOff('session_updated', onSession);
@@ -577,6 +582,11 @@ export function openBuildPanel(
     gameBusOn('facility_changed', onFacilityChanged);
 
     refreshUpgradeRow();
+
+    // Original BuildNode.onEnter: chair swaps to HOME_REST.
+    if (bid === 10) {
+        insertMusic(Music.HOME_REST);
+    }
 
     return {
         root,

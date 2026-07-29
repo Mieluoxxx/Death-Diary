@@ -4,6 +4,7 @@
  */
 import type { GameObjects, Scene } from 'phaser';
 import { buildLevelDes, buildLevelName } from '../data/buildStrings';
+import { playPopup } from '../systems/audioManager';
 import { getBuildLevel, getStorageCount } from '../session/sessionStore';
 import { BuildUpgradeType, canUpgradeBuild } from '../systems/buildSystem';
 import { addAtlasButton } from './atlasButton';
@@ -46,6 +47,7 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
     const root = scene.add.container(0, 0);
     root.setDepth(260);
     root.setName(LAYER_NAME);
+    playPopup();
 
     const dim = scene.add
         .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
