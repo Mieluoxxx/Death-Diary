@@ -15,6 +15,7 @@ import {
     SMALL_BAG_ID,
 } from '../data/itemConfig';
 import {
+    appendSessionLog,
     getSession,
     type ItemCounts,
     mutateSession,
@@ -315,6 +316,53 @@ export function transferAll(
         playEffect(Sound.LOOT);
     }
     return { moved, blocked };
+}
+
+/**
+ * Port of Bag.testWeaponBroken.
+ * - Original formatTime().d is 0-based; UI day is d+1.
+ * - Death-Diary session.day is display day (1-based) → protect while day <= 3.
+ * - On break: bag -1, unequip matching slots, log "%s已经损坏!".
+ */
+export function testWeaponBroken(itemId: number): boolean {
+    if (!itemId || itemId === HAND_ITEM_ID) {
+        return false;
+    }
+    const session = getSession();
+    if (!session) {
+        return false;
+    }
+    // Newbie protection: original d < 3 ⇒ display days 1..3.
+    if (session.day <= 3) {
+        return false;
+    }
+    const probability = getItemDef(itemId).effectWeapon?.brokenProbability ?? 0;
+    if (probability <= 0 || Math.random() > probability) {
+        return false;
+    }
+
+    mutateSession((live) => {
+        const next = Math.max(0, (live.bag[itemId] ?? 0) - 1);
+        if (next === 0) {
+            delete live.bag[itemId];
+        } else {
+            live.bag[itemId] = next;
+        }
+        if (live.equip[EquipPosMap.GUN] === itemId) {
+            live.equip[EquipPosMap.GUN] = 0;
+        }
+        if (live.equip[EquipPosMap.WEAPON] === itemId) {
+            live.equip[EquipPosMap.WEAPON] = HAND_ITEM_ID;
+        }
+        if (live.equip[EquipPosMap.TOOL] === itemId) {
+            live.equip[EquipPosMap.TOOL] = 0;
+        }
+    });
+
+    const name = getItemDef(itemId).name || String(itemId);
+    appendSessionLog(`${name}已经损坏!`);
+    gameBusEmit('session_updated');
+    return true;
 }
 
 export function defaultEquip(): Record<EquipPos, number> {
