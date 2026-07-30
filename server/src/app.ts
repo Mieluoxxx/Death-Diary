@@ -4,6 +4,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { secureHeaders } from 'hono/secure-headers';
 import type { AuthenticatedUser, SaveRecord, StorageDatabase } from './db';
+import { EMPTY_INITIAL_ITEMS, type InitialItemsConfig } from './initialItems';
 
 const AUTH_COOKIE = 'death_diary_session';
 const AUTH_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
@@ -24,6 +25,8 @@ export type AppOptions = {
     secureCookies?: boolean;
     allowedOrigins?: readonly string[];
     staticRoot?: string;
+    initialItems?: InitialItemsConfig;
+    initialItemsLoaded?: boolean;
 };
 
 class ApiError extends Error {
@@ -125,6 +128,7 @@ export function createApp(options: AppOptions): Hono<AppEnvironment> {
     const app = new Hono<AppEnvironment>();
     const secureCookies = options.secureCookies ?? Bun.env.NODE_ENV === 'production';
     const allowedOrigins = new Set(options.allowedOrigins ?? []);
+    const initialItems = options.initialItems ?? EMPTY_INITIAL_ITEMS;
 
     app.use('/api/*', secureHeaders());
     app.use('/api/*', async (context, next) => {
@@ -154,8 +158,18 @@ export function createApp(options: AppOptions): Hono<AppEnvironment> {
     });
 
     app.get('/api/health', (context) =>
-        context.json({ ok: true, service: 'death-diary-storage', schemaVersion: 1 }),
+        context.json({
+            ok: true,
+            service: 'death-diary-storage',
+            schemaVersion: 1,
+            initialItemsLoaded: options.initialItemsLoaded ?? false,
+        }),
     );
+
+    app.get('/api/v1/config/initial-items', (context) => {
+        context.header('Cache-Control', 'no-store');
+        return context.json(initialItems);
+    });
 
     app.post('/api/v1/auth/guest', async (context) => {
         const existingToken = getCookie(context, AUTH_COOKIE);

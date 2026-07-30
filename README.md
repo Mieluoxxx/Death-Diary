@@ -59,6 +59,33 @@ bun run start
 - 使用 SQLite `.backup` 定期备份数据库，并将备份保存到服务器之外。
 - 前后端分域部署时，通过 `ALLOWED_ORIGINS` 配置允许的来源；同域部署无需设置。
 
+## 初始物资配置
+
+服务启动时从 `data/initial-items.json` 读取新游戏的仓库和背包物资；`data/` 是本地目录，不会提交到 Git：
+
+```json
+{
+  "version": 1,
+  "storage": {
+    "1101011": 20,
+    "1305011": 40
+  },
+  "bag": {
+    "1302043": 1
+  }
+}
+```
+
+键为物品 ID，值为非负整数数量。空对象表示没有初始物资；文件不存在、无法读取或版本不受支持时，仓库和背包都回退为空。无效物品 ID、负数及非整数会被忽略。初始装备仍保留徒手武器。
+
+修改后重启服务生效，只影响新创建的存档：
+
+```bash
+sudo systemctl restart death-diary
+```
+
+可通过 `INITIAL_ITEMS_PATH=/absolute/path/initial-items.json` 改用其他配置路径。
+
 ## 目录要点
 
 | 路径 | 说明 |

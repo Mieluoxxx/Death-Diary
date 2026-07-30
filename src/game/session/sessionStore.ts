@@ -4,7 +4,8 @@
  * `day` / `hour` / `minute` / `season` are derived for UI.
  */
 
-import { BULLET_ID, HAND_ITEM_ID } from '../data/itemConfig';
+import { initialBag, initialStorage } from '../data/initialItems';
+import { HAND_ITEM_ID } from '../data/itemConfig';
 import { getNpcDef, type NpcId, type NpcReward, ROLE_NPC_ID } from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
 import { scheduleCloudSave } from './cloudSave';
@@ -213,30 +214,6 @@ function defaultBuildLevels(role: RoleKey): Record<number, number> {
     return levels;
 }
 
-/** Starter materials so first upgrades are playable without exploring. */
-function defaultStorage(): ItemCounts {
-    return {
-        1101011: 20, // wood
-        1101021: 16, // metal
-        1101031: 10, // soft
-        1101041: 16, // parts
-        1101051: 8, // electric
-        1101061: 6, // water
-        1103083: 4, // canned food
-        1302011: 1, // crowbar
-        1301011: 1, // pistol
-        1304012: 1, // coat
-        [BULLET_ID]: 40,
-    };
-}
-
-function defaultBag(): ItemCounts {
-    // Dev convenience: start with one equipped chainsaw in bag.
-    return {
-        1302043: 1,
-    };
-}
-
 function defaultEquip(): EquipState {
     return {
         0: 0,
@@ -349,8 +326,8 @@ export function createNewSession(role: RoleKey, talent: TalentId): SessionState 
         temperature: 18,
         attrs: { ...DEFAULT_ATTRS },
         buildLevels: defaultBuildLevels(role),
-        storage: defaultStorage(),
-        bag: defaultBag(),
+        storage: initialStorage(),
+        bag: initialBag(),
         equip: defaultEquip(),
         navigation: [{ nodeName: 'HomeNode' }],
         map: defaultMap(role),

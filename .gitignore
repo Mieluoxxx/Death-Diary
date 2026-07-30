@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Local SQLite storage
-data/
+/data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

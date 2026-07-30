@@ -1,13 +1,19 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { createApp } from './app';
 import { StorageDatabase } from './db';
+import type { InitialItemsConfig } from './initialItems';
 
 const databases: StorageDatabase[] = [];
 
-function createTestApp() {
+function createTestApp(initialItems?: InitialItemsConfig) {
     const database = new StorageDatabase(':memory:');
     databases.push(database);
-    return createApp({ database, secureCookies: false });
+    return createApp({
+        database,
+        secureCookies: false,
+        initialItems,
+        initialItemsLoaded: initialItems !== undefined,
+    });
 }
 
 async function authenticate(app: ReturnType<typeof createApp>): Promise<string> {
@@ -41,6 +47,23 @@ afterEach(() => {
 });
 
 describe('storage API', () => {
+    test('serves the validated initial item configuration without authentication', async () => {
+        const initialItems: InitialItemsConfig = {
+            version: 1,
+            storage: { 1101011: 5 },
+            bag: { 1302043: 1 },
+        };
+        const app = createTestApp(initialItems);
+
+        const response = await app.request('/api/v1/config/initial-items');
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual(initialItems);
+        expect(response.headers.get('cache-control')).toBe('no-store');
+
+        const health = await app.request('/api/health');
+        expect(await health.json()).toMatchObject({ initialItemsLoaded: true });
+    });
+
     test('creates and reuses an anonymous authenticated session', async () => {
         const app = createTestApp();
         const cookie = await authenticate(app);
