@@ -6,7 +6,8 @@
 
 | 文件 | 职责 |
 |------|------|
-| `sessionStore.ts` | `SessionState` 类型、`createNewSession`、读写 localStorage、`mutateSession`、`appendSessionLog` |
+| `browserSave.ts` | IndexedDB `death-diary/save-data` 中的 JSON 字符串读写 |
+| `sessionStore.ts` | `SessionState`、启动加载、旧存档迁移、持久化与导入导出 |
 
 ## 核心 API
 
@@ -15,7 +16,12 @@
 | `getSession()` | 当前会话；无存档则 `null` |
 | `mutateSession(fn)` | 事务式修改并返回新状态（内部写回存储） |
 | `createNewSession(role, talent)` | 新开局 |
-| 存盘 key | `buried_city_session_v4` |
+| `initializeSessionStore()` | 启动时读取 IndexedDB，并迁移旧版 localStorage 存档 |
+| `exportSessionJson()` | 生成版本化存档 JSON 字符串；无存档则 `null` |
+| `importSessionJson(json)` | 校验、覆盖并立即写入导入的 JSON 存档 |
+| `flushSessionSave()` | 立即等待待写入的 IndexedDB 存档完成 |
+| IndexedDB | 数据库 `death-diary`、对象仓库 `save-data`、键 `active-session` |
+| 旧存盘 key | `buried_city_session_v4`（仅用于一次性迁移） |
 | `appendSessionLog(text, timeLabel?)` | 写日志（顶栏 + 历史） |
 | `attrRatio` / `formatClock` | UI 展示用 |
 
@@ -36,6 +42,8 @@
 
 - systems 改状态优先 `mutateSession`，再按需 `gameBusEmit`。
 - 日志有上限（`MAX_LOG_ENTRIES`）；完整历史见顶栏日志面板。
+- 会话修改采用 100ms 合并写入，避免同一帧内重复创建 IndexedDB 事务。
+- 导出格式为 `{ format: "death-diary-save", version: 1, exportedAt, session }`；导入也兼容裸 `SessionState` JSON。
 
 ## 相关
 

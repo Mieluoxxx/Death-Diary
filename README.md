@@ -40,6 +40,14 @@ Vite 会将 `/api` 代理到存储服务。
 | `bun run gen:frames` | 从 `public/source-art/frames` 生成 multiatlas / `frames.gen.ts` |
 | `bun run typecheck` | 检查前后端 TypeScript |
 
+## 浏览器存档
+
+游戏存档以 JSON 字符串保存在浏览器 IndexedDB `death-diary` 的 `save-data` 对象仓库中。旧版 `localStorage` 存档会在首次启动时自动迁移并删除旧副本。
+
+主菜单或游戏内设置提供“导出存档”和“导入存档”：导出会下载版本化 JSON 文件；导入前会确认覆盖，格式无效时保留当前存档。清理站点数据会删除本地存档，换浏览器或设备前应先导出备份。
+
+SQLite 服务仍用于可选云同步；IndexedDB 是当前浏览器的本地存档来源。
+
 ## 服务器部署
 
 推荐使用 Linux VPS，以 systemd 运行 Bun，并由 Caddy/Nginx 反向代理 HTTPS：

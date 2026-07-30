@@ -1,4 +1,5 @@
 import { GameObjects, type Scene } from 'phaser';
+import { exportSessionJson, importSessionJson } from '../session/sessionStore';
 import {
     getLanguage,
     getMusicOn,
@@ -27,6 +28,47 @@ export type SettingLayerOptions = {
      */
     fromGame?: boolean;
 };
+
+function downloadSaveJson(json: string): void {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
+    anchor.href = url;
+    anchor.download = `death-diary-save-${timestamp}.json`;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function chooseSaveJson(): Promise<string | null> {
+    const { promise, resolve, reject } = Promise.withResolvers<string | null>();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.addEventListener(
+        'change',
+        () => {
+            const file = input.files?.[0];
+            input.remove();
+            if (!file) {
+                resolve(null);
+                return;
+            }
+            file.text().then(resolve, reject);
+        },
+        { once: true },
+    );
+    input.addEventListener(
+        'cancel',
+        () => {
+            input.remove();
+            resolve(null);
+        },
+        { once: true },
+    );
+    input.click();
+    return promise;
+}
 
 /**
  * Port of Buried-City SettingLayer (menu + in-game).
@@ -81,6 +123,16 @@ export function openSettingLayer(
         .text(width / 2, py(720), t('language', pendingLan), labelStyle)
         .setOrigin(0.5);
     root.add([musicLabel, sfxLabel, lanLabel]);
+    const saveLabel = scene.add
+        .text(width / 2, py(570), t('saveData', pendingLan), labelStyle)
+        .setOrigin(0.5);
+    const saveStatus = scene.add
+        .text(width / 2, py(380), '', {
+            ...labelStyle,
+            fontSize: '18px',
+        })
+        .setOrigin(0.5);
+    root.add([saveLabel, saveStatus]);
 
     type SettingBtn = GameObjects.Container & { setTitle: (s: string) => void };
 
@@ -153,6 +205,8 @@ export function openSettingLayer(
 
     let confirmLabel: GameObjects.Text;
     let backToMenuLabel: GameObjects.Text | null = null;
+    let exportSaveBtn: SettingBtn;
+    let importSaveBtn: SettingBtn;
 
     const refreshSettingCopy = () => {
         musicLabel.setText(t('music', pendingLan));
@@ -163,7 +217,15 @@ export function openSettingLayer(
         lanBtn.setTitle(LANG_NAMES[pendingLan]);
         confirmLabel.setText(t('confirm', pendingLan));
         backToMenuLabel?.setText(t('backToMenu', pendingLan));
+        saveLabel.setText(t('saveData', pendingLan));
+        exportSaveBtn.setTitle(t('exportSave', pendingLan));
+        importSaveBtn.setTitle(t('importSave', pendingLan));
         previewHostLanguage(pendingLan);
+    };
+
+    const showSaveStatus = (key: string, error = false) => {
+        saveStatus.setColor(error ? '#ff7777' : '#ffffff');
+        saveStatus.setText(t(key, pendingLan));
     };
 
     const openAudioSelector = (kind: 'music' | 'sfx') => {
@@ -241,6 +303,52 @@ export function openSettingLayer(
     );
     const lanBtn = makeSettingBtn(root, width / 2, py(670), LANG_NAMES[pendingLan], true, () =>
         openLanguageSelector(),
+    );
+
+    exportSaveBtn = makeSettingBtn(
+        root,
+        width / 2,
+        py(510),
+        t('exportSave', pendingLan),
+        false,
+        () => {
+            const json = exportSessionJson();
+            if (!json) {
+                showSaveStatus('noSaveToExport', true);
+                return;
+            }
+            downloadSaveJson(json);
+            showSaveStatus('exportSaveSuccess');
+        },
+    );
+    importSaveBtn = makeSettingBtn(
+        root,
+        width / 2,
+        py(440),
+        t('importSave', pendingLan),
+        false,
+        () => {
+            void chooseSaveJson()
+                .then(async (json) => {
+                    if (json === null) {
+                        return;
+                    }
+                    if (!window.confirm(t('importSaveConfirm', pendingLan))) {
+                        return;
+                    }
+                    await importSessionJson(json);
+                    showSaveStatus('importSaveSuccess');
+                    scene.time.delayedCall(500, () => {
+                        root.destroy(true);
+                        if (fromGame) {
+                            scene.scene.start('Home');
+                        } else {
+                            scene.scene.restart();
+                        }
+                    });
+                })
+                .catch(() => showSaveStatus('invalidSaveFile', true));
+        },
     );
 
     // In-game only: 返回菜单 (Cocos y = 320)

@@ -8,6 +8,7 @@ import { initialBag, initialStorage } from '../data/initialItems';
 import { HAND_ITEM_ID } from '../data/itemConfig';
 import { getNpcDef, type NpcId, type NpcReward, ROLE_NPC_ID } from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
+import { readBrowserSave, writeBrowserSave } from './browserSave';
 import { scheduleCloudSave } from './cloudSave';
 
 export type RoleKey = 'STRANGER' | 'LUO' | 'YAZI';
@@ -157,7 +158,10 @@ export type SessionState = {
     bonfireFuel: number;
 };
 
-const STORAGE_KEY = 'buried_city_session_v4';
+const LEGACY_STORAGE_KEY = 'buried_city_session_v4';
+const SAVE_EXPORT_FORMAT = 'death-diary-save';
+const SAVE_EXPORT_VERSION = 1;
+const SAVE_DEBOUNCE_MS = 100;
 const MAX_LOG_ENTRIES = 40;
 
 const DEFAULT_ATTRS: PlayerAttrs = {
@@ -176,6 +180,160 @@ const SECONDS_PER_HOUR = 60 * 60;
 const SECONDS_PER_MINUTE = 60;
 
 let activeSession: SessionState | null = null;
+let saveRequested = false;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let writeChain: Promise<void> = Promise.resolve();
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isSessionState(value: unknown): value is SessionState {
+    if (!isRecord(value)) {
+        return false;
+    }
+    const roleValid = value.role === 'STRANGER' || value.role === 'LUO' || value.role === 'YAZI';
+    const talentValid = [0, 101, 102, 103, 104].includes(value.talent as number);
+    return (
+        roleValid &&
+        talentValid &&
+        isFiniteNumber(value.gameTime) &&
+        isFiniteNumber(value.day) &&
+        isFiniteNumber(value.hour) &&
+        isFiniteNumber(value.minute) &&
+        isRecord(value.attrs) &&
+        isRecord(value.buildLevels) &&
+        isRecord(value.storage) &&
+        isRecord(value.bag) &&
+        isRecord(value.equip) &&
+        Array.isArray(value.navigation) &&
+        isRecord(value.map) &&
+        Array.isArray(value.map.unlocked) &&
+        isRecord(value.map.sites) &&
+        isRecord(value.npcs) &&
+        isRecord(value.tempLoot) &&
+        Array.isArray(value.logs)
+    );
+}
+
+function parseSessionJson(json: string, allowExportEnvelope: boolean): SessionState | null {
+    try {
+        const parsed = JSON.parse(json) as unknown;
+        if (
+            allowExportEnvelope &&
+            isRecord(parsed) &&
+            parsed.format === SAVE_EXPORT_FORMAT &&
+            parsed.version === SAVE_EXPORT_VERSION
+        ) {
+            return isSessionState(parsed.session) ? parsed.session : null;
+        }
+        return isSessionState(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function enqueueBrowserWrite(): void {
+    if (!saveRequested || !activeSession) {
+        return;
+    }
+    saveRequested = false;
+    const json = JSON.stringify(activeSession);
+    writeChain = writeChain
+        .then(() => writeBrowserSave(json))
+        .catch((error: unknown) => {
+            console.warn('Unable to persist the game session in IndexedDB.', error);
+        });
+}
+
+function scheduleBrowserWrite(): void {
+    saveRequested = true;
+    if (saveTimer) {
+        return;
+    }
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        enqueueBrowserWrite();
+    }, SAVE_DEBOUNCE_MS);
+}
+
+export async function flushSessionSave(): Promise<void> {
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+    }
+    enqueueBrowserWrite();
+    await writeChain;
+    if (saveRequested) {
+        enqueueBrowserWrite();
+        await writeChain;
+    }
+}
+
+export async function initializeSessionStore(): Promise<void> {
+    let browserJson: string | null = null;
+    try {
+        browserJson = await readBrowserSave();
+    } catch (error) {
+        console.warn('Unable to read the game session from IndexedDB.', error);
+    }
+
+    const browserSession = browserJson ? parseSessionJson(browserJson, false) : null;
+    if (browserSession) {
+        activeSession = browserSession;
+        return;
+    }
+    if (browserJson) {
+        console.warn('Ignored an invalid IndexedDB game session.');
+    }
+
+    let legacyJson: string | null = null;
+    try {
+        legacyJson = localStorage.getItem(LEGACY_STORAGE_KEY);
+    } catch {
+        // IndexedDB remains the source of truth when localStorage is unavailable.
+    }
+    const legacySession = legacyJson ? parseSessionJson(legacyJson, false) : null;
+    if (!legacySession || !legacyJson) {
+        return;
+    }
+
+    activeSession = legacySession;
+    try {
+        await writeBrowserSave(legacyJson);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch (error) {
+        console.warn('Unable to migrate the legacy localStorage save to IndexedDB.', error);
+    }
+}
+
+export function exportSessionJson(): string | null {
+    const session = getSession();
+    if (!session) {
+        return null;
+    }
+    return JSON.stringify({
+        format: SAVE_EXPORT_FORMAT,
+        version: SAVE_EXPORT_VERSION,
+        exportedAt: new Date().toISOString(),
+        session,
+    });
+}
+
+export async function importSessionJson(json: string): Promise<SessionState> {
+    const session = parseSessionJson(json, true);
+    if (!session) {
+        throw new Error('存档不是有效的 Death-Diary JSON。');
+    }
+    activeSession = session;
+    persistSession(session);
+    await flushSessionSave();
+    return session;
+}
 
 /**
  * Port of Room.initData(): most facilities start unbuilt (-1);
@@ -363,10 +521,7 @@ export function createNewSession(role: RoleKey, talent: TalentId): SessionState 
 }
 
 export function getSession(): SessionState | null {
-    if (activeSession) {
-        return activeSession;
-    }
-    return loadSession();
+    return activeSession;
 }
 
 export function hasSession(): boolean {
@@ -441,29 +596,8 @@ export function appendSessionLog(text: string, timeLabel?: string): SessionState
 }
 
 function persistSession(session: SessionState): void {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    } catch {
-        // ignore quota / private mode
-    }
+    scheduleBrowserWrite();
     scheduleCloudSave(session);
-}
-
-function loadSession(): SessionState | null {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            return null;
-        }
-        const parsed = JSON.parse(raw) as SessionState;
-        if (!parsed || typeof parsed.day !== 'number' || !parsed.role) {
-            return null;
-        }
-        activeSession = parsed;
-        return activeSession;
-    } catch {
-        return null;
-    }
 }
 
 export function formatClock(session: SessionState): string {
