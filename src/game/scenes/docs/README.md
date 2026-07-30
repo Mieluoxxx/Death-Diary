@@ -7,12 +7,12 @@
 | 场景 / 类 | 职责 |
 |-----------|------|
 | `Boot` | 启动、字体等极早初始化 |
-| `Preloader` | 预载图集与加载条 |
+| `Preloader` | 优先预载主菜单、选人页、主菜单音乐与点击音效 |
 | `MainMenu` | 主菜单：新游戏 / 继续 / 设置 / 商店 / 勋章 |
 | `MedalScene` | 勋章墙 |
 | `ShopScene` | IAP 商店（Web 免费解锁） |
 | `ChooseScene` | 选角 / 天赋 |
-| `StoryScene` | 开场叙述 |
+| `StoryScene` | Cissy Liu 开场叙述；后台加载 Home，完成后自动转场 |
 | `Home` (`HomeScene`) | **主游戏场景**：家园、导航栈、生存循环 |
 | `Death` (`DeathScene`) | 死亡结算 |
 | `EndScene` | 结局相关 |
@@ -33,6 +33,7 @@
 - 全屏流程用 Scene；面板级 UI 用 navigation 栈 / `ui/`。
 - `shutdown` 时退订 bus、停 survival loop。
 - 场景切换：`this.scene.start('Key')`。
+- `menu` / `ui` / `icon` / `npc` 属于首批资源；`StoryScene` 加载剩余 Home 资源，`HomeScene.preload()` 仅作继续游戏的兜底。
 
 ## 相关
 

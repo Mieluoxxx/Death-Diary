@@ -1,9 +1,12 @@
 import { Scene } from 'phaser';
+import { HOME_ATLAS_KEYS } from '../assets/atlasManifest';
+import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
+import { queueGameAudio } from '../systems/audioManager';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
 
 /**
  * Port of Buried-City StoryScene.js StoryLayer.
- * dig_start art + poem (1195–1201), click → Home.
+ * dig_start art + poem (1195–1201); stays visible until Home assets are ready.
  */
 const LINES = [
     '被欲望所驱使',
@@ -17,16 +20,21 @@ const LINES = [
 ];
 
 export class StoryScene extends Scene {
-    private canContinue = false;
+    private introReady = false;
+    private homeReady = false;
     private didContinue = false;
+    private retryEnabled = false;
+    private loadingLabel: Phaser.GameObjects.Text | null = null;
 
     constructor() {
         super('Story');
     }
 
     create() {
-        this.canContinue = false;
+        this.introReady = false;
+        this.homeReady = false;
         this.didContinue = false;
+        this.retryEnabled = false;
 
         const { width, height } = this.scale;
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
@@ -39,7 +47,6 @@ export class StoryScene extends Scene {
             this.add.rectangle(width / 2, artY, Math.min(520, width - 80), 180, 0x1a1a1a);
         }
 
-        // text node: Cocos y = height - 550, anchor top → Phaser top at 550
         const textTop = 550;
         const poem = this.add
             .text(width / 2, textTop, LINES.join('\n'), {
@@ -64,8 +71,8 @@ export class StoryScene extends Scene {
             .setOrigin(1, 0)
             .setAlpha(0);
 
-        const hint = this.add
-            .text(width / 2, height - 80, '点击继续', {
+        this.loadingLabel = this.add
+            .text(width / 2, height - 80, '正在加载避难所…', {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: '18px',
@@ -74,40 +81,89 @@ export class StoryScene extends Scene {
             .setOrigin(0.5)
             .setAlpha(0);
 
-        // Full-screen hit target (matches original Button covering winSize).
-        // Depth high so it always receives clicks after fade-in.
-        const hitArea = this.add
+        if (!this.anims.exists('story-home-loading')) {
+            this.anims.create({
+                key: 'story-home-loading',
+                frames: [1, 2, 3, 4].map((index) => ({
+                    key: 'ui',
+                    frame: `loading_anim_${index}.png`,
+                })),
+                frameRate: 8,
+                repeat: -1,
+            });
+        }
+        const spinner = this.add
+            .sprite(width / 2, height - 135, 'ui', 'loading_anim_1.png')
+            .setScale(0.55)
+            .setAlpha(0)
+            .play('story-home-loading');
+
+        this.add
             .rectangle(width / 2, height / 2, width, height, 0x000000, 0)
             .setInteractive({ useHandCursor: true })
-            .setDepth(1000);
+            .setDepth(1000)
+            .on('pointerdown', () => {
+                if (this.retryEnabled) {
+                    this.startHomeLoad();
+                }
+            });
 
-        hitArea.on('pointerdown', () => {
-            this.tryContinue();
-        });
-
-        // Also accept keyboard (Enter / Space) after fade.
-        if (this.input.keyboard) {
-            this.input.keyboard.once('keydown-ENTER', () => this.tryContinue());
-            this.input.keyboard.once('keydown-SPACE', () => this.tryContinue());
-        }
-
-        // fade-in then enable click (parity with StoryLayer)
         this.tweens.add({
-            targets: [poem, author, hint],
+            targets: [poem, author, this.loadingLabel, spinner],
             alpha: 1,
             duration: 1000,
             onComplete: () => {
-                this.canContinue = true;
+                this.introReady = true;
+                this.tryContinue();
             },
         });
+
+        this.startHomeLoad();
+    }
+
+    private startHomeLoad(): void {
+        this.retryEnabled = false;
+        this.loadingLabel?.setText('正在加载避难所…');
+
+        let failed = false;
+        const onError = () => {
+            failed = true;
+        };
+        const cleanup = () => {
+            this.load.off('loaderror', onError);
+            this.load.off('complete', onComplete);
+        };
+        const finish = () => {
+            cleanup();
+            const atlasesReady = HOME_ATLAS_KEYS.every((key) => this.textures.exists(key));
+            if (failed || !atlasesReady) {
+                this.loadingLabel?.setText('资源加载失败，点击重试');
+                this.retryEnabled = true;
+                return;
+            }
+            applyLinearFilter(this, HOME_ATLAS_KEYS);
+            this.homeReady = true;
+            this.tryContinue();
+        };
+        const onComplete = () => {
+            finish();
+        };
+
+        this.load.on('loaderror', onError);
+        this.load.once('complete', onComplete);
+        const queued = queuePreloadAtlases(this, HOME_ATLAS_KEYS) + queueGameAudio(this);
+        if (queued === 0) {
+            finish();
+            return;
+        }
+        this.load.start();
     }
 
     private tryContinue(): void {
-        if (!this.canContinue || this.didContinue) {
+        if (!this.introReady || !this.homeReady || this.didContinue) {
             return;
         }
         this.didContinue = true;
-        // Session was created in ChooseScene; Home requires it.
         this.scene.start('Home');
     }
 }

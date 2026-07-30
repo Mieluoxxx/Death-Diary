@@ -1,4 +1,5 @@
 import { type GameObjects, Scene } from 'phaser';
+import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import { getPurchaseConfig, type PermanentIapId, SHOP_PERMANENT_IDS } from '../data/purchaseList';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { isIapUnlocked } from '../systems/iapStore';
@@ -26,6 +27,8 @@ const DEPTH_SCROLL = 1;
 const DEPTH_FOOTER = 5;
 const DEPTH_BACK = 10;
 
+const SHOP_ATLAS_KEYS = ['icon', 'npc'] as const;
+
 type PayCard = {
     purchaseId: PermanentIapId;
     root: GameObjects.Container;
@@ -50,7 +53,12 @@ export class ShopScene extends Scene {
         super('Shop');
     }
 
+    preload() {
+        queuePreloadAtlases(this, SHOP_ATLAS_KEYS);
+    }
+
     create() {
+        applyLinearFilter(this, SHOP_ATLAS_KEYS);
         this.cards = [];
         this.scrollRoot = null;
         this.scrollMask = null;
@@ -111,13 +119,7 @@ export class ShopScene extends Scene {
         // Original relied on ScrollView clipping + empty space; we also paint a
         // plate so cards cannot visually leak into the Return zone if mask slips.
         this.add
-            .rectangle(
-                width / 2,
-                height - SCROLL_BOTTOM / 2,
-                width,
-                SCROLL_BOTTOM,
-                0x000000,
-            )
+            .rectangle(width / 2, height - SCROLL_BOTTOM / 2, width, SCROLL_BOTTOM, 0x000000)
             .setDepth(DEPTH_FOOTER)
             .setInteractive(); // block scroll drag from reaching cards under footer
 
@@ -321,6 +323,8 @@ export class ShopScene extends Scene {
     }
 
     private refreshCardStatuses(): void {
-        this.cards.forEach((card) => this.applyCardStatus(card));
+        this.cards.forEach((card) => {
+            this.applyCardStatus(card);
+        });
     }
 }

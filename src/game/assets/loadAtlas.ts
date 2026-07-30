@@ -51,11 +51,16 @@ export function loadAtlas(scene: Scene, key: AtlasKey): Promise<void> {
     return promise;
 }
 
-/** Queue multiatlas loads without starting (for Preloader.preload). */
-export function queuePreloadAtlases(scene: Scene, keys: readonly AtlasKey[]): void {
+/** Queue atlases during a scene load, skipping textures already resident. */
+export function queuePreloadAtlases(scene: Scene, keys: readonly AtlasKey[]): number {
+    let queued = 0;
     for (const key of keys) {
-        scene.load.multiatlas(key, atlasJsonUrl(key), atlasImagePath(key));
+        if (!scene.textures.exists(key)) {
+            scene.load.multiatlas(key, atlasJsonUrl(key), atlasImagePath(key));
+            queued += 1;
+        }
     }
+    return queued;
 }
 
 /** Apply LINEAR filter to every loaded key in the list. */

@@ -1,5 +1,7 @@
 import { type GameObjects, Scene } from 'phaser';
+import { loadInitialItems } from '../data/initialItems';
 import { hasSession } from '../session/sessionStore';
+import { waitForCloudSaveInitialization } from '../session/cloudSave';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { applyMainPageMusic, stopMusic } from '../systems/audioManager';
 import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
@@ -16,6 +18,7 @@ export class MainMenu extends Scene {
     private continueBtn: AtlasButton | GameObjects.Text | null = null;
     private rankingBtn: AtlasButton | GameObjects.Text | null = null;
     private versionText: GameObjects.Text | null = null;
+    private transitionPending = false;
 
     constructor() {
         super('MainMenu');
@@ -27,6 +30,7 @@ export class MainMenu extends Scene {
         this.continueBtn = null;
         this.rankingBtn = null;
         this.versionText = null;
+        this.transitionPending = false;
 
         const { width, height } = this.scale;
         const bgCenterX = width / 2;
@@ -68,8 +72,7 @@ export class MainMenu extends Scene {
         const btn3Y = bgCenterY + 346;
 
         this.newGameBtn = this.placeBigWhite(bgCenterX, btn1Y, t('newGame', lan), true, () => {
-            stopMusic();
-            this.scene.start('Choose');
+            void this.startNewGame();
         });
         this.continueBtn = this.placeBigWhite(
             bgCenterX,
@@ -77,8 +80,7 @@ export class MainMenu extends Scene {
             t('continue', lan),
             canContinue,
             () => {
-                stopMusic();
-                this.scene.start('Home');
+                void this.continueGame();
             },
         );
         this.rankingBtn = this.placeBigWhite(bgCenterX, btn3Y, t('ranking', lan), true, () => {
@@ -142,6 +144,34 @@ export class MainMenu extends Scene {
                 this.logoImage.setFrame(logoFrame);
             }
         }
+    }
+
+    private async startNewGame(): Promise<void> {
+        if (this.transitionPending) {
+            return;
+        }
+        this.transitionPending = true;
+        await Promise.all([loadInitialItems(), waitForCloudSaveInitialization()]);
+        if (!this.scene.isActive()) {
+            this.transitionPending = false;
+            return;
+        }
+        stopMusic();
+        this.scene.start('Choose');
+    }
+
+    private async continueGame(): Promise<void> {
+        if (this.transitionPending) {
+            return;
+        }
+        this.transitionPending = true;
+        await waitForCloudSaveInitialization();
+        if (!this.scene.isActive()) {
+            this.transitionPending = false;
+            return;
+        }
+        stopMusic();
+        this.scene.start('Home');
     }
 
     private logoFrameForLanguage(lan: LangCode): string {

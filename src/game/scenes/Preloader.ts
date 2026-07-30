@@ -1,7 +1,7 @@
 import { Scene } from 'phaser';
 import { PRELOAD_ATLAS_KEYS } from '../assets/frames.gen';
 import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
-import { bindAudio, queueMusicLoads } from '../systems/audioManager';
+import { bindAudio, queueStartupAudio } from '../systems/audioManager';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
 
 export class Preloader extends Scene {
@@ -34,9 +34,9 @@ export class Preloader extends Scene {
     }
 
     preload() {
-        // Policy: atlasManifest preload. JSON from gen_frame_multiatlas.mjs.
+        // First wave: MainMenu and Choose are fully resident before interaction.
         queuePreloadAtlases(this, PRELOAD_ATLAS_KEYS);
-        queueMusicLoads(this);
+        queueStartupAudio(this);
     }
 
     create() {

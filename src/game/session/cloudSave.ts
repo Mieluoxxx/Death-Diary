@@ -52,7 +52,7 @@ let latestSession: SessionState | null = null;
 let dirty = false;
 let syncing = false;
 let applyingRemote = false;
-let initialized = false;
+let initializationPromise: Promise<void> | null = null;
 let lifecycleBound = false;
 let flushTimer: number | null = null;
 let blockedByConflict = false;
@@ -235,11 +235,7 @@ function bindLifecycle(): void {
     });
 }
 
-export async function initializeCloudSave(nextAccess: CloudSaveAccess): Promise<void> {
-    if (initialized) {
-        return;
-    }
-    initialized = true;
+async function initializeCloudSaveOnce(nextAccess: CloudSaveAccess): Promise<void> {
     access = nextAccess;
     metadata = loadMetadata();
     latestSession = access.getLocalSession();
@@ -317,6 +313,16 @@ export async function initializeCloudSave(nextAccess: CloudSaveAccess): Promise<
             scheduleFlush(RETRY_DELAY_MS);
         }
     }
+}
+
+export function initializeCloudSave(nextAccess: CloudSaveAccess): Promise<void> {
+    initializationPromise ??= initializeCloudSaveOnce(nextAccess);
+    return initializationPromise;
+}
+
+/** Gate session-changing menu actions while the initial remote merge is unresolved. */
+export function waitForCloudSaveInitialization(): Promise<void> {
+    return initializationPromise ?? Promise.resolve();
 }
 
 export function scheduleCloudSave(session: SessionState): void {

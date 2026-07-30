@@ -17,6 +17,8 @@ let activeConfig: InitialItemsConfig = {
     bag: {},
 };
 
+let loadPromise: Promise<void> | null = null;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -41,7 +43,7 @@ function sanitizeCounts(value: unknown): ItemCounts {
     return counts;
 }
 
-export async function loadInitialItems(): Promise<void> {
+async function fetchInitialItems(): Promise<void> {
     try {
         const response = await fetch(`${API_BASE}/api/v1/config/initial-items`, {
             credentials: 'include',
@@ -62,8 +64,17 @@ export async function loadInitialItems(): Promise<void> {
         };
     } catch (error) {
         activeConfig = { version: 1, storage: {}, bag: {} };
-        console.warn('Initial items unavailable; new games will start with empty inventory.', error);
+        console.warn(
+            'Initial items unavailable; new games will start with empty inventory.',
+            error,
+        );
     }
+}
+
+/** Start once; callers may await this before creating a new session. */
+export function loadInitialItems(): Promise<void> {
+    loadPromise ??= fetchInitialItems();
+    return loadPromise;
 }
 
 export function initialStorage(): ItemCounts {

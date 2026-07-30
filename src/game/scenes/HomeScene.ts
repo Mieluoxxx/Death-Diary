@@ -1,4 +1,6 @@
 import { GameObjects, Scene } from 'phaser';
+import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
+import { HOME_ATLAS_KEYS } from '../assets/atlasManifest';
 import { getSession, type RoleKey, type SessionState } from '../session/sessionStore';
 import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
 import { gameBusClear, gameBusOff, gameBusOn } from '../systems/gameBus';
@@ -7,6 +9,7 @@ import { openDayLayer } from '../ui/dayLayer';
 import type { NightRaidResult } from '../systems/nightRaidSystem';
 import { debugSkipGameHours, startSurvivalLoop, stopSurvivalLoop } from '../systems/survivalLoop';
 import { tickTimeClock } from '../systems/timeClock';
+import { queueGameAudio } from '../systems/audioManager';
 import { type BuildPanelHandle, openBuildPanel } from '../ui/buildPanel';
 import { createNavigationHost, type NavHostHandle, NavNode } from '../ui/navigation';
 import { openSettingLayer } from '../ui/settingLayer';
@@ -23,6 +26,7 @@ import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
  *
  * A-slice: survival clock runs while Home is active; TopFrame refreshes live.
  */
+
 type BuildSpot = { bid: number; x: number; y: number };
 
 const COMMON_BUILDS: BuildSpot[] = [
@@ -80,7 +84,13 @@ export class HomeScene extends Scene {
         super('Home');
     }
 
+    preload() {
+        queuePreloadAtlases(this, HOME_ATLAS_KEYS);
+        queueGameAudio(this);
+    }
+
     create() {
+        applyLinearFilter(this, HOME_ATLAS_KEYS);
         const session = getSession();
         if (!session) {
             this.scene.start('MainMenu');

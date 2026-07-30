@@ -32,8 +32,8 @@ await loadAtlas(scene, 'icon');
 scene.add.image(x, y, 'icon', 'icon_item_1103083.png');
 ```
 
-- **preload**：菜单 / UI / icon 等常用包（见 manifest）。
-- **lazy**：day、gate 等场景进入时再 `loadAtlas`。
+- **preload**：优先加载 `menu` / `ui` / `icon` / `npc`，保证主菜单和选人页即时打开。
+- **lazy**：Cissy Liu 故事页后台加载 `HOME_ATLAS_KEYS`；其他场景用 `queuePreloadAtlases` 或 `loadAtlas`。
 - Frame 名与原版 plist 一致（含 `.png` 后缀）。
 - 不要手改 `frames.gen.ts`。
 

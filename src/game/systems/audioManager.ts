@@ -182,18 +182,39 @@ let siteMusic: MusicKey | null = null;
 /** Last nav-driven track (BottomFrame.currentMusic). */
 let currentNavMusic: MusicKey | null = null;
 
-/** Queue BGM + SFX on a loader (Preloader.preload). */
-export function queueMusicLoads(scene: Scene): void {
-    for (const [key, path] of Object.entries(MUSIC_FILES) as [MusicKey, string][]) {
+function queueAudioFiles(
+    scene: Scene,
+    musicKeys: readonly MusicKey[],
+    soundKeys: readonly SoundKey[],
+): number {
+    let queued = 0;
+    for (const key of musicKeys) {
         if (!scene.cache.audio.exists(key)) {
-            scene.load.audio(key, path);
+            scene.load.audio(key, MUSIC_FILES[key]);
+            queued += 1;
         }
     }
-    for (const [key, path] of Object.entries(SOUND_FILES) as [SoundKey, string][]) {
+    for (const key of soundKeys) {
         if (!scene.cache.audio.exists(key)) {
-            scene.load.audio(key, path);
+            scene.load.audio(key, SOUND_FILES[key]);
+            queued += 1;
         }
     }
+    return queued;
+}
+
+/** Queue only the audio required by MainMenu. */
+export function queueStartupAudio(scene: Scene): number {
+    return queueAudioFiles(scene, [Music.MAIN_PAGE], [Sound.CLICK]);
+}
+
+/** Queue the remaining game audio before the interactive Home shell starts. */
+export function queueGameAudio(scene: Scene): number {
+    return queueAudioFiles(
+        scene,
+        Object.keys(MUSIC_FILES) as MusicKey[],
+        Object.keys(SOUND_FILES) as SoundKey[],
+    );
 }
 
 /** Bind Phaser sound manager once assets are ready. */

@@ -28,38 +28,33 @@ Canonical **upstream** archive:
 
 ## How loading works
 
-1. Edit `atlasManifest.ts` → `preload` (cold start) or `lazy` (on demand).
+1. Edit `atlasManifest.ts` → first-wave `preload` or scene-owned `lazy`.
 2. `bun run gen:frames` (also `predev` / `prebuild` / Vite plugin) writes multiatlas JSON + `frames.gen.ts`.
-3. `Preloader` queues `PRELOAD_ATLAS_KEYS` via `queuePreloadAtlases`.
-4. Scene code may `await loadAtlas(scene, 'rank')` for lazy keys.
+3. `Preloader` queues `menu` / `ui` / `icon` / `npc`, covering MainMenu and ChooseScene.
+4. After role confirmation, `StoryScene` remains on the Cissy Liu page while it loads `HOME_ATLAS_KEYS` and game audio, then starts Home automatically.
 
 JSON path: `source-art/multiatlas/<key>.json`  
 Image path: `source-art/frames/<key>/`
 
 ## Loaded atlases
 
-### Preload (vertical slice)
+### Cold-start preload
 
 | Atlas | Used by |
 |---|---|
-| `menu` | Main menu bg / logo |
-| `ui` | Chrome, buttons, dialogs, progress bars, dig_start |
-| `icon` | TopFrame attrs, item icons |
-| `medal` | Medal scene |
-| `npc` | Choose portraits, battle dig plate |
-| `home` | Home bg + facility icons |
-| `dig_build` / `build` | Build panel icons |
-| `gate` | Gate equip tabs, gate_out_bg |
-| `map` | map_bg / map_actor / map_line |
-| `site` | Map markers, site_dig illustrations |
-| `dig_monster` | Battle dig art |
-| `dig_item` | Dig item frames |
-| `dig_work` | Work-room scavenge dig |
-| `weather` | Map weather overlay |
+| `menu` / `ui` | Main menu, shared chrome and story loading UI |
+| `icon` / `npc` | Role picker, shop and shared icons |
 
-### Lazy (generated, not cold-started)
+### Scene-owned lazy loads
 
-`day`, `day2`, `end`, `guide`, `new_site`, `rank` — load with `loadAtlas(scene, key)` when a scene needs them.
+| Entry point | Atlases |
+|---|---|
+| `StoryScene` → `HomeScene` | `home`, `dig_build`, `build`, `gate`, `map`, `site`, `dig_monster`, `dig_item`, `dig_work`, `weather` |
+| `MedalScene` | `medal` |
+| Day overlay | `day`, `day2` |
+| `EndScene` | `end` |
+
+`guide`, `new_site`, and `rank` remain generated lazy keys for future scenes. Startup audio is `mainpage` + `click`; the Cissy Liu page loads the remaining game audio before Home. `HomeScene.preload()` repeats the same idempotent queue only as a direct-continue fallback.
 
 ## Refresh after changing frames
 

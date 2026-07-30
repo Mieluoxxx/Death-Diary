@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import {
     getCompletedMedalId,
     getMedalMap,
@@ -13,6 +14,8 @@ import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { addAtlasButton } from '../ui/atlasButton';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
 
+const MEDAL_ATLAS_KEYS = ['medal'] as const;
+
 /**
  * Port of Buried-City medalLayer / medalScene.
  *
@@ -24,7 +27,12 @@ export class MedalScene extends Scene {
         super('Medal');
     }
 
+    preload() {
+        queuePreloadAtlases(this, MEDAL_ATLAS_KEYS);
+    }
+
     create() {
+        applyLinearFilter(this, MEDAL_ATLAS_KEYS);
         initMedal();
 
         const { width, height } = this.scale;
