@@ -27,17 +27,37 @@ bun install
 bun run dev
 ```
 
-默认开发地址：`http://localhost:8080`（以 Vite 配置为准）。
+开发模式同时启动 Web `http://localhost:8080` 和 SQLite API `http://localhost:3001`，
+Vite 会将 `/api` 代理到存储服务。
 
 | 命令 | 说明 |
 |------|------|
 | `bun install` | 安装依赖 |
-| `bun run dev` | 开发服务器（热更新） |
+| `bun run dev` | 同时启动 Web 热更新与存储 API |
 | `bun run build` | 生产构建 → `dist/` |
+| `bun run start` | 生产模式提供 `dist/` 和 `/api` |
+| `bun run test:server` | 运行存储 API 测试 |
 | `bun run gen:frames` | 从 `public/source-art/frames` 生成 multiatlas / `frames.gen.ts` |
-| `bun run typecheck` | `tsc --noEmit` |
+| `bun run typecheck` | 检查前后端 TypeScript |
 
-生产部署：上传 `dist/` 全部内容即可。
+## 服务器部署
+
+推荐使用 Linux VPS，以 systemd 运行 Bun，并由 Caddy/Nginx 反向代理 HTTPS：
+
+```bash
+bun install --frozen-lockfile
+bun run build
+
+DATABASE_PATH=/var/lib/death-diary/death-diary.sqlite \
+HOST=127.0.0.1 PORT=3001 \
+bun run start
+```
+
+- 将域名的 HTTPS 请求反向代理到 `127.0.0.1:3001`；不要将 3001 端口暴露到公网。
+- `DATABASE_PATH` 必须位于持久磁盘并赋予运行用户写权限；不要放在 `dist/` 中。
+- 生产 Cookie 使用 `Secure`，线上必须通过 HTTPS 访问。
+- 使用 SQLite `.backup` 定期备份数据库，并将备份保存到服务器之外。
+- 前后端分域部署时，通过 `ALLOWED_ORIGINS` 配置允许的来源；同域部署无需设置。
 
 ## 目录要点
 

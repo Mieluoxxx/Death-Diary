@@ -1,19 +1,25 @@
-import { defineConfig } from "vite";
-import { frameAtlasPlugin } from "./frameAtlasPlugin.mjs";
+import { defineConfig } from 'vite';
+import { frameAtlasPlugin } from './frameAtlasPlugin.mjs';
 
 export default defineConfig({
-    base: "./",
+    base: './',
     plugins: [frameAtlasPlugin()],
     build: {
         rollupOptions: {
             output: {
                 manualChunks: {
-                    phaser: ["phaser"],
+                    phaser: ['phaser'],
                 },
             },
         },
     },
     server: {
         port: 8080,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:3001',
+                changeOrigin: false,
+            },
+        },
     },
 });

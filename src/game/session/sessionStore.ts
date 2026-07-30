@@ -5,8 +5,9 @@
  */
 
 import { BULLET_ID, HAND_ITEM_ID } from '../data/itemConfig';
-import { getNpcDef, ROLE_NPC_ID, type NpcId, type NpcReward } from '../data/npcConfig';
+import { getNpcDef, type NpcId, type NpcReward, ROLE_NPC_ID } from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
+import { scheduleCloudSave } from './cloudSave';
 
 export type RoleKey = 'STRANGER' | 'LUO' | 'YAZI';
 export type TalentId = 0 | 101 | 102 | 103 | 104;
@@ -468,6 +469,7 @@ function persistSession(session: SessionState): void {
     } catch {
         // ignore quota / private mode
     }
+    scheduleCloudSave(session);
 }
 
 function loadSession(): SessionState | null {

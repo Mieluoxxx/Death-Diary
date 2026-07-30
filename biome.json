@@ -9,11 +9,14 @@
     "ignoreUnknown": true,
     "includes": [
       "src/**",
+      "server/**",
       "vite/**",
       "tools/**",
       "index.html",
       "package.json",
       "tsconfig.json",
+      "tsconfig.server.json",
+
       "biome.json",
       "!!**/node_modules",
       "!!**/dist",
