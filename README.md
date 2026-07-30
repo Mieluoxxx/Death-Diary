@@ -41,6 +41,25 @@ bun run build
 HOST=0.0.0.0 PORT=3000 bun run start
 ```
 
+### Docker Compose
+
+```bash
+mkdir -p data
+docker compose up -d --build
+docker compose ps
+curl http://127.0.0.1:3000/api/health
+```
+
+查看日志或停止：
+
+```bash
+docker compose logs -f death-diary
+docker compose down
+```
+
+Compose 将 `./data` 挂载到容器 `/app/data`，因此 SQLite 和 `initial-items.json` 会保留在项目目录。可通过 `APP_PORT=3001 docker compose up -d` 修改宿主机端口；公网部署仍建议使用 HTTPS 反向代理，不要直接暴露应用端口。
+
+
 访问 `http://服务器IP:3000`，检查服务：
 
 ```bash

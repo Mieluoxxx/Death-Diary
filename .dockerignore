@@ -1,0 +1,15 @@
+.git
+.github
+.codegraph
+.agents
+node_modules
+dist
+data
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.*
+*.log
+*.xlsx
+pnpm-workspace.yaml

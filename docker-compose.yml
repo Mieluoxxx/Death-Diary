@@ -1,0 +1,29 @@
+services:
+  death-diary:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: death-diary:local
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_PATH: /app/data/death-diary.sqlite
+      INITIAL_ITEMS_PATH: /app/data/initial-items.json
+      STATIC_ROOT: /app/dist
+      SERVE_STATIC: "true"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+    volumes:
+      - ./data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 30s
