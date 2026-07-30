@@ -158,7 +158,6 @@ export type SessionState = {
     bonfireFuel: number;
 };
 
-const LEGACY_STORAGE_KEY = 'buried_city_session_v4';
 const SAVE_EXPORT_FORMAT = 'death-diary-save';
 const SAVE_EXPORT_VERSION = 1;
 const SAVE_DEBOUNCE_MS = 100;
@@ -220,18 +219,26 @@ function isSessionState(value: unknown): value is SessionState {
     );
 }
 
-function parseSessionJson(json: string, allowExportEnvelope: boolean): SessionState | null {
+function parseStoredSessionJson(json: string): SessionState | null {
+    try {
+        const parsed = JSON.parse(json) as unknown;
+        return isSessionState(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function parseImportedSessionJson(json: string): SessionState | null {
     try {
         const parsed = JSON.parse(json) as unknown;
         if (
-            allowExportEnvelope &&
-            isRecord(parsed) &&
-            parsed.format === SAVE_EXPORT_FORMAT &&
-            parsed.version === SAVE_EXPORT_VERSION
+            !isRecord(parsed) ||
+            parsed.format !== SAVE_EXPORT_FORMAT ||
+            parsed.version !== SAVE_EXPORT_VERSION
         ) {
-            return isSessionState(parsed.session) ? parsed.session : null;
+            return null;
         }
-        return isSessionState(parsed) ? parsed : null;
+        return isSessionState(parsed.session) ? parsed.session : null;
     } catch {
         return null;
     }
@@ -282,32 +289,13 @@ export async function initializeSessionStore(): Promise<void> {
         console.warn('Unable to read the game session from IndexedDB.', error);
     }
 
-    const browserSession = browserJson ? parseSessionJson(browserJson, false) : null;
+    const browserSession = browserJson ? parseStoredSessionJson(browserJson) : null;
     if (browserSession) {
         activeSession = browserSession;
         return;
     }
     if (browserJson) {
         console.warn('Ignored an invalid IndexedDB game session.');
-    }
-
-    let legacyJson: string | null = null;
-    try {
-        legacyJson = localStorage.getItem(LEGACY_STORAGE_KEY);
-    } catch {
-        // IndexedDB remains the source of truth when localStorage is unavailable.
-    }
-    const legacySession = legacyJson ? parseSessionJson(legacyJson, false) : null;
-    if (!legacySession || !legacyJson) {
-        return;
-    }
-
-    activeSession = legacySession;
-    try {
-        await writeBrowserSave(legacyJson);
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
-    } catch (error) {
-        console.warn('Unable to migrate the legacy localStorage save to IndexedDB.', error);
     }
 }
 
@@ -325,7 +313,7 @@ export function exportSessionJson(): string | null {
 }
 
 export async function importSessionJson(json: string): Promise<SessionState> {
-    const session = parseSessionJson(json, true);
+    const session = parseImportedSessionJson(json);
     if (!session) {
         throw new Error('存档不是有效的 Death-Diary JSON。');
     }
