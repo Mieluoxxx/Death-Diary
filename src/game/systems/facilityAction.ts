@@ -18,13 +18,14 @@ import { checkVigourOk } from './buildSystem';
 import { gameBusEmit } from './gameBus';
 import { changeSpirit } from './playerAttrs';
 import { addBonfireFuel } from './survivalLoop';
+import type { TimerCallbackHandle } from './timeClock';
 import {
     getTimedProgressJob,
     isTimedProgressActive,
     startTimedProgress,
     timedProgressPercentage,
 } from './timedProgress';
-import type { TimerCallbackHandle } from './timeClock';
+import { advanceGuide, GuideStep } from './userGuide';
 
 export type FacilityCostRow = {
     itemId: number;
@@ -376,6 +377,9 @@ export function clickFacilityAction(bid: number, actionId: number): FacilityClic
                 gameBusEmit('session_updated');
             },
         });
+        if (actionId === 2) {
+            advanceGuide(GuideStep.BED_SLEEP);
+        }
         // Also notify facility listeners so list rebuilds into "sleeping" state.
         gameBusEmit('facility_changed', { bid: 9 });
         gameBusEmit('session_updated');

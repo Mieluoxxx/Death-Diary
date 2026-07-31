@@ -3,11 +3,10 @@
  * buildConfig[bid][level].produceList → formulaConfig[fid].
  */
 
-import { buildLevelName } from '../data/buildStrings';
 import { BUILD_CONFIG } from '../data/buildConfig';
+import { buildLevelName } from '../data/buildStrings';
 import { FORMULA_CONFIG, type FormulaDef, getFormulaDef } from '../data/formulaConfig';
 import { getItemDef } from '../data/itemConfig';
-import { isBigBagUnlocked, isBootUnlocked } from './iapStore';
 import {
     appendSessionLog,
     costStorageItems,
@@ -19,14 +18,16 @@ import {
     type RoleKey,
     validateStorageItems,
 } from '../session/sessionStore';
+import { checkVigourOk } from './buildSystem';
 import { gameBusEmit } from './gameBus';
+import { isBigBagUnlocked, isBootUnlocked } from './iapStore';
 import {
     accelerateWorkTime,
     addTimerCallback,
     removeTimerCallback,
     type TimerCallbackHandle,
 } from './timeClock';
-import { checkVigourOk } from './buildSystem';
+import { advanceGuide, GuideStep } from './userGuide';
 
 export type CraftCostRow = {
     itemId: number;
@@ -312,7 +313,7 @@ function emitCraft(bid: number): void {
 
 function finishMakeImmediate(
     bid: number,
-    _formulaId: number,
+    formulaId: number,
     def: FormulaDef,
     job: CraftRuntime,
 ): void {
@@ -327,6 +328,9 @@ function finishMakeImmediate(
     }
     costStorageItems(def.cost);
     gainStorageItems(def.produce);
+    if (formulaId === 1402021) {
+        advanceGuide(GuideStep.TOOL_ALEX);
+    }
     const item = def.produce[0]!;
     const session = getSession();
     if (session) {

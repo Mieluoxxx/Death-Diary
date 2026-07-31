@@ -19,7 +19,6 @@ import {
     tickBattle,
 } from '../../systems/battleSystem';
 import { EquipPosMap, testWeaponBroken } from '../../systems/inventory';
-import { isLowVigour, vigourEffect } from '../../systems/playerAttrs';
 import {
     currentRoom,
     fillTempLootFromRoom,
@@ -27,11 +26,14 @@ import {
     roomEnd,
     siteStorageCount,
 } from '../../systems/mapSystem';
+import { isLowVigour, vigourEffect } from '../../systems/playerAttrs';
+import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { formatSiteProgress, mountSiteChromeCaptions } from '../siteChrome';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
 
 const LOG_LINES = 7;
 const LOG_STEP = 50;
@@ -290,6 +292,7 @@ function mountBattleBegin(
         frame: 'btn_common_white_normal.png',
         label: '战斗',
         onClick: () => {
+            advanceGuide(GuideStep.FIGHT_SITE);
             // Clear begin content and swap to process view.
             ctx.content.removeAll(true);
             // Re-place chrome captions (removed with content).
@@ -318,6 +321,9 @@ function mountBattleBegin(
         },
     });
     ctx.content.add(fightBtn);
+    const fightGuideWarn = isGuideStep(GuideStep.FIGHT_SITE)
+        ? addGuideWarn(ctx.scene, fightBtn, { x: 18, y: -42 })
+        : null;
 
     // Host update bridge: while begin view is active, poll for process swap.
     let processHandle: NodeMountResult | null = null;
@@ -334,6 +340,7 @@ function mountBattleBegin(
             processHandle?.update?.(deltaMs);
         },
         destroy: () => {
+            fightGuideWarn?.destroy();
             processHandle?.destroy?.();
         },
     };
@@ -507,6 +514,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
     const btnY = ctx.bgBottomY - 120;
 
     let processHandle: NodeMountResult | null = null;
+    let workGuideWarn: GuideWarnHandle | null = null;
 
     tools.forEach((itemId, i) => {
         const x = areaLeft + (padding * 2 + iconW) * i + (padding + iconW / 2);
@@ -519,6 +527,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
                 .setInteractive({ useHandCursor: true });
             ctx.content.add(bg);
             bg.on('pointerup', () => {
+                advanceGuide(GuideStep.WORK_SITE);
                 // Clear begin UI and start timed process.
                 ctx.content.removeAll(true);
                 const site = getSite(siteId);
@@ -535,6 +544,9 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
                 });
                 processHandle = mountWorkProcess(ctx, siteId, minutes, itemId, wt);
             });
+            if (!workGuideWarn && isGuideStep(GuideStep.WORK_SITE)) {
+                workGuideWarn = addGuideWarn(ctx.scene, bg, { x: 20, y: -42 });
+            }
 
             // Tool icon (hand / crowbar…)
             if (itemId === HAND_ITEM_ID && hasFrame(ctx, 'gate', 'icon_tab_hand.png')) {
@@ -553,9 +565,13 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
                 .setInteractive({ useHandCursor: true });
             ctx.content.add(hit);
             hit.on('pointerup', () => {
+                advanceGuide(GuideStep.WORK_SITE);
                 ctx.content.removeAll(true);
                 processHandle = mountWorkProcess(ctx, siteId, minutes, itemId, wt);
             });
+            if (!workGuideWarn && isGuideStep(GuideStep.WORK_SITE)) {
+                workGuideWarn = addGuideWarn(ctx.scene, hit, { x: 20, y: -42 });
+            }
         }
 
         // 耗时:Nm under button
@@ -582,6 +598,8 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
             processHandle?.update?.(deltaMs);
         },
         destroy: () => {
+            workGuideWarn?.destroy();
+            workGuideWarn = null;
             processHandle?.destroy?.();
         },
     };
@@ -699,6 +717,7 @@ function mountBattleProcess(
     let lastEntryLen = 0;
     let lastAlive = totalMon;
     let endTimer: Phaser.Time.TimerEvent | null = null;
+    let endGuideWarn: GuideWarnHandle | null = null;
 
     // Seed initial logs already pushed by startBattle.
     const seed = getActiveBattle();
@@ -853,6 +872,7 @@ function mountBattleProcess(
                     frame: 'btn_common_white_normal.png',
                     label: '下一个房间',
                     onClick: () => {
+                        advanceGuide(GuideStep.NEXT_ROOM);
                         clearBattle();
                         // Re-enter this node so begin/process rebuilds for the new room.
                         ctx.replace(NavNode.BATTLE_AND_WORK, siteId);
@@ -860,6 +880,9 @@ function mountBattleProcess(
                 });
                 ctx.scene.children.remove(btn);
                 ctx.content.add(btn);
+                if (isGuideStep(GuideStep.NEXT_ROOM)) {
+                    endGuideWarn = addGuideWarn(ctx.scene, btn, { x: 18, y: -42 });
+                }
             } else {
                 // Site fully cleared, or defeat → leave battle node.
                 const btn = addAtlasButton(ctx.scene, ctx.width / 2, ctx.bgBottomY - 60, {
@@ -920,6 +943,8 @@ function mountBattleProcess(
             }
         },
         destroy: () => {
+            endGuideWarn?.destroy();
+            endGuideWarn = null;
             endTimer?.remove(false);
             if (!finished && getActiveBattle()?.running) {
                 forceEndBattle(false);

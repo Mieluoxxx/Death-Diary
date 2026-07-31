@@ -1,20 +1,22 @@
 import { GameObjects, Scene } from 'phaser';
-import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import { HOME_ATLAS_KEYS } from '../assets/atlasManifest';
+import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import { getSession, type RoleKey, type SessionState } from '../session/sessionStore';
+import { queueGameAudio } from '../systems/audioManager';
 import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
 import { gameBusClear, gameBusOff, gameBusOn } from '../systems/gameBus';
 import { ensureDogHouseBuilt, isDogHouseUnlocked } from '../systems/iapStore';
-import { openDayLayer } from '../ui/dayLayer';
 import type { NightRaidResult } from '../systems/nightRaidSystem';
 import { debugSkipGameHours, startSurvivalLoop, stopSurvivalLoop } from '../systems/survivalLoop';
 import { tickTimeClock } from '../systems/timeClock';
-import { queueGameAudio } from '../systems/audioManager';
+import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../systems/userGuide';
 import { type BuildPanelHandle, openBuildPanel } from '../ui/buildPanel';
+import { openDayLayer } from '../ui/dayLayer';
 import { createNavigationHost, type NavHostHandle, NavNode } from '../ui/navigation';
 import { openSettingLayer } from '../ui/settingLayer';
 import { addTopFrame, type TopFrameHandle } from '../ui/topFrame';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { addGuideWarn, type GuideWarnHandle, showGuideDialog } from '../ui/userGuideUi';
 
 /**
  * Port of Buried-City MainScene + HomeNode (web vertical slice).
@@ -79,6 +81,8 @@ export class HomeScene extends Scene {
     private boundRefresh: (() => void) | null = null;
     private boundDied: (() => void) | null = null;
     private boundNightRaid: ((res: NightRaidResult) => void) | null = null;
+    private guideWarn: GuideWarnHandle | null = null;
+    private stopGuideListener: (() => void) | null = null;
 
     constructor() {
         super('Home');
@@ -115,7 +119,12 @@ export class HomeScene extends Scene {
         this.placeHomeContent(session, width, height);
 
         this.navHost = createNavigationHost(this, {
-            onHomeVisible: (visible) => this.setHomeMapVisible(visible),
+            onHomeVisible: (visible) => {
+                this.setHomeMapVisible(visible);
+                if (visible) {
+                    this.time.delayedCall(0, () => this.refreshHomeGuide());
+                }
+            },
             onToast: (msg) => this.showToast(msg),
         });
 
@@ -145,6 +154,8 @@ export class HomeScene extends Scene {
         gameBusOn('logChanged', this.boundRefresh);
         gameBusOn('player_died', this.boundDied);
         gameBusOn('night_raid', this.boundNightRaid);
+        this.stopGuideListener = onGuideChanged(() => this.refreshHomeGuide());
+        this.refreshHomeGuide();
 
         if (session.isDead) {
             this.scene.start('Death');
@@ -160,7 +171,7 @@ export class HomeScene extends Scene {
         // Settings / day-end layer → freeze simulation.
         const overlayOpen = this.children.list.some((child) => {
             const name = (child as GameObjects.Container).name;
-            return name === 'settingLayer' || name === 'dayLayer';
+            return name === 'settingLayer' || name === 'dayLayer' || name === 'guideDialog';
         });
         if (overlayOpen) {
             return;
@@ -184,6 +195,10 @@ export class HomeScene extends Scene {
             gameBusOff('night_raid', this.boundNightRaid);
             this.boundNightRaid = null;
         }
+        this.stopGuideListener?.();
+        this.stopGuideListener = null;
+        this.guideWarn?.destroy();
+        this.guideWarn = null;
         stopSurvivalLoop();
         clearActiveUpgrades();
         this.buildPanel?.destroy();
@@ -306,7 +321,74 @@ export class HomeScene extends Scene {
         });
     }
 
+    private refreshHomeGuide(): void {
+        this.guideWarn?.destroy();
+        this.guideWarn = null;
+        if (this.navHost?.currentName() !== NavNode.HOME || this.buildPanel) {
+            return;
+        }
+
+        const dialogOpen = this.children.list.some(
+            (child) => (child as GameObjects.Container).name === 'guideDialog',
+        );
+        if (dialogOpen) {
+            return;
+        }
+
+        if (isGuideStep(GuideStep.GAME_START)) {
+            showGuideDialog(this, {
+                text: '你穿过僵尸肆虐的街道，终于找到了一座空旷的小屋作为避难所。尽管已经弹尽粮绝，但是为了生存你必须回到小镇，去废弃的建筑里搜寻补给。',
+                picture: 'guide_pic_1.png',
+                onDismiss: () => advanceGuide(GuideStep.GAME_START),
+            });
+            return;
+        }
+        if (isGuideStep(GuideStep.BACK_HOME_WARN)) {
+            showGuideDialog(this, {
+                text: '你把带回的食物和材料都存放到左下角的仓库。现在，去仓库找点东西吃，然后钻进睡袋睡一觉吧。（随时点击屏幕顶部的图标查看生存属性）',
+                picture: 'guide_pic_2.png',
+                pictureBelow: true,
+                onDismiss: () => advanceGuide(GuideStep.BACK_HOME_WARN),
+            });
+            return;
+        }
+        if (isGuideStep(GuideStep.WAKE_UP_WARN)) {
+            showGuideDialog(this, {
+                text: '经过充足的睡眠后，你的生命力恢复了。但这只是暂时的，饥饿、疾病、僵尸侵袭等，都会要了你的命。你需要搜寻更多的物资，当然，出门最好带上武器。',
+                picture: 'guide_pic_1.png',
+                onDismiss: () => advanceGuide(GuideStep.WAKE_UP_WARN),
+            });
+            return;
+        }
+
+        let bid: number | null = null;
+        if (isGuideStep(GuideStep.HOME_GATE) || isGuideStep(GuideStep.HOME_GATE_AGAIN)) {
+            bid = 14;
+        } else if (isGuideStep(GuideStep.HOME_STORAGE)) {
+            bid = 13;
+        } else if (isGuideStep(GuideStep.HOME_SLEEP)) {
+            bid = 9;
+        } else if (isGuideStep(GuideStep.HOME_TOOL)) {
+            bid = 1;
+        }
+        const target = bid === null ? null : this.buildButtons.get(bid);
+        if (target) {
+            this.guideWarn = addGuideWarn(this, target, { x: 28, y: -45 });
+        }
+    }
+
     private openFacility(bid: number): void {
+        if (bid === 14) {
+            if (!advanceGuide(GuideStep.HOME_GATE)) {
+                advanceGuide(GuideStep.HOME_GATE_AGAIN);
+            }
+        } else if (bid === 13) {
+            advanceGuide(GuideStep.HOME_STORAGE);
+        } else if (bid === 9) {
+            advanceGuide(GuideStep.HOME_SLEEP);
+        } else if (bid === 1) {
+            advanceGuide(GuideStep.HOME_TOOL);
+        }
         // Radio is the web-slice cheat console (replaces original online board).
         // Always open it — do not gate behind bid-15 build level, or QA loses /list /get.
         if (bid === 15) {
@@ -332,6 +414,7 @@ export class HomeScene extends Scene {
             onClose: () => {
                 this.buildPanel = null;
                 this.setHomeMapVisible(true);
+                this.refreshHomeGuide();
             },
             onUpgraded: (upgradedBid, level) => {
                 this.refreshBuildIcon(upgradedBid, level);

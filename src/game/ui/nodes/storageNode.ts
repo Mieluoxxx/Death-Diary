@@ -12,11 +12,13 @@
 import type { GameObjects } from 'phaser';
 import { getSession, type ItemCounts } from '../../session/sessionStore';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
+import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { createItemDetailModel } from '../itemDetailContext';
 import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { isScrollTap, mountScrollViewport, type ScrollViewportHandle } from '../scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { addGuideWarn } from '../userGuideUi';
 import {
     ITEM_CELL_PITCH_X,
     ITEM_CELL_PITCH_Y,
@@ -275,9 +277,17 @@ function addItemCell(
         .rectangle(0, 0, ITEM_CELL_PITCH_X - 2, ITEM_CELL_PITCH_Y - 2, 0xffffff, 0.001)
         .setInteractive({ useHandCursor: true });
     cell.add(hit);
+    const guideWarn =
+        itemId === 1103083 && isGuideStep(GuideStep.STORAGE_ITEM)
+            ? addGuideWarn(ctx.scene, cell, { x: 24, y: -40 })
+            : null;
     hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
         if (!isScrollTap(scroll, pointer)) {
             return;
+        }
+        if (itemId === 1103083) {
+            advanceGuide(GuideStep.STORAGE_ITEM);
+            guideWarn?.destroy();
         }
         openItemDetailDialog(
             ctx.scene,

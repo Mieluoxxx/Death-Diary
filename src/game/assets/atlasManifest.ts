@@ -46,6 +46,7 @@ export const HOME_ATLAS_KEYS = [
     'dig_item',
     'dig_work',
     'weather',
+    'guide',
 ] as const;
 
 export type ManifestPreloadAtlas = (typeof ATLAS_MANIFEST.preload)[number];

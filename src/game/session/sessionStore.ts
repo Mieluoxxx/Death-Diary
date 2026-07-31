@@ -8,6 +8,7 @@ import { initialBag, initialStorage } from '../data/initialItems';
 import { HAND_ITEM_ID } from '../data/itemConfig';
 import { getNpcDef, type NpcId, type NpcReward, ROLE_NPC_ID } from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
+import type { UserGuideState } from '../systems/userGuide';
 import { readBrowserSave, writeBrowserSave } from './browserSave';
 import { scheduleCloudSave } from './cloudSave';
 
@@ -113,6 +114,8 @@ export type SessionState = {
     equip: EquipState;
     /** Navigation stack (BottomFrame). */
     navigation: NavEntry[];
+    /** Persistent opening-guide progress. */
+    guide: UserGuideState;
     /** Map position + unlocked sites + site progress. */
     map: MapState;
     /** NPC affinity, trade stock, gifts and map visibility. */
@@ -218,11 +221,28 @@ function isSessionState(value: unknown): value is SessionState {
         Array.isArray(value.logs)
     );
 }
+function normalizeSession(session: SessionState): SessionState {
+    const rawGuide = (session as SessionState & { guide?: unknown }).guide;
+    if (
+        !isRecord(rawGuide) ||
+        rawGuide.version !== 1 ||
+        (rawGuide.status !== 'active' &&
+            rawGuide.status !== 'completed' &&
+            rawGuide.status !== 'skipped') ||
+        !Number.isInteger(rawGuide.step) ||
+        (rawGuide.step as number) < 0 ||
+        (rawGuide.step as number) > 28
+    ) {
+        // Existing saves predate the guide. Do not drop an established player into onboarding.
+        session.guide = { version: 1, status: 'completed', step: 28 };
+    }
+    return session;
+}
 
 function parseStoredSessionJson(json: string): SessionState | null {
     try {
         const parsed = JSON.parse(json) as unknown;
-        return isSessionState(parsed) ? parsed : null;
+        return isSessionState(parsed) ? normalizeSession(parsed) : null;
     } catch {
         return null;
     }
@@ -238,7 +258,7 @@ function parseImportedSessionJson(json: string): SessionState | null {
         ) {
             return null;
         }
-        return isSessionState(parsed.session) ? parsed.session : null;
+        return isSessionState(parsed.session) ? normalizeSession(parsed.session) : null;
     } catch {
         return null;
     }
@@ -476,6 +496,7 @@ export function createNewSession(role: RoleKey, talent: TalentId): SessionState 
         bag: initialBag(),
         equip: defaultEquip(),
         navigation: [{ nodeName: 'HomeNode' }],
+        guide: { version: 1, status: 'active', step: 0 },
         map: defaultMap(role),
         npcs: defaultNpcs(),
         tempLoot: {},

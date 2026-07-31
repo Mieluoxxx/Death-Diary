@@ -5,10 +5,12 @@
  */
 
 import type { GameObjects, Scene } from 'phaser';
-import { getSession, mutateSession, type NavEntry } from '../session/sessionStore';
-import { gameBusEmit } from '../systems/gameBus';
+import { getSession, mutateSession, type NavEntry, setBuildLevel } from '../session/sessionStore';
 import { applyNavMusic, playClick } from '../systems/audioManager';
+import { gameBusEmit } from '../systems/gameBus';
 import { playerGoHome } from '../systems/mapSystem';
+import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../systems/userGuide';
+import { mountAdSiteNode } from './nodes/adSiteNode';
 import { mountBattleNode } from './nodes/battleNode';
 import { mountGateNode } from './nodes/gateNode';
 import { mountGateOutNode } from './nodes/gateOutNode';
@@ -16,12 +18,12 @@ import { mountHomeNode } from './nodes/homeNode';
 import { mountMapNode } from './nodes/mapNode';
 import { mountNpcNode } from './nodes/npcNode';
 import { mountRadioNode } from './nodes/radioNode';
-import { mountAdSiteNode } from './nodes/adSiteNode';
 import { mountSiteNode } from './nodes/siteNode';
 import { mountSiteStorageNode } from './nodes/siteStorageNode';
 import { mountStorageNode } from './nodes/storageNode';
 import { mountWorkLootNode } from './nodes/workLootNode';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
+import { addGuideWarn, type GuideWarnHandle } from './userGuideUi';
 export const NavNode = {
     HOME: 'HomeNode',
     STORAGE: 'StorageNode',
@@ -159,6 +161,7 @@ export function createNavigationHost(
     let rightLabel: GameObjects.Text | null = null;
     let activeNode: NodeMountResult | null = null;
     let destroyed = false;
+    let chromeGuideWarn: GuideWarnHandle | null = null;
 
     const showToast = (msg: string) => {
         opts?.onToast?.(msg);
@@ -221,6 +224,15 @@ export function createNavigationHost(
     }
     root.add(leftBtn);
     leftBtn.on('pointerup', () => {
+        const nodeName = getStack().slice(-1)[0]?.nodeName;
+        if (nodeName === NavNode.SITE) {
+            advanceGuide(GuideStep.BACK_SITE);
+        } else if (nodeName === NavNode.STORAGE) {
+            if (isGuideStep(GuideStep.STORAGE_BACK)) {
+                setBuildLevel(1, 0);
+            }
+            advanceGuide(GuideStep.STORAGE_BACK);
+        }
         playClick();
         if (activeNode?.onLeft) {
             activeNode.onLeft();
@@ -250,9 +262,26 @@ export function createNavigationHost(
         .setVisible(false);
     root.add(rightLabel);
     rightBtn.on('pointerup', () => {
+        if (getStack().slice(-1)[0]?.nodeName === NavNode.GATE) {
+            advanceGuide(GuideStep.GATE_OUT);
+        }
         playClick();
         activeNode?.onRight?.();
     });
+    const refreshChromeGuide = () => {
+        chromeGuideWarn?.destroy();
+        chromeGuideWarn = null;
+        const nodeName = getStack().slice(-1)[0]?.nodeName;
+        if (rightBtn && nodeName === NavNode.GATE && isGuideStep(GuideStep.GATE_OUT)) {
+            chromeGuideWarn = addGuideWarn(scene, rightBtn, { x: 12, y: -45 });
+        } else if (
+            leftBtn &&
+            ((nodeName === NavNode.SITE && isGuideStep(GuideStep.BACK_SITE)) ||
+                (nodeName === NavNode.STORAGE && isGuideStep(GuideStep.STORAGE_BACK)))
+        ) {
+            chromeGuideWarn = addGuideWarn(scene, leftBtn, { x: 12, y: -45 });
+        }
+    };
 
     const clearContent = () => {
         activeNode?.destroy?.();
@@ -323,6 +352,7 @@ export function createNavigationHost(
             applyNavMusic(nodeName);
             gameBusEmit('nav_changed', { nodeName });
             gameBusEmit('session_updated');
+            refreshChromeGuide();
             return;
         }
 
@@ -348,6 +378,7 @@ export function createNavigationHost(
         activeNode = mounter(makeCtx(top.userData));
         applyNavMusic(nodeName);
         gameBusEmit('nav_changed', { nodeName });
+        refreshChromeGuide();
         gameBusEmit('session_updated');
     };
 
@@ -412,6 +443,8 @@ export function createNavigationHost(
     // Initial mount from saved stack.
     mountCurrent();
 
+    const stopGuideListener = onGuideChanged(refreshChromeGuide);
+
     return {
         root,
         forward,
@@ -430,6 +463,9 @@ export function createNavigationHost(
                 return;
             }
             destroyed = true;
+            stopGuideListener();
+            chromeGuideWarn?.destroy();
+            chromeGuideWarn = null;
             clearContent();
             root.destroy(true);
         },

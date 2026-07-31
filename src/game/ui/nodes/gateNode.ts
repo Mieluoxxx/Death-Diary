@@ -6,7 +6,7 @@
  */
 
 import { getSession } from '../../session/sessionStore';
-import { Sound, playEffect } from '../../systems/audioManager';
+import { playEffect, Sound } from '../../systems/audioManager';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferItems } from '../../systems/inventory';
 import { playerOut } from '../../systems/mapSystem';

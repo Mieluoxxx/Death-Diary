@@ -15,18 +15,15 @@ import type { GameObjects } from 'phaser';
 import { getNpcCopy, getNpcDef, NPC_IDS } from '../../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
-import { openRandomBattleDialog } from '../randomBattleDialog';
-import {
-    arriveAt,
-    planTravel,
-    rollTravelEncounter,
-    travelTo,
-} from '../../systems/mapSystem';
+import { arriveAt, planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
 import { accelerateTime } from '../../systems/timeClock';
+import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
+import { openRandomBattleDialog } from '../randomBattleDialog';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
 
 /** map_bg source size (original). */
 const MAP_W = 584;
@@ -124,6 +121,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
     let actorImg: GameObjects.Image | GameObjects.Arc | null = null;
     let moving = false;
     let destroyed = false;
+    let guideWarn: GuideWarnHandle | null = null;
 
     for (const siteId of session.map.unlocked) {
         const cfg = getSiteConfig(siteId);
@@ -185,6 +183,15 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         });
 
         markers.set(siteId, { siteId, root: marker, highlight, setHighlight });
+    }
+    const guideSiteId = isGuideStep(GuideStep.MAP_SITE)
+        ? 201
+        : isGuideStep(GuideStep.MAP_SITE_HOME)
+          ? HOME_SITE_ID
+          : null;
+    const guideMarker = guideSiteId === null ? null : markers.get(guideSiteId)?.root;
+    if (guideMarker) {
+        guideWarn = addGuideWarn(ctx.scene, guideMarker, { x: 24, y: -45 });
     }
 
     // NPC homes are visible directly from their canonical persistent state.
@@ -271,6 +278,13 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         if (!live || !cfg || !plan || moving) {
             return;
         }
+        if (siteId === 201) {
+            advanceGuide(GuideStep.MAP_SITE);
+        } else if (siteId === HOME_SITE_ID) {
+            advanceGuide(GuideStep.MAP_SITE_HOME);
+        }
+        guideWarn?.destroy();
+        guideWarn = null;
         const dist = plan.distance;
         const timeLabel = formatTravelTime(plan.gameSeconds);
 
@@ -477,11 +491,22 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
             label: siteId === HOME_SITE_ID ? '回家' : '前往',
             labelColor: '#eee',
             onClick: () => {
+                if (siteId === 201) {
+                    advanceGuide(GuideStep.MAP_SITE_GO);
+                } else if (siteId === HOME_SITE_ID) {
+                    advanceGuide(GuideStep.MAP_SITE_HOME_GO);
+                }
                 close();
                 onOk();
             },
         });
         overlay.add(ok);
+        if (
+            (siteId === 201 && isGuideStep(GuideStep.MAP_SITE_GO)) ||
+            (siteId === HOME_SITE_ID && isGuideStep(GuideStep.MAP_SITE_HOME_GO))
+        ) {
+            guideWarn = addGuideWarn(ctx.scene, ok, { x: 18, y: -42 });
+        }
     }
 
     function onNpcTap(npcId: number): void {
@@ -569,10 +594,11 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         ctx.forward(NavNode.SITE, siteId);
     }
 
-
     return {
         destroy: () => {
             destroyed = true;
+            guideWarn?.destroy();
+            guideWarn = null;
             clearPath();
             mapLayer.filters?.internal.clear();
             maskRect.destroy();

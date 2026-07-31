@@ -13,8 +13,8 @@
 
 import type { GameObjects, Scene } from 'phaser';
 import { buildActionCopy, buildLevelName } from '../data/buildStrings';
-import { getBuildLevel, getStorageCount } from '../session/sessionStore';
-import { Music, insertMusic, resumeMusic } from '../systems/audioManager';
+import { getBuildLevel, getSession, getStorageCount } from '../session/sessionStore';
+import { insertMusic, Music, resumeMusic } from '../systems/audioManager';
 import {
     BuildUpgradeType,
     canUpgradeBuild,
@@ -29,6 +29,7 @@ import {
     listFacilityActions,
 } from '../systems/facilityAction';
 import { gameBusOff, gameBusOn } from '../systems/gameBus';
+import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../systems/userGuide';
 import { addAtlasButton } from './atlasButton';
 import { openBuildDetailDialog } from './buildDialog';
 import { openStatusDialog } from './dialogSmall';
@@ -42,6 +43,7 @@ import {
     trackScrollButton,
 } from './scrollViewport';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { addGuideWarn, type GuideWarnHandle } from './userGuideUi';
 
 export type BuildPanelHandle = {
     root: GameObjects.Container;
@@ -125,6 +127,8 @@ export function openBuildPanel(
 
     let closed = false;
     let actionScroll: ScrollViewportHandle | null = null;
+    let backBtn: GameObjects.Image | GameObjects.Rectangle | null = null;
+    let guideWarn: GuideWarnHandle | null = null;
     const closePanel = () => {
         if (closed) {
             return;
@@ -139,33 +143,47 @@ export function openBuildPanel(
         gameBusOff('session_updated', onSession);
         gameBusOff('craft_changed', onCraftChanged);
         gameBusOff('facility_changed', onFacilityChanged);
+        stopGuideListener();
+        guideWarn?.destroy();
+        guideWarn = null;
         actionScroll?.destroy();
         actionScroll = null;
         root.destroy(true);
         opts?.onClose?.();
     };
+    const advanceBackGuide = () => {
+        if (bid === 9 && !getSession()?.isInSleep) {
+            advanceGuide(GuideStep.SLEEP_WAKE_UP);
+        } else if (bid === 1) {
+            advanceGuide(GuideStep.TOOL_BACK);
+        }
+    };
 
     // Back (left)
     if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_back.png')) {
-        const back = scene.add
+        backBtn = scene.add
             .image(toScreenX(60), titleY, 'ui', 'btn_back.png')
             .setInteractive({ useHandCursor: true });
-        root.add(back);
-        back.on('pointerdown', () => back.setAlpha(0.7));
-        back.on('pointerout', () => back.setAlpha(1));
-        back.on('pointerup', () => {
-            back.setAlpha(1);
+        root.add(backBtn);
+        backBtn.on('pointerdown', () => backBtn?.setAlpha(0.7));
+        backBtn.on('pointerout', () => backBtn?.setAlpha(1));
+        backBtn.on('pointerup', () => {
+            backBtn?.setAlpha(1);
             if (isBuildUpgrading(bid)) {
                 return;
             }
+            advanceBackGuide();
             closePanel();
         });
     } else {
-        const back = scene.add
+        backBtn = scene.add
             .rectangle(toScreenX(60), titleY, 82, 39, 0x333333)
             .setInteractive({ useHandCursor: true });
-        root.add(back);
-        back.on('pointerup', closePanel);
+        root.add(backBtn);
+        backBtn.on('pointerup', () => {
+            advanceBackGuide();
+            closePanel();
+        });
     }
 
     // Shop (right) — deferred, visual parity only.
@@ -539,6 +557,19 @@ export function openBuildPanel(
         });
         refreshUpgradeRow();
     };
+    const refreshBuildGuide = () => {
+        guideWarn?.destroy();
+        guideWarn = null;
+        if (bid === 9 && isGuideStep(GuideStep.MAKE_BED) && actionBtn) {
+            guideWarn = addGuideWarn(scene, actionBtn, { x: 18, y: -42 });
+        } else if (
+            backBtn &&
+            ((bid === 9 && !getSession()?.isInSleep && isGuideStep(GuideStep.SLEEP_WAKE_UP)) ||
+                (bid === 1 && isGuideStep(GuideStep.TOOL_BACK)))
+        ) {
+            guideWarn = addGuideWarn(scene, backBtn, { x: 14, y: -42 });
+        }
+    };
 
     const onProgressBus = (payload: {
         channel: { kind: string; id: number; actionId?: number };
@@ -580,8 +611,13 @@ export function openBuildPanel(
     gameBusOn('session_updated', onSession);
     gameBusOn('craft_changed', onCraftChanged);
     gameBusOn('facility_changed', onFacilityChanged);
+    const stopGuideListener = onGuideChanged(() => {
+        refreshUpgradeRow();
+        refreshBuildGuide();
+    });
 
     refreshUpgradeRow();
+    refreshBuildGuide();
 
     // Original BuildNode.onEnter: chair swaps to HOME_REST.
     if (bid === 10) {
@@ -753,6 +789,9 @@ function mountCraftRow(
                   },
         });
         row.add(btn);
+        if (action.formulaId === 1402021 && isGuideStep(GuideStep.TOOL_ALEX)) {
+            addGuideWarn(scene, btn, { x: 18, y: -42 });
+        }
         trackScrollButton(scroll, btn, rowY);
     }
 }
@@ -893,6 +932,9 @@ function mountFacilityRow(
                   },
         });
         row.add(btn);
+        if (action.bid === 9 && action.actionId === 2 && isGuideStep(GuideStep.BED_SLEEP)) {
+            addGuideWarn(scene, btn, { x: 18, y: -42 });
+        }
         trackScrollButton(scroll, btn, rowY);
     }
 }

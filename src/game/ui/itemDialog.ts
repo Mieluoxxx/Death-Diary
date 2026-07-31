@@ -7,9 +7,12 @@ import type { GameObjects, Scene } from 'phaser';
 import { ITEM_STRINGS, itemName } from '../data/buildStrings';
 import { getItemDef } from '../data/itemConfig';
 import { playPopup } from '../systems/audioManager';
-import type { ItemDetailModel } from './itemDetailContext';
+import { advanceGuide, GuideStep, isGuideStep } from '../systems/userGuide';
 import { addAtlasButton } from './atlasButton';
+import type { ItemDetailModel } from './itemDetailContext';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { addGuideWarn } from './userGuideUi';
+
 const DIALOG_FRAME = 'dialog_big_bg.png';
 const FALLBACK_FRAME = 'dialog_small_2_bg.png';
 const DIALOG_WIDTH = 448;
@@ -179,6 +182,9 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
             model.onToast?.(result.msg);
         }
         if (result.ok) {
+            if (itemId === 1103083) {
+                advanceGuide(GuideStep.STORAGE_EAT);
+            }
             // 原版先关闭详情框，再让来源列表按最新库存重绘。
             dismiss();
             model.onUseSuccess?.();
@@ -199,16 +205,18 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
                 onClick: dismiss,
             }),
         );
-        root.add(
-            addAtlasButton(scene, bgCenterX + 90, actionCenterY, {
-                atlas: 'ui',
-                frame: 'btn_common_black_normal.png',
-                label: primaryAction.label,
-                labelColor: '#f5f0e6',
-                labelSizeTier: 'COMMON_2',
-                onClick: onPrimaryAction,
-            }),
-        );
+        const primaryBtn = addAtlasButton(scene, bgCenterX + 90, actionCenterY, {
+            atlas: 'ui',
+            frame: 'btn_common_black_normal.png',
+            label: primaryAction.label,
+            labelColor: '#f5f0e6',
+            labelSizeTier: 'COMMON_2',
+            onClick: onPrimaryAction,
+        });
+        root.add(primaryBtn);
+        if (itemId === 1103083 && isGuideStep(GuideStep.STORAGE_EAT)) {
+            addGuideWarn(scene, primaryBtn, { x: 18, y: -42 });
+        }
     } else if (hasBtnAtlas) {
         root.add(
             addAtlasButton(scene, bgCenterX, actionCenterY, {

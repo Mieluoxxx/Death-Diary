@@ -13,11 +13,13 @@
 
 import { getSiteConfig } from '../../data/siteConfig';
 import { getSite, leaveSite, siteStorageCount } from '../../systems/mapSystem';
+import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { formatSiteProgress, mountSiteChromeCaptions } from '../siteChrome';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { addGuideWarn } from '../userGuideUi';
 
 const LEFT_EDGE = 40;
 /** BottomFrame contentTopLineHeight */
@@ -113,12 +115,17 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
             if (siteEnded) {
                 return;
             }
+            advanceGuide(GuideStep.ENTER_SITE);
             ctx.forward(NavNode.BATTLE_AND_WORK, siteId);
         },
     });
     ctx.content.add(enterBtn);
+    const guideWarn = isGuideStep(GuideStep.ENTER_SITE)
+        ? addGuideWarn(ctx.scene, enterBtn, { x: 18, y: -42 })
+        : null;
 
     return {
+        destroy: () => guideWarn?.destroy(),
         onLeft: () => {
             leaveSite();
             ctx.back();

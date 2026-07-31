@@ -12,10 +12,11 @@
  */
 
 import { getSession } from '../../session/sessionStore';
-import { Sound, playEffect } from '../../systems/audioManager';
+import { playEffect, Sound } from '../../systems/audioManager';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferAll, transferItems } from '../../systems/inventory';
 import { currentRoom, flushTempToSite, getSite } from '../../systems/mapSystem';
+import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import { mountEquipStrip } from '../equipStrip';
 import { createItemDetailModel } from '../itemDetailContext';
@@ -24,6 +25,7 @@ import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { addSectionBar } from '../sectionBar';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
 import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
 
 const WORK_TITLES = ['箱子', '桌子', '柜子'];
@@ -116,6 +118,9 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
         onClick: () => {
             equip.closeDropDown();
             const { moved, blocked } = transferAll('temp', 'bag', siteId);
+            if (moved > 0) {
+                advanceGuide(GuideStep.ALL_GET);
+            }
             if (blocked > 0) {
                 ctx.showToast(`拿取${moved}，负重不足剩余${blocked}`);
             }
@@ -174,6 +179,7 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
         frame: 'btn_common_white_normal.png',
         label: '下一个房间',
         onClick: () => {
+            advanceGuide(GuideStep.BACK_ROOM);
             equip.closeDropDown();
             flushTempToSite(siteId);
             const next = currentRoom(siteId);
@@ -187,6 +193,18 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
     });
     ctx.scene.children.remove(nextBtn);
     ctx.content.add(nextBtn);
+    let guideWarn: GuideWarnHandle | null = null;
+    const refreshGuide = () => {
+        guideWarn?.destroy();
+        guideWarn = null;
+        if (isGuideStep(GuideStep.ALL_GET)) {
+            guideWarn = addGuideWarn(ctx.scene, takeAll, { x: 18, y: -42 });
+        } else if (isGuideStep(GuideStep.BACK_ROOM)) {
+            guideWarn = addGuideWarn(ctx.scene, nextBtn, { x: 18, y: -42 });
+        }
+    };
+    const stopGuideListener = onGuideChanged(refreshGuide);
+    refreshGuide();
 
     const refresh = () => {
         const live = getSession();
@@ -212,6 +230,9 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
             ctx.back();
         },
         destroy: () => {
+            stopGuideListener();
+            guideWarn?.destroy();
+            guideWarn = null;
             gameBusOff('session_updated', onSession);
             equip.destroy();
             bagGrid.destroy();

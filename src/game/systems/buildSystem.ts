@@ -19,10 +19,11 @@ import {
     setBuildLevel,
     validateStorageItems,
 } from '../session/sessionStore';
-import { Sound, playEffect } from './audioManager';
+import { playEffect, Sound } from './audioManager';
 import { gameBusEmit } from './gameBus';
 import { isLowVigour } from './playerAttrs';
 import { accelerateWorkTime, addTimerCallback, type TimerCallbackHandle } from './timeClock';
+import { advanceGuide, GuideStep } from './userGuide';
 
 export enum BuildUpgradeType {
     UPGRADABLE = 1,
@@ -38,7 +39,6 @@ export type UpgradeCheckResult = {
     condition?: BuildLevelCondition;
     cost?: BuildCostItem[];
 };
-
 
 /** Active upgrade jobs keyed by bid (one facility at a time per original activeBtnIndex). */
 const activeUpgrades = new Map<
@@ -205,6 +205,9 @@ export function startBuildUpgrade(
         end: () => {
             activeUpgrades.delete(bid);
             setBuildLevel(bid, nextLevel);
+            if (bid === 9 && nextLevel === 0) {
+                advanceGuide(GuideStep.MAKE_BED);
+            }
             playEffect(Sound.BUILD_UPGRADE);
             const session = getSession();
             const name = buildLevelName(bid, nextLevel);
