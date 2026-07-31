@@ -129,6 +129,7 @@ export function openBuildPanel(
     let actionScroll: ScrollViewportHandle | null = null;
     let backBtn: GameObjects.Image | GameObjects.Rectangle | null = null;
     let guideWarn: GuideWarnHandle | null = null;
+    let actionGuideWarn: GuideWarnHandle | null = null;
     const closePanel = () => {
         if (closed) {
             return;
@@ -140,12 +141,13 @@ export function openBuildPanel(
         }
         gameBusOff('progress', onProgressBus);
         gameBusOff('build_upgraded', onUpgradedBus);
-        gameBusOff('session_updated', onSession);
         gameBusOff('craft_changed', onCraftChanged);
         gameBusOff('facility_changed', onFacilityChanged);
         stopGuideListener();
         guideWarn?.destroy();
         guideWarn = null;
+        actionGuideWarn?.destroy();
+        actionGuideWarn = null;
         actionScroll?.destroy();
         actionScroll = null;
         root.destroy(true);
@@ -346,6 +348,8 @@ export function openBuildPanel(
         const scroll = actionScroll;
         const prevOffset = scroll.getOffset();
         scroll.syncMask();
+        actionGuideWarn?.destroy();
+        actionGuideWarn = null;
         actionListRoot.removeAll(true);
         scroll.clearHits();
 
@@ -383,6 +387,9 @@ export function openBuildPanel(
                     clearItemIcons();
                 },
                 scroll,
+                (target) => {
+                    actionGuideWarn = addGuideWarn(scene, target);
+                },
             );
             rowIndex += 1;
         });
@@ -398,6 +405,9 @@ export function openBuildPanel(
                     clearItemIcons();
                 },
                 scroll,
+                (target) => {
+                    actionGuideWarn = addGuideWarn(scene, target);
+                },
             );
             rowIndex += 1;
         });
@@ -594,7 +604,6 @@ export function openBuildPanel(
         refreshUpgradeRow();
         opts?.onUpgraded?.(payload.bid, payload.level);
     };
-    const onSession = () => refreshUpgradeRow();
     const onCraftChanged = (payload: { bid: number }) => {
         if (payload.bid === bid) {
             refreshUpgradeRow();
@@ -606,9 +615,11 @@ export function openBuildPanel(
         }
     };
 
+    // `session_updated` fires every game minute (~0.6s at the normal clock rate).
+    // Panel mutations already emit the specific events below; listening to the broad
+    // event only rebuilds every row—and its guide target—on each clock tick.
     gameBusOn('progress', onProgressBus);
     gameBusOn('build_upgraded', onUpgradedBus);
-    gameBusOn('session_updated', onSession);
     gameBusOn('craft_changed', onCraftChanged);
     gameBusOn('facility_changed', onFacilityChanged);
     const stopGuideListener = onGuideChanged(() => {
@@ -637,6 +648,7 @@ function mountCraftRow(
     index: number,
     onFail: (msg: string) => void,
     scroll: ScrollViewportHandle,
+    setGuideWarn: (target: Parameters<typeof addGuideWarn>[1]) => void,
 ): void {
     const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
     const row = scene.add.container(0, rowY);
@@ -790,7 +802,7 @@ function mountCraftRow(
         });
         row.add(btn);
         if (action.formulaId === 1402021 && isGuideStep(GuideStep.TOOL_ALEX)) {
-            addGuideWarn(scene, btn);
+            setGuideWarn(btn);
         }
         trackScrollButton(scroll, btn, rowY);
     }
@@ -803,6 +815,7 @@ function mountFacilityRow(
     index: number,
     onFail: (msg: string) => void,
     scroll: ScrollViewportHandle,
+    setGuideWarn: (target: Parameters<typeof addGuideWarn>[1]) => void,
 ): void {
     const rowY = ACTION_ROW_HEIGHT / 2 + index * ACTION_ROW_HEIGHT;
     const row = scene.add.container(0, rowY);
@@ -933,7 +946,7 @@ function mountFacilityRow(
         });
         row.add(btn);
         if (action.bid === 9 && action.actionId === 2 && isGuideStep(GuideStep.BED_SLEEP)) {
-            addGuideWarn(scene, btn);
+            setGuideWarn(btn);
         }
         trackScrollButton(scroll, btn, rowY);
     }
