@@ -198,9 +198,9 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
         guideWarn?.destroy();
         guideWarn = null;
         if (isGuideStep(GuideStep.ALL_GET)) {
-            guideWarn = addGuideWarn(ctx.scene, takeAll, { x: 18, y: -42 });
+            guideWarn = addGuideWarn(ctx.scene, takeAll);
         } else if (isGuideStep(GuideStep.BACK_ROOM)) {
-            guideWarn = addGuideWarn(ctx.scene, nextBtn, { x: 18, y: -42 });
+            guideWarn = addGuideWarn(ctx.scene, nextBtn);
         }
     };
     const stopGuideListener = onGuideChanged(refreshGuide);

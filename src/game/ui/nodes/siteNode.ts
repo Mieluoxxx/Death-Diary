@@ -120,9 +120,7 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
         },
     });
     ctx.content.add(enterBtn);
-    const guideWarn = isGuideStep(GuideStep.ENTER_SITE)
-        ? addGuideWarn(ctx.scene, enterBtn, { x: 18, y: -42 })
-        : null;
+    const guideWarn = isGuideStep(GuideStep.ENTER_SITE) ? addGuideWarn(ctx.scene, enterBtn) : null;
 
     return {
         destroy: () => guideWarn?.destroy(),

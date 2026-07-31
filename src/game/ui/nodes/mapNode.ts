@@ -191,7 +191,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
           : null;
     const guideMarker = guideSiteId === null ? null : markers.get(guideSiteId)?.root;
     if (guideMarker) {
-        guideWarn = addGuideWarn(ctx.scene, guideMarker, { x: 24, y: -45 });
+        guideWarn = addGuideWarn(ctx.scene, guideMarker);
     }
 
     // NPC homes are visible directly from their canonical persistent state.
@@ -505,7 +505,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
             (siteId === 201 && isGuideStep(GuideStep.MAP_SITE_GO)) ||
             (siteId === HOME_SITE_ID && isGuideStep(GuideStep.MAP_SITE_HOME_GO))
         ) {
-            guideWarn = addGuideWarn(ctx.scene, ok, { x: 18, y: -42 });
+            guideWarn = addGuideWarn(ctx.scene, ok);
         }
     }
 

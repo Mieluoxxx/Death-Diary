@@ -273,13 +273,13 @@ export function createNavigationHost(
         chromeGuideWarn = null;
         const nodeName = getStack().slice(-1)[0]?.nodeName;
         if (rightBtn && nodeName === NavNode.GATE && isGuideStep(GuideStep.GATE_OUT)) {
-            chromeGuideWarn = addGuideWarn(scene, rightBtn, { x: 12, y: -45 });
+            chromeGuideWarn = addGuideWarn(scene, rightBtn);
         } else if (
             leftBtn &&
             ((nodeName === NavNode.SITE && isGuideStep(GuideStep.BACK_SITE)) ||
                 (nodeName === NavNode.STORAGE && isGuideStep(GuideStep.STORAGE_BACK)))
         ) {
-            chromeGuideWarn = addGuideWarn(scene, leftBtn, { x: 12, y: -45 });
+            chromeGuideWarn = addGuideWarn(scene, leftBtn);
         }
     };
 

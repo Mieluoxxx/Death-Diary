@@ -373,7 +373,7 @@ export class HomeScene extends Scene {
         }
         const target = bid === null ? null : this.buildButtons.get(bid);
         if (target) {
-            this.guideWarn = addGuideWarn(this, target, { x: 28, y: -45 });
+            this.guideWarn = addGuideWarn(this, target);
         }
     }
 

@@ -279,7 +279,7 @@ function addItemCell(
     cell.add(hit);
     const guideWarn =
         itemId === 1103083 && isGuideStep(GuideStep.STORAGE_ITEM)
-            ? addGuideWarn(ctx.scene, cell, { x: 24, y: -40 })
+            ? addGuideWarn(ctx.scene, cell)
             : null;
     hit.on('pointerup', (pointer: Phaser.Input.Pointer) => {
         if (!isScrollTap(scroll, pointer)) {

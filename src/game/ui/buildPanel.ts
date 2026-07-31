@@ -561,13 +561,13 @@ export function openBuildPanel(
         guideWarn?.destroy();
         guideWarn = null;
         if (bid === 9 && isGuideStep(GuideStep.MAKE_BED) && actionBtn) {
-            guideWarn = addGuideWarn(scene, actionBtn, { x: 18, y: -42 });
+            guideWarn = addGuideWarn(scene, actionBtn);
         } else if (
             backBtn &&
             ((bid === 9 && !getSession()?.isInSleep && isGuideStep(GuideStep.SLEEP_WAKE_UP)) ||
                 (bid === 1 && isGuideStep(GuideStep.TOOL_BACK)))
         ) {
-            guideWarn = addGuideWarn(scene, backBtn, { x: 14, y: -42 });
+            guideWarn = addGuideWarn(scene, backBtn);
         }
     };
 
@@ -790,7 +790,7 @@ function mountCraftRow(
         });
         row.add(btn);
         if (action.formulaId === 1402021 && isGuideStep(GuideStep.TOOL_ALEX)) {
-            addGuideWarn(scene, btn, { x: 18, y: -42 });
+            addGuideWarn(scene, btn);
         }
         trackScrollButton(scroll, btn, rowY);
     }
@@ -933,7 +933,7 @@ function mountFacilityRow(
         });
         row.add(btn);
         if (action.bid === 9 && action.actionId === 2 && isGuideStep(GuideStep.BED_SLEEP)) {
-            addGuideWarn(scene, btn, { x: 18, y: -42 });
+            addGuideWarn(scene, btn);
         }
         trackScrollButton(scroll, btn, rowY);
     }

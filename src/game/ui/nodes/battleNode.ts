@@ -322,7 +322,7 @@ function mountBattleBegin(
     });
     ctx.content.add(fightBtn);
     const fightGuideWarn = isGuideStep(GuideStep.FIGHT_SITE)
-        ? addGuideWarn(ctx.scene, fightBtn, { x: 18, y: -42 })
+        ? addGuideWarn(ctx.scene, fightBtn)
         : null;
 
     // Host update bridge: while begin view is active, poll for process swap.
@@ -545,7 +545,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
                 processHandle = mountWorkProcess(ctx, siteId, minutes, itemId, wt);
             });
             if (!workGuideWarn && isGuideStep(GuideStep.WORK_SITE)) {
-                workGuideWarn = addGuideWarn(ctx.scene, bg, { x: 20, y: -42 });
+                workGuideWarn = addGuideWarn(ctx.scene, bg);
             }
 
             // Tool icon (hand / crowbar…)
@@ -570,7 +570,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
                 processHandle = mountWorkProcess(ctx, siteId, minutes, itemId, wt);
             });
             if (!workGuideWarn && isGuideStep(GuideStep.WORK_SITE)) {
-                workGuideWarn = addGuideWarn(ctx.scene, hit, { x: 20, y: -42 });
+                workGuideWarn = addGuideWarn(ctx.scene, hit);
             }
         }
 
@@ -881,7 +881,7 @@ function mountBattleProcess(
                 ctx.scene.children.remove(btn);
                 ctx.content.add(btn);
                 if (isGuideStep(GuideStep.NEXT_ROOM)) {
-                    endGuideWarn = addGuideWarn(ctx.scene, btn, { x: 18, y: -42 });
+                    endGuideWarn = addGuideWarn(ctx.scene, btn);
                 }
             } else {
                 // Site fully cleared, or defeat → leave battle node.

@@ -4,26 +4,30 @@ import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 export type GuideWarnHandle = { destroy: () => void };
 
-type TransformTarget = GameObjects.GameObject & {
-    getWorldTransformMatrix: () => Phaser.GameObjects.Components.TransformMatrix;
+type BoundsTarget = GameObjects.GameObject & {
+    getBounds: (output?: Phaser.Geom.Rectangle) => Phaser.Geom.Rectangle;
 };
 
-/** Port of uiUtil.createIconWarn: a pulsing pointer above the requested control. */
-export function addGuideWarn(
-    scene: Scene,
-    target: TransformTarget,
-    offset: { x?: number; y?: number } = {},
-): GuideWarnHandle | null {
+/** Port of uiUtil.createIconWarn: target center + original (30, -34 Cocos) offset. */
+export function addGuideWarn(scene: Scene, target: BoundsTarget): GuideWarnHandle | null {
     if (!target.active) {
         return null;
     }
-    const point = target.getWorldTransformMatrix().transformPoint(0, 0);
-    const root = scene.add.container(point.x + (offset.x ?? 28), point.y + (offset.y ?? -42));
+    const root = scene.add.container(0, 0);
+    const syncPosition = () => {
+        if (!target.active || !root.active) {
+            return;
+        }
+        const bounds = target.getBounds();
+        root.setPosition(bounds.centerX + 30, bounds.centerY + 34);
+    };
+    syncPosition();
+    scene.events.on('postupdate', syncPosition);
     root.setDepth(290);
     root.setName('guideWarn');
 
     if (scene.textures.exists('icon') && scene.textures.get('icon').has('icon_warn.png')) {
-        root.add(scene.add.image(0, 0, 'icon', 'icon_warn.png').setScale(0.72));
+        root.add(scene.add.image(0, 0, 'icon', 'icon_warn.png'));
     } else {
         root.add(scene.add.circle(0, 0, 20, 0xffcc33));
         root.add(
@@ -52,6 +56,7 @@ export function addGuideWarn(
             return;
         }
         destroyed = true;
+        scene.events.off('postupdate', syncPosition);
         tween.destroy();
         if (root.active) {
             root.destroy(true);

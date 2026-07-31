@@ -215,7 +215,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
         });
         root.add(primaryBtn);
         if (itemId === 1103083 && isGuideStep(GuideStep.STORAGE_EAT)) {
-            addGuideWarn(scene, primaryBtn, { x: 18, y: -42 });
+            addGuideWarn(scene, primaryBtn);
         }
     } else if (hasBtnAtlas) {
         root.add(
