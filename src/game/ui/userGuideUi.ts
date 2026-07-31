@@ -1,5 +1,6 @@
 import type { GameObjects, Scene } from 'phaser';
 import { skipGuide } from '../systems/userGuide';
+import { addAtlasButton } from './atlasButton';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
 
 export type GuideWarnHandle = { destroy: () => void };
@@ -137,19 +138,6 @@ export function showGuideDialog(
             .setOrigin(0.5),
     );
 
-    const skip = scene.add
-        .text(panelX + panelW / 2 - 18, panelY - panelH / 2 + 18, '跳过引导', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: '16px',
-            color: '#666666',
-            backgroundColor: '#d5cdbf',
-            padding: { x: 8, y: 5 },
-        })
-        .setOrigin(1, 0)
-        .setInteractive({ useHandCursor: true });
-    root.add(skip);
-
     let dismissed = false;
     const dismiss = () => {
         if (dismissed) {
@@ -159,15 +147,30 @@ export function showGuideDialog(
         root.destroy(true);
         options.onDismiss();
     };
-    blocker.on('pointerup', dismiss);
-    skip.on('pointerup', (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
-        event.stopPropagation();
-        if (dismissed) {
-            return;
-        }
-        dismissed = true;
-        root.destroy(true);
-        skipGuide();
+
+    const skipScale = 0.9;
+    const skip = addAtlasButton(scene, 0, 0, {
+        atlas: 'ui',
+        frame: 'btn_common_black_normal.png',
+        label: '跳过引导',
+        labelColor: '#f4efe5',
+        labelSizeTier: 'COMMON_2',
+        onClick: () => {
+            if (dismissed) {
+                return;
+            }
+            dismissed = true;
+            root.destroy(true);
+            skipGuide();
+        },
     });
+    skip.setScale(skipScale);
+    skip.setPosition(
+        panelX + panelW / 2 - 20 - (skip.hitTarget.displayWidth * skipScale) / 2,
+        panelY - panelH / 2 + 20 + (skip.hitTarget.displayHeight * skipScale) / 2,
+    );
+    root.add(skip);
+
+    blocker.on('pointerup', dismiss);
     return root;
 }
