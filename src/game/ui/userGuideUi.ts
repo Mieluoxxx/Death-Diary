@@ -47,7 +47,8 @@ export function addGuideWarn(scene: Scene, target: BoundsTarget): GuideWarnHandl
         targets: root,
         alpha: { from: 0.25, to: 1 },
         scale: { from: 0.8, to: 1 },
-        duration: 900,
+        duration: 1500,
+        ease: 'Sine.InOut',
         yoyo: true,
         repeat: -1,
     });
