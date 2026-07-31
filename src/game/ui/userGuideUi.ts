@@ -9,21 +9,34 @@ type BoundsTarget = GameObjects.GameObject & {
     getBounds: (output?: Phaser.Geom.Rectangle) => Phaser.Geom.Rectangle;
 };
 
+const GUIDE_WARN_HALF_CYCLE_MS = 1500;
+const GUIDE_WARN_MIN_ALPHA = 0.25;
+const GUIDE_WARN_MIN_SCALE = 0.8;
+
 /** Port of uiUtil.createIconWarn: target center + original (30, -34 Cocos) offset. */
 export function addGuideWarn(scene: Scene, target: BoundsTarget): GuideWarnHandle | null {
     if (!target.active) {
         return null;
     }
     const root = scene.add.container(0, 0);
-    const syncPosition = () => {
+    const syncWarn = () => {
         if (!target.active || !root.active) {
             return;
         }
         const bounds = target.getBounds();
         root.setPosition(bounds.centerX + 30, bounds.centerY + 34);
+
+        // Build rows can be recreated by session updates every ~0.6s. A tween tied to
+        // each new row restarts at every rebuild and appears to flash at that cadence.
+        // Derive the pulse from the scene clock so replacement pointers keep one phase.
+        const cycle = (scene.time.now % (GUIDE_WARN_HALF_CYCLE_MS * 2)) / GUIDE_WARN_HALF_CYCLE_MS;
+        const progress = cycle <= 1 ? cycle : 2 - cycle;
+        const eased = (1 - Math.cos(Math.PI * progress)) / 2;
+        root.setAlpha(GUIDE_WARN_MIN_ALPHA + (1 - GUIDE_WARN_MIN_ALPHA) * eased);
+        root.setScale(GUIDE_WARN_MIN_SCALE + (1 - GUIDE_WARN_MIN_SCALE) * eased);
     };
-    syncPosition();
-    scene.events.on('postupdate', syncPosition);
+    syncWarn();
+    scene.events.on('postupdate', syncWarn);
     root.setDepth(290);
     root.setName('guideWarn');
 
@@ -43,23 +56,13 @@ export function addGuideWarn(scene: Scene, target: BoundsTarget): GuideWarnHandl
         );
     }
 
-    const tween = scene.tweens.add({
-        targets: root,
-        alpha: { from: 0.25, to: 1 },
-        scale: { from: 0.8, to: 1 },
-        duration: 1500,
-        ease: 'Sine.InOut',
-        yoyo: true,
-        repeat: -1,
-    });
     let destroyed = false;
     const destroy = () => {
         if (destroyed) {
             return;
         }
         destroyed = true;
-        scene.events.off('postupdate', syncPosition);
-        tween.destroy();
+        scene.events.off('postupdate', syncWarn);
         if (root.active) {
             root.destroy(true);
         }
