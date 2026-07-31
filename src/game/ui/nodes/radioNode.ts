@@ -91,6 +91,7 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
     // mobile IME. A DOM input is composited at the same scene coordinates and
     // still follows Phaser's FIT scaling through its DOM container.
     const commandInput = document.createElement('input');
+    commandInput.className = 'radio-command-input';
     commandInput.type = 'text';
     commandInput.maxLength = 120;
     commandInput.autocomplete = 'off';
@@ -104,16 +105,18 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
         boxSizing: 'border-box',
         width: `${INPUT_WIDTH}px`,
         height: '48px',
-        border: '0',
+        border: '2px solid #f4efe5',
         borderRadius: '0',
         outline: 'none',
-        padding: '0 14px',
-        background: '#eeeeee',
-        color: '#111111',
-        caretColor: '#111111',
+        padding: '0 12px',
+        background: '#050505',
+        color: '#f4efe5',
+        caretColor: '#f4efe5',
+        boxShadow: 'inset 0 0 0 1px #2a2a2a',
         fontFamily: UI_FONT_FAMILY,
         fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-        lineHeight: '48px',
+        fontWeight: 'normal',
+        lineHeight: '44px',
         userSelect: 'text',
         WebkitUserSelect: 'text',
         touchAction: 'manipulation',
