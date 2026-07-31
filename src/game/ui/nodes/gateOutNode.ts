@@ -12,6 +12,8 @@ const TIPS = [
     '你握紧了手中的东西，迈出了避难所。',
     '天空阴沉，远处偶尔传来不明声响。',
 ];
+const GATE_OUT_FONT_SIZE = UI_FONT_SIZE.COMMON_3;
+const GATE_OUT_TEXT_GAP = 14;
 
 export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
     // Original: empty title, no chrome buttons, hide frame_line.
@@ -49,7 +51,7 @@ export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
             .text(textLeft, labelY, '你走出了避难所。', {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                fontSize: `${GATE_OUT_FONT_SIZE}px`,
                 color: '#f0e6d2',
                 wordWrap: uiWordWrap(textWidth),
             })
@@ -58,10 +60,10 @@ export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
 
     ctx.content.add(
         ctx.scene.add
-            .text(textLeft, labelY - 20, tip, {
+            .text(textLeft, labelY - GATE_OUT_TEXT_GAP, tip, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                fontSize: `${GATE_OUT_FONT_SIZE}px`,
                 color: '#d8d0c0',
                 wordWrap: uiWordWrap(textWidth),
             })
