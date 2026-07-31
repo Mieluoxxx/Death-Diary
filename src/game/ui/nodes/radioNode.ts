@@ -87,25 +87,42 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
         .setOrigin(0, 0);
     scroll.content.add(logText);
 
-    const inputBg = ctx.scene.add
-        .rectangle(ctx.toScreenX(298), inputY, INPUT_WIDTH, 48, 0xeeeeee)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-    ctx.content.add(inputBg);
+    // Phaser canvas text cannot receive browser focus, so it can never open a
+    // mobile IME. A DOM input is composited at the same scene coordinates and
+    // still follows Phaser's FIT scaling through its DOM container.
+    const commandInput = document.createElement('input');
+    commandInput.type = 'text';
+    commandInput.maxLength = 120;
+    commandInput.autocomplete = 'off';
+    commandInput.setAttribute('autocapitalize', 'off');
+    commandInput.setAttribute('autocorrect', 'off');
+    commandInput.setAttribute('spellcheck', 'false');
+    commandInput.setAttribute('inputmode', 'text');
+    commandInput.setAttribute('enterkeyhint', 'send');
+    commandInput.setAttribute('aria-label', '电台指令');
+    Object.assign(commandInput.style, {
+        boxSizing: 'border-box',
+        width: `${INPUT_WIDTH}px`,
+        height: '48px',
+        border: '0',
+        borderRadius: '0',
+        outline: 'none',
+        padding: '0 14px',
+        background: '#eeeeee',
+        color: '#111111',
+        caretColor: '#111111',
+        fontFamily: UI_FONT_FAMILY,
+        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+        lineHeight: '48px',
+        userSelect: 'text',
+        WebkitUserSelect: 'text',
+        touchAction: 'manipulation',
+    });
+    commandInput.placeholder = '> 输入 /list、/get 或 /getall';
 
+    const input = ctx.scene.add.dom(ctx.toScreenX(298), inputY, commandInput);
+    input.setDepth(150);
     let inputValue = '';
-
-    const inputText = ctx.scene.add
-        .text(ctx.toScreenX(28), inputY, '> ', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-            color: '#111111',
-        })
-        .setOrigin(0, 0.5);
-    ctx.content.add(inputText);
-
-    const repaintInput = () => inputText.setText(`> ${inputValue}`);
 
     const setBody = (message: string, stickBottom = false) => {
         logText.setText(message);
@@ -178,32 +195,24 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
         appendOutput('未知指令。可用：/list、/get <id> <数量>、/getall <数量>。');
     };
 
-    const keyboard = ctx.scene.input.keyboard;
-    const onKeyDown = (event: KeyboardEvent) => {
-        if (event.key === 'Enter') {
-            if (inputValue.trim()) {
-                const command = inputValue;
-                appendOutput(`> ${command}`);
-                runCommand(command);
-                inputValue = '';
-                repaintInput();
-            }
-            event.preventDefault();
-            return;
-        }
-        if (event.key === 'Backspace') {
-            inputValue = inputValue.slice(0, -1);
-            repaintInput();
-            event.preventDefault();
-            return;
-        }
-        if (event.key.length === 1 && inputValue.length < 120) {
-            inputValue += event.key;
-            repaintInput();
-            event.preventDefault();
-        }
+    const onInput = () => {
+        inputValue = commandInput.value;
     };
-    keyboard?.on('keydown', onKeyDown);
+    const onKeyDown = (event: KeyboardEvent) => {
+        if (event.isComposing || event.key !== 'Enter') {
+            return;
+        }
+        if (inputValue.trim()) {
+            const command = inputValue;
+            appendOutput(`> ${command}`);
+            runCommand(command);
+            inputValue = '';
+            commandInput.value = '';
+        }
+        event.preventDefault();
+    };
+    commandInput.addEventListener('input', onInput);
+    commandInput.addEventListener('keydown', onKeyDown);
 
     setBody(
         '电台已改为本地作弊终端。\n' +
@@ -216,7 +225,9 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
 
     return {
         destroy: () => {
-            keyboard?.off('keydown', onKeyDown);
+            commandInput.removeEventListener('input', onInput);
+            commandInput.removeEventListener('keydown', onKeyDown);
+            input.destroy();
             scroll.destroy();
         },
     };

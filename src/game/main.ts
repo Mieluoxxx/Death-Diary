@@ -7,8 +7,8 @@ import { Game as MainGame } from './scenes/Game';
 import { HomeScene } from './scenes/HomeScene';
 import { MainMenu } from './scenes/MainMenu';
 import { MedalScene } from './scenes/MedalScene';
-import { ShopScene } from './scenes/ShopScene';
 import { Preloader } from './scenes/Preloader';
+import { ShopScene } from './scenes/ShopScene';
 import { StoryScene } from './scenes/StoryScene';
 
 /**
@@ -28,6 +28,9 @@ const config: Phaser.Types.Core.GameConfig = {
     scale: {
         mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH,
+    },
+    dom: {
+        createContainer: true,
     },
     render: {
         // LINEAR texture filter — hand-painted HD atlases, not pixel art.
