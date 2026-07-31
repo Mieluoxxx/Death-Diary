@@ -268,10 +268,17 @@ export class HomeScene extends Scene {
             }
 
             btn.setInteractive({ useHandCursor: true });
-            btn.on('pointerdown', () => btn.setAlpha(level < 0 ? 0.4 : 0.7));
-            btn.on('pointerout', () => btn.setAlpha(level < 0 ? 0.55 : 1));
+            btn.on('pointerdown', () => {
+                const currentLevel = getSession()?.buildLevels[spot.bid] ?? -1;
+                btn.setAlpha(currentLevel < 0 ? 0.4 : 0.7);
+            });
+            btn.on('pointerout', () => {
+                const currentLevel = getSession()?.buildLevels[spot.bid] ?? -1;
+                btn.setAlpha(currentLevel < 0 ? 0.55 : 1);
+            });
             btn.on('pointerup', () => {
-                btn.setAlpha(level < 0 ? 0.55 : 1);
+                const currentLevel = getSession()?.buildLevels[spot.bid] ?? -1;
+                btn.setAlpha(currentLevel < 0 ? 0.55 : 1);
                 this.openFacility(spot.bid);
             });
             this.homeLayer?.add(btn);
@@ -341,14 +348,18 @@ export class HomeScene extends Scene {
 
     private refreshBuildIcon(bid: number, level: number): void {
         const btn = this.buildButtons.get(bid);
-        if (!btn || !(btn instanceof GameObjects.Image)) {
+        if (!btn) {
             return;
         }
         const frame = homeBuildFrame(bid, level);
-        if (this.textures.exists('home') && this.textures.get('home').has(frame)) {
+        if (
+            btn instanceof GameObjects.Image &&
+            this.textures.exists('home') &&
+            this.textures.get('home').has(frame)
+        ) {
             btn.setFrame(frame);
-            btn.setAlpha(level < 0 ? 0.55 : 1);
         }
+        btn.setAlpha(level < 0 ? 0.55 : 1);
     }
 
     private showToast(message: string): void {
