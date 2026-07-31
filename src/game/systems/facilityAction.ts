@@ -377,7 +377,7 @@ export function clickFacilityAction(bid: number, actionId: number): FacilityClic
                 gameBusEmit('session_updated');
             },
         });
-        if (actionId === 2) {
+        if (actionId === 0) {
             advanceGuide(GuideStep.BED_SLEEP);
         }
         // Also notify facility listeners so list rebuilds into "sleeping" state.

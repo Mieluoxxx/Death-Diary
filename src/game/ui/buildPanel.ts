@@ -945,7 +945,7 @@ function mountFacilityRow(
                   },
         });
         row.add(btn);
-        if (action.bid === 9 && action.actionId === 2 && isGuideStep(GuideStep.BED_SLEEP)) {
+        if (action.bid === 9 && action.actionId === 0 && isGuideStep(GuideStep.BED_SLEEP)) {
             setGuideWarn(btn);
         }
         trackScrollButton(scroll, btn, rowY);
