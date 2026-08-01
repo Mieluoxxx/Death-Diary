@@ -11,6 +11,12 @@ const AUTH_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const MAX_JSON_BYTES = 512 * 1024;
 const MAX_CLIENT_BUILD_LENGTH = 64;
 const SAVE_SCHEMA_VERSION = 1;
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 24;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 128;
+const DUMMY_PASSWORD_HASH =
+    '$argon2id$v=19$m=65536,t=2,p=1$5h4geWAmaC5NfglOyXlRLdT6bSuDRWBN7HNExkL7o2U$kzkeFNK1cusa0Q9+7Qm1+40fY1bFzp/sim6IhZ09Th8';
 
 type Variables = {
     authenticatedUser: AuthenticatedUser;
@@ -28,6 +34,8 @@ export type AppOptions = {
     initialItems?: InitialItemsConfig;
     initialItemsLoaded?: boolean;
 };
+
+export type DeathDiaryApp = Hono<AppEnvironment>;
 
 class ApiError extends Error {
     constructor(
@@ -79,6 +87,46 @@ async function readJsonBody(context: {
     }
 }
 
+function parseAccountCredentials(value: unknown): {
+    username: string;
+    usernameNormalized: string;
+    password: string;
+} {
+    if (
+        !isRecord(value) ||
+        typeof value.username !== 'string' ||
+        typeof value.password !== 'string'
+    ) {
+        throw new ApiError(422, 'invalid_credentials', '用户名和密码不能为空。');
+    }
+    const username = value.username.normalize('NFKC').trim();
+    const usernameLength = Array.from(username).length;
+    if (
+        usernameLength < USERNAME_MIN_LENGTH ||
+        usernameLength > USERNAME_MAX_LENGTH ||
+        !/^[\p{L}\p{N}_-]+$/u.test(username)
+    ) {
+        throw new ApiError(
+            422,
+            'invalid_username',
+            '用户名必须为 3 到 24 个字母、数字、下划线或连字符。',
+        );
+    }
+    const passwordLength = Array.from(value.password).length;
+    if (
+        passwordLength < PASSWORD_MIN_LENGTH ||
+        passwordLength > PASSWORD_MAX_LENGTH ||
+        new TextEncoder().encode(value.password).byteLength > 512
+    ) {
+        throw new ApiError(422, 'invalid_password', '密码必须为 8 到 128 个字符。');
+    }
+    return {
+        username,
+        usernameNormalized: username.toLocaleLowerCase('en-US'),
+        password: value.password,
+    };
+}
+
 function parseSlot(value: string): number {
     const slot = Number(value);
     if (!Number.isInteger(slot) || slot < 0 || slot > 9) {
@@ -124,7 +172,7 @@ function presentSave(save: SaveRecord): Omit<SaveRecord, 'stateHash'> {
     };
 }
 
-export function createApp(options: AppOptions): Hono<AppEnvironment> {
+export function createApp(options: AppOptions): DeathDiaryApp {
     const app = new Hono<AppEnvironment>();
     const secureCookies = options.secureCookies ?? Bun.env.NODE_ENV === 'production';
     const allowedOrigins = new Set(options.allowedOrigins ?? []);
@@ -171,19 +219,34 @@ export function createApp(options: AppOptions): Hono<AppEnvironment> {
         return context.json(initialItems);
     });
 
-    app.post('/api/v1/auth/guest', async (context) => {
-        const existingToken = getCookie(context, AUTH_COOKIE);
-        if (existingToken) {
-            const existing = options.database.findAuthenticatedUser(hashToken(existingToken));
-            if (existing) {
-                options.database.touchAuthenticatedUser(existing);
-                return context.json({ userId: existing.userId, kind: 'guest' as const });
-            }
+    app.post('/api/v1/auth/register', async (context) => {
+        const credentials = parseAccountCredentials(await readJsonBody(context));
+        if (options.database.findAccountCredential(credentials.usernameNormalized)) {
+            return context.json(errorBody('username_taken', '该用户名已被使用。'), 409);
         }
 
+        const passwordHash = await Bun.password.hash(credentials.password, {
+            algorithm: 'argon2id',
+            memoryCost: 65_536,
+            timeCost: 2,
+        });
         const token = randomToken();
         const expiresAt = Date.now() + AUTH_MAX_AGE_SECONDS * 1000;
-        const created = options.database.createGuestSession(hashToken(token), expiresAt);
+        let created: AuthenticatedUser;
+        try {
+            created = options.database.createAccountSession({
+                username: credentials.username,
+                usernameNormalized: credentials.usernameNormalized,
+                passwordHash,
+                tokenHash: hashToken(token),
+                expiresAt,
+            });
+        } catch (error) {
+            if (options.database.findAccountCredential(credentials.usernameNormalized)) {
+                return context.json(errorBody('username_taken', '该用户名已被使用。'), 409);
+            }
+            throw error;
+        }
         setCookie(context, AUTH_COOKIE, token, {
             httpOnly: true,
             secure: secureCookies,
@@ -191,13 +254,53 @@ export function createApp(options: AppOptions): Hono<AppEnvironment> {
             path: '/',
             maxAge: AUTH_MAX_AGE_SECONDS,
         });
-        return context.json({ userId: created.userId, kind: 'guest' as const }, 201);
+        return context.json(
+            { userId: created.userId, username: created.username, kind: 'account' as const },
+            201,
+        );
+    });
+
+    app.post('/api/v1/auth/login', async (context) => {
+        const credentials = parseAccountCredentials(await readJsonBody(context));
+        const account = options.database.findAccountCredential(credentials.usernameNormalized);
+        const passwordMatches = await Bun.password.verify(
+            credentials.password,
+            account?.passwordHash ?? DUMMY_PASSWORD_HASH,
+        );
+        if (!account || !passwordMatches) {
+            return context.json(errorBody('invalid_login', '用户名或密码错误。'), 401);
+        }
+
+        const token = randomToken();
+        const expiresAt = Date.now() + AUTH_MAX_AGE_SECONDS * 1000;
+        const authenticated = options.database.createAccountAuthSession({
+            userId: account.userId,
+            username: account.username,
+            tokenHash: hashToken(token),
+            expiresAt,
+        });
+        setCookie(context, AUTH_COOKIE, token, {
+            httpOnly: true,
+            secure: secureCookies,
+            sameSite: 'Lax',
+            path: '/',
+            maxAge: AUTH_MAX_AGE_SECONDS,
+        });
+        return context.json({
+            userId: authenticated.userId,
+            username: authenticated.username,
+            kind: 'account' as const,
+        });
     });
 
     app.use('/api/v1/me', requireAuth);
     app.get('/api/v1/me', (context) => {
         const user = context.get('authenticatedUser');
-        return context.json({ userId: user.userId, kind: 'guest' as const });
+        return context.json({
+            userId: user.userId,
+            username: user.username,
+            kind: 'account' as const,
+        });
     });
 
     app.use('/api/v1/logout', requireAuth);

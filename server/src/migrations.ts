@@ -80,4 +80,17 @@ export const MIGRATIONS: readonly Migration[] = [
             ) STRICT;
         `,
     },
+    {
+        version: 2,
+        sql: `
+            CREATE TABLE local_credentials (
+                user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                username TEXT NOT NULL,
+                username_normalized TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                password_updated_at INTEGER NOT NULL
+            ) STRICT;
+        `,
+    },
 ];

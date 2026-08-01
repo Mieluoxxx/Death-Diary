@@ -1,10 +1,12 @@
 import { type GameObjects, Scene } from 'phaser';
 import { loadInitialItems } from '../data/initialItems';
+import { getCurrentAccount } from '../session/authStore';
 import { hasSession } from '../session/sessionStore';
-import { waitForCloudSaveInitialization } from '../session/cloudSave';
+import { getCloudSaveStatus, syncCloudSaveCheckpoint } from '../session/cloudSave';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { applyMainPageMusic, stopMusic } from '../systems/audioManager';
 import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
+import { openAccountLayer } from '../ui/accountLayer';
 import { openSettingLayer } from '../ui/settingLayer';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
 
@@ -18,6 +20,7 @@ export class MainMenu extends Scene {
     private continueBtn: AtlasButton | GameObjects.Text | null = null;
     private rankingBtn: AtlasButton | GameObjects.Text | null = null;
     private versionText: GameObjects.Text | null = null;
+    private cloudStatusText: GameObjects.Text | null = null;
     private transitionPending = false;
 
     constructor() {
@@ -30,6 +33,7 @@ export class MainMenu extends Scene {
         this.continueBtn = null;
         this.rankingBtn = null;
         this.versionText = null;
+        this.cloudStatusText = null;
         this.transitionPending = false;
 
         const { width, height } = this.scale;
@@ -72,7 +76,7 @@ export class MainMenu extends Scene {
         const btn3Y = bgCenterY + 346;
 
         this.newGameBtn = this.placeBigWhite(bgCenterX, btn1Y, t('newGame', lan), true, () => {
-            void this.startNewGame();
+            this.startNewGame();
         });
         this.continueBtn = this.placeBigWhite(
             bgCenterX,
@@ -80,7 +84,7 @@ export class MainMenu extends Scene {
             t('continue', lan),
             canContinue,
             () => {
-                void this.continueGame();
+                this.continueGame();
             },
         );
         this.rankingBtn = this.placeBigWhite(bgCenterX, btn3Y, t('ranking', lan), true, () => {
@@ -101,6 +105,33 @@ export class MainMenu extends Scene {
             });
             settingsBtn.on('pointerout', () => settingsBtn.setAlpha(1));
         }
+
+        const cloudStatusBg = this.add
+            .rectangle(132, 74, 224, 48, 0x111111, 0.82)
+            .setStrokeStyle(1, 0xd8cdb9)
+            .setInteractive({ useHandCursor: true });
+        this.cloudStatusText = this.add
+            .text(132, 74, '', {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: '17px',
+                color: '#f0e6d2',
+            })
+            .setOrigin(0.5);
+        cloudStatusBg.on('pointerup', () => {
+            openAccountLayer(this, () => this.scene.restart());
+        });
+        const refreshCloudStatus = () => this.refreshCloudStatus();
+        window.addEventListener('account-status-changed', refreshCloudStatus);
+        window.addEventListener('cloud-save-status', refreshCloudStatus);
+        window.addEventListener('session-profile-changed', refreshCloudStatus);
+        this.events.once('shutdown', () => {
+            window.removeEventListener('account-status-changed', refreshCloudStatus);
+            window.removeEventListener('cloud-save-status', refreshCloudStatus);
+            window.removeEventListener('session-profile-changed', refreshCloudStatus);
+        });
+        void syncCloudSaveCheckpoint();
+        this.refreshCloudStatus(lan);
 
         // bottom row: rate / cart / medal / contact
         const bottomY = height - 106;
@@ -137,6 +168,7 @@ export class MainMenu extends Scene {
         if (this.versionText) {
             this.versionText.setText(`${t('version', lan)} 1.4.0`);
         }
+        this.refreshCloudStatus(lan);
 
         if (this.logoImage && this.textures.exists('menu')) {
             const logoFrame = this.logoFrameForLanguage(lan);
@@ -146,32 +178,52 @@ export class MainMenu extends Scene {
         }
     }
 
-    private async startNewGame(): Promise<void> {
+    private startNewGame(): void {
         if (this.transitionPending) {
             return;
         }
         this.transitionPending = true;
-        await Promise.all([loadInitialItems(), waitForCloudSaveInitialization()]);
-        if (!this.scene.isActive()) {
-            this.transitionPending = false;
-            return;
-        }
+        void loadInitialItems();
         stopMusic();
         this.scene.start('Choose');
     }
 
-    private async continueGame(): Promise<void> {
+    private continueGame(): void {
         if (this.transitionPending) {
             return;
         }
         this.transitionPending = true;
-        await waitForCloudSaveInitialization();
-        if (!this.scene.isActive()) {
-            this.transitionPending = false;
-            return;
-        }
         stopMusic();
         this.scene.start('Home');
+    }
+
+    private refreshCloudStatus(lan: LangCode = getLanguage()): void {
+        if (!this.cloudStatusText) {
+            return;
+        }
+        if (!getCurrentAccount()) {
+            this.cloudStatusText.setText(t(hasSession() ? 'deviceOnlySave' : 'protectSave', lan));
+            this.cloudStatusText.setColor('#d8b878');
+            return;
+        }
+        const state = getCloudSaveStatus().state;
+        if (state === 'pending' || state === 'syncing') {
+            this.cloudStatusText.setText(t('cloudPending', lan));
+            this.cloudStatusText.setColor('#d8b878');
+            return;
+        }
+        if (state === 'offline') {
+            this.cloudStatusText.setText(t('cloudOffline', lan));
+            this.cloudStatusText.setColor('#d8b878');
+            return;
+        }
+        if (state === 'conflict') {
+            this.cloudStatusText.setText(t('cloudConflict', lan));
+            this.cloudStatusText.setColor('#ff8888');
+            return;
+        }
+        this.cloudStatusText.setText(t('cloudSynced', lan));
+        this.cloudStatusText.setColor('#a8e6a3');
     }
 
     private logoFrameForLanguage(lan: LangCode): string {

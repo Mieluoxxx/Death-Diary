@@ -1,24 +1,19 @@
+import { type AccountUser, getCurrentAccount } from './authStore';
 import type { SessionState } from './sessionStore';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 const SAVE_SLOT = 0;
 const SAVE_SCHEMA_VERSION = 1;
 const CLIENT_BUILD = 'web-1.1.0';
-const SYNC_DELAY_MS = 5_000;
 const RETRY_DELAY_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 2_500;
-const SYNC_META_KEY = 'death_diary_cloud_sync_v1';
-const LOCAL_CONFLICT_BACKUP_KEY = 'death_diary_cloud_conflict_local_v1';
-const REMOTE_CONFLICT_BACKUP_KEY = 'death_diary_cloud_conflict_remote_v1';
+const SYNC_META_KEY_PREFIX = 'death_diary_cloud_sync_v2:';
+const LOCAL_CONFLICT_BACKUP_KEY_PREFIX = 'death_diary_cloud_conflict_local_v2:';
+const REMOTE_CONFLICT_BACKUP_KEY_PREFIX = 'death_diary_cloud_conflict_remote_v2:';
 
 type CloudSaveAccess = {
     getLocalSession(): SessionState | null;
     applyRemoteSession(session: SessionState): void;
-};
-
-type GuestIdentity = {
-    userId: string;
-    kind: 'guest';
 };
 
 type CloudSaveResponse = {
@@ -31,6 +26,17 @@ type CloudSaveResponse = {
     updatedAt: number;
 };
 
+export type CloudSaveSnapshot = {
+    revision: number;
+    updatedAt: number;
+    session: SessionState;
+};
+
+export type CloudSaveConflict = {
+    local: SessionState;
+    remote: CloudSaveSnapshot;
+};
+
 type SyncMetadata = {
     userId: string;
     revision: number;
@@ -38,7 +44,10 @@ type SyncMetadata = {
     lastSyncedAt: number;
 };
 
-type CloudSaveStatus =
+export type CloudSaveStatus =
+    | { state: 'idle' }
+    | { state: 'pending' }
+    | { state: 'syncing' }
     | { state: 'synced'; revision: number }
     | { state: 'offline' }
     | { state: 'conflict'; localBackupKey: string; remoteBackupKey: string }
@@ -46,7 +55,6 @@ type CloudSaveStatus =
     | { state: 'invalid_remote' };
 
 let access: CloudSaveAccess | null = null;
-let identity: GuestIdentity | null = null;
 let metadata: SyncMetadata | null = null;
 let latestSession: SessionState | null = null;
 let dirty = false;
@@ -54,27 +62,39 @@ let syncing = false;
 let applyingRemote = false;
 let initializationPromise: Promise<void> | null = null;
 let lifecycleBound = false;
-let flushTimer: number | null = null;
+let retryTimer: number | null = null;
+let checkpointQueued = false;
 let blockedByConflict = false;
+let currentStatus: CloudSaveStatus = { state: 'idle' };
+let pendingConflict: CloudSaveConflict | null = null;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function emitStatus(detail: CloudSaveStatus): void {
+    currentStatus = detail;
     window.dispatchEvent(new CustomEvent<CloudSaveStatus>('cloud-save-status', { detail }));
 }
 
-function loadMetadata(): SyncMetadata | null {
+export function getCloudSaveStatus(): CloudSaveStatus {
+    return currentStatus;
+}
+
+export function getPendingCloudConflict(): CloudSaveConflict | null {
+    return pendingConflict;
+}
+
+function loadMetadata(userId: string): SyncMetadata | null {
     try {
-        const raw = localStorage.getItem(SYNC_META_KEY);
+        const raw = localStorage.getItem(`${SYNC_META_KEY_PREFIX}${userId}`);
         if (!raw) {
             return null;
         }
         const parsed = JSON.parse(raw) as unknown;
         if (
             !isRecord(parsed) ||
-            typeof parsed.userId !== 'string' ||
+            parsed.userId !== userId ||
             !Number.isInteger(parsed.revision) ||
             typeof parsed.lastSyncedHash !== 'string' ||
             typeof parsed.lastSyncedAt !== 'number'
@@ -90,7 +110,7 @@ function loadMetadata(): SyncMetadata | null {
 function saveMetadata(next: SyncMetadata): void {
     metadata = next;
     try {
-        localStorage.setItem(SYNC_META_KEY, JSON.stringify(next));
+        localStorage.setItem(`${SYNC_META_KEY_PREFIX}${next.userId}`, JSON.stringify(next));
     } catch {
         // Cloud sync still works for this page lifetime when localStorage is unavailable.
     }
@@ -117,20 +137,12 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
     });
 }
 
-async function ensureGuestIdentity(): Promise<GuestIdentity> {
-    if (identity) {
-        return identity;
+function requireAccountIdentity(): AccountUser {
+    const account = getCurrentAccount();
+    if (!account) {
+        throw new Error('Account authentication is unavailable.');
     }
-    const response = await apiFetch('/api/v1/auth/guest', { method: 'POST' });
-    if (!response.ok) {
-        throw new Error(`Guest authentication failed: ${response.status}`);
-    }
-    const body = (await response.json()) as GuestIdentity;
-    if (!body.userId) {
-        throw new Error('Guest authentication returned no user id.');
-    }
-    identity = body;
-    return body;
+    return account;
 }
 
 async function fetchRemoteSave(): Promise<CloudSaveResponse | null> {
@@ -139,7 +151,6 @@ async function fetchRemoteSave(): Promise<CloudSaveResponse | null> {
         return null;
     }
     if (response.status === 401) {
-        identity = null;
         throw new Error('Cloud session expired.');
     }
     if (!response.ok) {
@@ -176,6 +187,59 @@ async function uploadSession(
     });
 }
 
+export async function inspectCloudSave(): Promise<CloudSaveSnapshot | null> {
+    const remote = await fetchRemoteSave();
+    return remote
+        ? {
+              revision: remote.revision,
+              updatedAt: remote.updatedAt,
+              session: remote.state.session,
+          }
+        : null;
+}
+
+export async function commitLocalSaveToAccount(
+    account: AccountUser,
+    session: SessionState,
+    expectedRevision: number,
+): Promise<CloudSaveSnapshot> {
+    const response = await uploadSession(session, expectedRevision);
+    if (!response.ok) {
+        throw new Error(`Cloud save write failed: ${response.status}`);
+    }
+    const saved = (await response.json()) as CloudSaveResponse;
+    latestSession = session;
+    dirty = false;
+    blockedByConflict = false;
+    pendingConflict = null;
+    saveMetadata({
+        userId: account.userId,
+        revision: saved.revision,
+        lastSyncedHash: await stateHash(session),
+        lastSyncedAt: Date.now(),
+    });
+    emitStatus({ state: 'synced', revision: saved.revision });
+    return { revision: saved.revision, updatedAt: saved.updatedAt, session };
+}
+
+export async function adoptCloudSaveForAccount(
+    account: AccountUser,
+    remote: CloudSaveSnapshot,
+): Promise<SessionState> {
+    latestSession = remote.session;
+    dirty = false;
+    blockedByConflict = false;
+    pendingConflict = null;
+    saveMetadata({
+        userId: account.userId,
+        revision: remote.revision,
+        lastSyncedHash: await stateHash(remote.session),
+        lastSyncedAt: Date.now(),
+    });
+    emitStatus({ state: 'restored_remote', revision: remote.revision });
+    return remote.session;
+}
+
 function storeConflictBackup(key: string, value: unknown): void {
     try {
         localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value }));
@@ -203,14 +267,14 @@ async function acceptRemoteSave(remote: CloudSaveResponse, userId: string): Prom
     });
 }
 
-function scheduleFlush(delay = SYNC_DELAY_MS): void {
-    if (flushTimer !== null || blockedByConflict) {
+function scheduleRetry(): void {
+    if (retryTimer !== null || blockedByConflict) {
         return;
     }
-    flushTimer = window.setTimeout(() => {
-        flushTimer = null;
+    retryTimer = window.setTimeout(() => {
+        retryTimer = null;
         void flushCloudSave();
-    }, delay);
+    }, RETRY_DELAY_MS);
 }
 
 function bindLifecycle(): void {
@@ -219,8 +283,12 @@ function bindLifecycle(): void {
     }
     lifecycleBound = true;
     window.addEventListener('online', () => {
+        if (retryTimer !== null) {
+            window.clearTimeout(retryTimer);
+            retryTimer = null;
+        }
         if (dirty) {
-            scheduleFlush(0);
+            void flushCloudSave();
         }
     });
     window.addEventListener('pagehide', () => {
@@ -237,12 +305,12 @@ function bindLifecycle(): void {
 
 async function initializeCloudSaveOnce(nextAccess: CloudSaveAccess): Promise<void> {
     access = nextAccess;
-    metadata = loadMetadata();
     latestSession = access.getLocalSession();
     bindLifecycle();
 
     try {
-        const currentIdentity = await ensureGuestIdentity();
+        const currentIdentity = requireAccountIdentity();
+        metadata = loadMetadata(currentIdentity.userId);
         const remote = await fetchRemoteSave();
         const local = latestSession;
 
@@ -261,6 +329,9 @@ async function initializeCloudSaveOnce(nextAccess: CloudSaveAccess): Promise<voi
                 });
                 emitStatus({ state: 'synced', revision: created.revision });
             }
+            if (!local) {
+                emitStatus({ state: 'synced', revision: 0 });
+            }
             return;
         }
 
@@ -278,6 +349,7 @@ async function initializeCloudSaveOnce(nextAccess: CloudSaveAccess): Promise<voi
         ) {
             if (currentMetadata.lastSyncedHash === localHash) {
                 saveMetadata({ ...currentMetadata, lastSyncedAt: Date.now() });
+                emitStatus({ state: 'synced', revision: remote.revision });
                 return;
             }
             const response = await uploadSession(local, remote.revision);
@@ -303,14 +375,25 @@ async function initializeCloudSaveOnce(nextAccess: CloudSaveAccess): Promise<voi
             return;
         }
 
-        storeConflictBackup(LOCAL_CONFLICT_BACKUP_KEY, { session: local });
-        await acceptRemoteSave(remote, currentIdentity.userId);
-        emitStatus({ state: 'restored_remote', revision: remote.revision });
+        const localBackupKey = `${LOCAL_CONFLICT_BACKUP_KEY_PREFIX}${currentIdentity.userId}`;
+        const remoteBackupKey = `${REMOTE_CONFLICT_BACKUP_KEY_PREFIX}${currentIdentity.userId}`;
+        storeConflictBackup(localBackupKey, { session: local });
+        storeConflictBackup(remoteBackupKey, remote);
+        pendingConflict = {
+            local,
+            remote: {
+                revision: remote.revision,
+                updatedAt: remote.updatedAt,
+                session: remote.state.session,
+            },
+        };
+        blockedByConflict = true;
+        emitStatus({ state: 'conflict', localBackupKey, remoteBackupKey });
     } catch {
         emitStatus({ state: 'offline' });
         if (latestSession) {
             dirty = true;
-            scheduleFlush(RETRY_DELAY_MS);
+            scheduleRetry();
         }
     }
 }
@@ -320,18 +403,89 @@ export function initializeCloudSave(nextAccess: CloudSaveAccess): Promise<void> 
     return initializationPromise;
 }
 
-/** Gate session-changing menu actions while the initial remote merge is unresolved. */
-export function waitForCloudSaveInitialization(): Promise<void> {
-    return initializationPromise ?? Promise.resolve();
+export function disconnectCloudSave(): void {
+    if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+        retryTimer = null;
+    }
+    checkpointQueued = false;
+    access = null;
+    metadata = null;
+    latestSession = null;
+    dirty = false;
+    syncing = false;
+    applyingRemote = false;
+    blockedByConflict = false;
+    pendingConflict = null;
+    initializationPromise = null;
+    emitStatus({ state: 'idle' });
 }
 
-export function scheduleCloudSave(session: SessionState): void {
-    if (applyingRemote) {
+export function restartCloudSave(nextAccess: CloudSaveAccess): Promise<void> {
+    disconnectCloudSave();
+    return initializeCloudSave(nextAccess);
+}
+
+export async function resolveCloudConflictWithLocal(): Promise<void> {
+    const conflict = pendingConflict;
+    if (!conflict) {
+        return;
+    }
+    await commitLocalSaveToAccount(
+        requireAccountIdentity(),
+        conflict.local,
+        conflict.remote.revision,
+    );
+}
+
+export async function resolveCloudConflictWithRemote(): Promise<void> {
+    const conflict = pendingConflict;
+    const currentAccess = access;
+    if (!conflict || !currentAccess) {
+        return;
+    }
+    applyingRemote = true;
+    try {
+        currentAccess.applyRemoteSession(conflict.remote.session);
+    } finally {
+        applyingRemote = false;
+    }
+    await adoptCloudSaveForAccount(requireAccountIdentity(), conflict.remote);
+}
+
+export function markCloudSaveDirty(session: SessionState): void {
+    if (applyingRemote || !getCurrentAccount()) {
         return;
     }
     latestSession = session;
     dirty = true;
-    scheduleFlush();
+    if (blockedByConflict) {
+        return;
+    }
+    emitStatus({ state: 'pending' });
+}
+
+export async function syncCloudSaveCheckpoint(session?: SessionState): Promise<void> {
+    const source = session ?? access?.getLocalSession();
+    if (!source || !getCurrentAccount()) {
+        return;
+    }
+    if (blockedByConflict) {
+        return;
+    }
+    const checkpoint = structuredClone(source);
+    if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+        retryTimer = null;
+    }
+    latestSession = checkpoint;
+    dirty = true;
+    if (syncing) {
+        checkpointQueued = true;
+        return;
+    }
+    emitStatus({ state: 'pending' });
+    await flushCloudSave();
 }
 
 export async function flushCloudSave(keepalive = false): Promise<void> {
@@ -339,30 +493,39 @@ export async function flushCloudSave(keepalive = false): Promise<void> {
         return;
     }
     syncing = true;
+    emitStatus({ state: 'syncing' });
     const session = latestSession;
     dirty = false;
 
     try {
-        const currentIdentity = await ensureGuestIdentity();
+        const currentIdentity = requireAccountIdentity();
         const expectedRevision =
             metadata?.userId === currentIdentity.userId ? metadata.revision : 0;
         const response = await uploadSession(session, expectedRevision, keepalive);
         if (response.status === 401) {
-            identity = null;
             throw new Error('Cloud session expired.');
         }
         if (response.status === 409) {
             const conflict = (await response.json()) as { current?: CloudSaveResponse };
+            const localBackupKey = `${LOCAL_CONFLICT_BACKUP_KEY_PREFIX}${currentIdentity.userId}`;
+            const remoteBackupKey = `${REMOTE_CONFLICT_BACKUP_KEY_PREFIX}${currentIdentity.userId}`;
             if (conflict.current) {
-                storeConflictBackup(REMOTE_CONFLICT_BACKUP_KEY, conflict.current);
+                storeConflictBackup(remoteBackupKey, conflict.current);
             }
-            storeConflictBackup(LOCAL_CONFLICT_BACKUP_KEY, { session });
+            storeConflictBackup(localBackupKey, { session });
+            if (conflict.current) {
+                pendingConflict = {
+                    local: session,
+                    remote: {
+                        revision: conflict.current.revision,
+                        updatedAt: conflict.current.updatedAt,
+                        session: conflict.current.state.session,
+                    },
+                };
+            }
+            checkpointQueued = false;
             blockedByConflict = true;
-            emitStatus({
-                state: 'conflict',
-                localBackupKey: LOCAL_CONFLICT_BACKUP_KEY,
-                remoteBackupKey: REMOTE_CONFLICT_BACKUP_KEY,
-            });
+            emitStatus({ state: 'conflict', localBackupKey, remoteBackupKey });
             return;
         }
         if (!response.ok) {
@@ -375,15 +538,20 @@ export async function flushCloudSave(keepalive = false): Promise<void> {
             lastSyncedHash: await stateHash(session),
             lastSyncedAt: Date.now(),
         });
+        pendingConflict = null;
+        blockedByConflict = false;
         emitStatus({ state: 'synced', revision: saved.revision });
     } catch {
         dirty = true;
         emitStatus({ state: 'offline' });
-        scheduleFlush(RETRY_DELAY_MS);
+        scheduleRetry();
     } finally {
         syncing = false;
-        if (dirty && !blockedByConflict) {
-            scheduleFlush();
+        if (checkpointQueued && dirty && !blockedByConflict) {
+            checkpointQueued = false;
+            void flushCloudSave();
+        } else if (dirty && !blockedByConflict && currentStatus.state === 'synced') {
+            emitStatus({ state: 'pending' });
         }
     }
 }

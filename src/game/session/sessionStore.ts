@@ -9,8 +9,9 @@ import { HAND_ITEM_ID } from '../data/itemConfig';
 import { getNpcDef, type NpcId, type NpcReward, ROLE_NPC_ID } from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
 import type { UserGuideState } from '../systems/userGuide';
-import { readBrowserSave, writeBrowserSave } from './browserSave';
-import { scheduleCloudSave } from './cloudSave';
+import { getActiveSaveProfile } from './authStore';
+import { deleteBrowserSave, readBrowserSave, writeBrowserSave } from './browserSave';
+import { markCloudSaveDirty } from './cloudSave';
 
 export type RoleKey = 'STRANGER' | 'LUO' | 'YAZI';
 export type TalentId = 0 | 101 | 102 | 103 | 104;
@@ -182,6 +183,7 @@ const SECONDS_PER_HOUR = 60 * 60;
 const SECONDS_PER_MINUTE = 60;
 
 let activeSession: SessionState | null = null;
+let activeSaveProfile = 'local';
 let saveRequested = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let writeChain: Promise<void> = Promise.resolve();
@@ -270,8 +272,9 @@ function enqueueBrowserWrite(): void {
     }
     saveRequested = false;
     const json = JSON.stringify(activeSession);
+    const profile = activeSaveProfile;
     writeChain = writeChain
-        .then(() => writeBrowserSave(json))
+        .then(() => writeBrowserSave(profile, json))
         .catch((error: unknown) => {
             console.warn('Unable to persist the game session in IndexedDB.', error);
         });
@@ -302,9 +305,10 @@ export async function flushSessionSave(): Promise<void> {
 }
 
 export async function initializeSessionStore(): Promise<void> {
+    activeSaveProfile = getActiveSaveProfile();
     let browserJson: string | null = null;
     try {
-        browserJson = await readBrowserSave();
+        browserJson = await readBrowserSave(activeSaveProfile);
     } catch (error) {
         console.warn('Unable to read the game session from IndexedDB.', error);
     }
@@ -317,6 +321,34 @@ export async function initializeSessionStore(): Promise<void> {
     if (browserJson) {
         console.warn('Ignored an invalid IndexedDB game session.');
     }
+}
+
+export async function readSessionFromProfile(profile: string): Promise<SessionState | null> {
+    const json = await readBrowserSave(profile);
+    return json ? parseStoredSessionJson(json) : null;
+}
+
+export async function activateSessionProfile(
+    profile: string,
+    session: SessionState | null,
+): Promise<void> {
+    await flushSessionSave();
+    activeSaveProfile = profile;
+    activeSession = session;
+    if (session) {
+        await writeBrowserSave(profile, JSON.stringify(session));
+    } else {
+        await deleteBrowserSave(profile);
+    }
+    window.dispatchEvent(
+        new CustomEvent('session-profile-changed', {
+            detail: { profile, hasSession: Boolean(session) },
+        }),
+    );
+}
+
+export async function deleteSessionProfile(profile: string): Promise<void> {
+    await deleteBrowserSave(profile);
 }
 
 export function exportSessionJson(): string | null {
@@ -606,7 +638,7 @@ export function appendSessionLog(text: string, timeLabel?: string): SessionState
 
 function persistSession(session: SessionState): void {
     scheduleBrowserWrite();
-    scheduleCloudSave(session);
+    markCloudSaveDirty(session);
 }
 
 export function formatClock(session: SessionState): string {

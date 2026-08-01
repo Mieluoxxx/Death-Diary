@@ -122,6 +122,43 @@ export function t(key: string, lan: LangCode = getLanguage()): string {
             ja: 'セーブ管理',
             en: 'Save Data',
         },
+        accountManage: {
+            zh: '账号与云存档',
+            'zh-Hant': '帳號與雲端存檔',
+            ja: 'アカウントとクラウドセーブ',
+            en: 'Account & Cloud Save',
+        },
+        protectSave: {
+            zh: '保护游戏进度',
+            'zh-Hant': '保護遊戲進度',
+            ja: 'セーブを保護',
+            en: 'Protect save',
+        },
+        deviceOnlySave: {
+            zh: '存档仅在本机',
+            'zh-Hant': '存檔僅在本機',
+            ja: '端末のみ保存',
+            en: 'Device only',
+        },
+        cloudPending: { zh: '正在同步…', 'zh-Hant': '正在同步…', ja: '同期中…', en: 'Syncing…' },
+        cloudSynced: {
+            zh: '云端已同步',
+            'zh-Hant': '雲端已同步',
+            ja: '同期済み',
+            en: 'Cloud synced',
+        },
+        cloudOffline: {
+            zh: '离线，本机已保存',
+            'zh-Hant': '離線，本機已儲存',
+            ja: 'オフライン・端末に保存済み',
+            en: 'Offline, saved locally',
+        },
+        cloudConflict: {
+            zh: '需要选择存档',
+            'zh-Hant': '需要選擇存檔',
+            ja: 'セーブを選択',
+            en: 'Choose a save',
+        },
         exportSave: {
             zh: '导出存档',
             'zh-Hant': '匯出存檔',

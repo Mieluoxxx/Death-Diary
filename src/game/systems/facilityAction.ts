@@ -5,6 +5,7 @@
 
 import { CHAIR_ACTIONS, DOG_FEED_ACTION, MINEFIELD_ACTION } from '../data/buildActionConfig';
 import { getItemDef } from '../data/itemConfig';
+import { syncCloudSaveCheckpoint } from '../session/cloudSave';
 import {
     appendSessionLog,
     costStorageItems,
@@ -358,6 +359,7 @@ export function clickFacilityAction(bid: number, actionId: number): FacilityClic
             hours = 8;
         }
         const gameSeconds = hours * 3600;
+        void syncCloudSaveCheckpoint(session);
         mutateSession((live) => {
             live.isInSleep = true;
         });

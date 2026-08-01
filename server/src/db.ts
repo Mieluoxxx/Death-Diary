@@ -6,6 +6,13 @@ import { MIGRATIONS } from './migrations';
 export type AuthenticatedUser = {
     userId: string;
     authSessionId: string;
+    username: string;
+};
+
+export type AccountCredential = {
+    userId: string;
+    username: string;
+    passwordHash: string;
 };
 
 export type SaveRecord = {
@@ -100,7 +107,13 @@ export class StorageDatabase {
         this.database.close();
     }
 
-    createGuestSession(tokenHash: string, expiresAt: number): AuthenticatedUser {
+    createAccountSession(input: {
+        username: string;
+        usernameNormalized: string;
+        passwordHash: string;
+        tokenHash: string;
+        expiresAt: number;
+    }): AuthenticatedUser {
         const userId = crypto.randomUUID();
         const authSessionId = crypto.randomUUID();
         const now = Date.now();
@@ -111,32 +124,92 @@ export class StorageDatabase {
                 .run(userId, now, now);
             this.database
                 .query(
+                    `INSERT INTO local_credentials
+                        (user_id, username, username_normalized, password_hash, created_at,
+                         password_updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?)`,
+                )
+                .run(
+                    userId,
+                    input.username,
+                    input.usernameNormalized,
+                    input.passwordHash,
+                    now,
+                    now,
+                );
+            this.database
+                .query(
                     `INSERT INTO auth_sessions
                         (id, user_id, token_hash, created_at, expires_at, last_seen_at)
                      VALUES (?, ?, ?, ?, ?, ?)`,
                 )
-                .run(authSessionId, userId, tokenHash, now, expiresAt, now);
+                .run(authSessionId, userId, input.tokenHash, now, input.expiresAt, now);
         })();
 
-        return { userId, authSessionId };
+        return { userId, authSessionId, username: input.username };
+    }
+
+    findAccountCredential(usernameNormalized: string): AccountCredential | null {
+        const row = this.database
+            .query(
+                `SELECT user_id, username, password_hash
+                 FROM local_credentials
+                 WHERE username_normalized = ?`,
+            )
+            .get(usernameNormalized) as {
+            user_id: string;
+            username: string;
+            password_hash: string;
+        } | null;
+        return row
+            ? { userId: row.user_id, username: row.username, passwordHash: row.password_hash }
+            : null;
+    }
+
+    createAccountAuthSession(input: {
+        userId: string;
+        username: string;
+        tokenHash: string;
+        expiresAt: number;
+    }): AuthenticatedUser {
+        const authSessionId = crypto.randomUUID();
+        const now = Date.now();
+        this.database
+            .query(
+                `INSERT INTO auth_sessions
+                    (id, user_id, token_hash, created_at, expires_at, last_seen_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+            )
+            .run(authSessionId, input.userId, input.tokenHash, now, input.expiresAt, now);
+        return { userId: input.userId, authSessionId, username: input.username };
     }
 
     findAuthenticatedUser(tokenHash: string, now = Date.now()): AuthenticatedUser | null {
         const row = this.database
             .query(
-                `SELECT auth_sessions.id AS auth_session_id, auth_sessions.user_id AS user_id
+                `SELECT auth_sessions.id AS auth_session_id, auth_sessions.user_id AS user_id,
+                        local_credentials.username AS username
                  FROM auth_sessions
                  INNER JOIN users ON users.id = auth_sessions.user_id
+                 INNER JOIN local_credentials ON local_credentials.user_id = users.id
                  WHERE auth_sessions.token_hash = ?
                    AND auth_sessions.expires_at > ?
                    AND users.status = 'active'`,
             )
-            .get(tokenHash, now) as { auth_session_id: string; user_id: string } | null;
+            .get(tokenHash, now) as {
+            auth_session_id: string;
+            user_id: string;
+            username: string;
+        } | null;
 
         if (!row) {
             return null;
         }
-        return { userId: row.user_id, authSessionId: row.auth_session_id };
+        return {
+            userId: row.user_id,
+            authSessionId: row.auth_session_id,
+            username: row.username,
+        };
     }
 
     touchAuthenticatedUser(user: AuthenticatedUser, now = Date.now()): void {

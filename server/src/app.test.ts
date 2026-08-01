@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { createApp } from './app';
+import { createApp, type DeathDiaryApp } from './app';
 import { StorageDatabase } from './db';
 import type { InitialItemsConfig } from './initialItems';
 
@@ -16,8 +16,12 @@ function createTestApp(initialItems?: InitialItemsConfig) {
     });
 }
 
-async function authenticate(app: ReturnType<typeof createApp>): Promise<string> {
-    const response = await app.request('/api/v1/auth/guest', { method: 'POST' });
+async function authenticate(app: DeathDiaryApp): Promise<string> {
+    const response = await app.request('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'TestPlayer', password: 'correct-horse-123' }),
+    });
     expect(response.status).toBe(201);
     const cookie = response.headers.get('set-cookie')?.split(';', 1)[0];
     expect(cookie).toBeTruthy();
@@ -25,7 +29,7 @@ async function authenticate(app: ReturnType<typeof createApp>): Promise<string> 
 }
 
 async function putJson(
-    app: ReturnType<typeof createApp>,
+    app: DeathDiaryApp,
     path: string,
     cookie: string,
     body: unknown,
@@ -64,21 +68,30 @@ describe('storage API', () => {
         expect(await health.json()).toMatchObject({ initialItemsLoaded: true });
     });
 
-    test('creates and reuses an anonymous authenticated session', async () => {
+    test('registers an account and logs in with normalized username', async () => {
         const app = createTestApp();
         const cookie = await authenticate(app);
 
         const me = await app.request('/api/v1/me', { headers: { Cookie: cookie } });
         expect(me.status).toBe(200);
-        const identity = (await me.json()) as { userId: string };
+        const identity = (await me.json()) as { userId: string; username: string; kind: string };
         expect(identity.userId).toHaveLength(36);
+        expect(identity).toMatchObject({ username: 'TestPlayer', kind: 'account' });
 
-        const repeated = await app.request('/api/v1/auth/guest', {
+        const login = await app.request('/api/v1/auth/login', {
             method: 'POST',
-            headers: { Cookie: cookie },
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'testplayer', password: 'correct-horse-123' }),
         });
-        expect(repeated.status).toBe(200);
-        expect((await repeated.json()) as { userId: string }).toEqual(identity);
+        expect(login.status).toBe(200);
+        expect(login.headers.get('set-cookie')).toContain('death_diary_session=');
+
+        const rejected = await app.request('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'testplayer', password: 'wrong-password' }),
+        });
+        expect(rejected.status).toBe(401);
     });
 
     test('stores saves and rejects stale revisions', async () => {

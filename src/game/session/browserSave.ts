@@ -1,7 +1,6 @@
 const DATABASE_NAME = 'death-diary';
 const DATABASE_VERSION = 1;
 const SAVE_STORE = 'save-data';
-const ACTIVE_SAVE_KEY = 'active-session';
 
 let databasePromise: Promise<IDBDatabase> | null = null;
 
@@ -57,11 +56,11 @@ function openDatabase(): Promise<IDBDatabase> {
     return opening;
 }
 
-export async function readBrowserSave(): Promise<string | null> {
+export async function readBrowserSave(profile: string): Promise<string | null> {
     const database = await openDatabase();
     const transaction = database.transaction(SAVE_STORE, 'readonly');
     const done = transactionDone(transaction);
-    const request = transaction.objectStore(SAVE_STORE).get(ACTIVE_SAVE_KEY);
+    const request = transaction.objectStore(SAVE_STORE).get(`session:${profile}`);
     const { promise, resolve, reject } = Promise.withResolvers<unknown>();
     request.addEventListener('success', () => resolve(request.result), { once: true });
     request.addEventListener(
@@ -74,10 +73,18 @@ export async function readBrowserSave(): Promise<string | null> {
     return typeof value === 'string' ? value : null;
 }
 
-export async function writeBrowserSave(json: string): Promise<void> {
+export async function writeBrowserSave(profile: string, json: string): Promise<void> {
     const database = await openDatabase();
     const transaction = database.transaction(SAVE_STORE, 'readwrite');
     const done = transactionDone(transaction);
-    transaction.objectStore(SAVE_STORE).put(json, ACTIVE_SAVE_KEY);
+    transaction.objectStore(SAVE_STORE).put(json, `session:${profile}`);
+    await done;
+}
+
+export async function deleteBrowserSave(profile: string): Promise<void> {
+    const database = await openDatabase();
+    const transaction = database.transaction(SAVE_STORE, 'readwrite');
+    const done = transactionDone(transaction);
+    transaction.objectStore(SAVE_STORE).delete(`session:${profile}`);
     await done;
 }
