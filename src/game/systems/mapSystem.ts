@@ -381,7 +381,7 @@ export type TravelPlan = {
 };
 
 /** Original RandomBattleConfig.distance — check interval in map units. */
-const RANDOM_BATTLE_DISTANCE = 100;
+export const RANDOM_BATTLE_DISTANCE = 100;
 const RANDOM_BATTLE_BY_STAGE = {
     day: { probability: 0.1, difficulty: [1, 3] as const },
     night: { probability: 0.3, difficulty: [2, 4] as const },

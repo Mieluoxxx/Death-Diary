@@ -11,11 +11,17 @@
  * - Dialog: DialogBig + site_dig + travel time (showSiteDialog / showHomeDialog)
  */
 
-import type { GameObjects } from 'phaser';
+import type { GameObjects, Tweens } from 'phaser';
 import { getNpcCopy, getNpcDef, NPC_IDS } from '../../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
-import { arriveAt, planTravel, rollTravelEncounter, travelTo } from '../../systems/mapSystem';
+import {
+    arriveAt,
+    planTravel,
+    RANDOM_BATTLE_DISTANCE,
+    rollTravelEncounter,
+    travelTo,
+} from '../../systems/mapSystem';
 import { accelerateTime } from '../../systems/timeClock';
 import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
@@ -271,6 +277,68 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         }
     }
 
+    /** Original Actor.updateActor: check each 100 map units and pause in place for battle. */
+    function moveActorWithEncounters(
+        to: { x: number; y: number },
+        totalDistance: number,
+        durationMs: number,
+        onComplete: () => void,
+    ): void {
+        const actor = actorImg;
+        if (!actor) {
+            return;
+        }
+
+        const from = { x: actor.x, y: actor.y };
+        let nextCheckDistance = RANDOM_BATTLE_DISTANCE;
+        let encounterOpen = false;
+        let tween: Tweens.Tween;
+
+        tween = ctx.scene.tweens.add({
+            targets: actor,
+            x: to.x,
+            y: to.y,
+            duration: durationMs,
+            ease: 'Linear',
+            onUpdate: () => {
+                if (destroyed || encounterOpen || nextCheckDistance >= totalDistance) {
+                    return;
+                }
+
+                const travelled = Math.hypot(actor.x - from.x, actor.y - from.y);
+                while (nextCheckDistance < totalDistance && travelled >= nextCheckDistance) {
+                    nextCheckDistance += RANDOM_BATTLE_DISTANCE;
+                    const encounter = rollTravelEncounter(RANDOM_BATTLE_DISTANCE);
+                    if (!encounter) {
+                        continue;
+                    }
+
+                    encounterOpen = true;
+                    tween.pause();
+                    // Defer display-list mutation until Phaser finishes this tween update.
+                    setTimeout(() => {
+                        if (destroyed) {
+                            return;
+                        }
+                        openRandomBattleDialog(
+                            ctx.scene,
+                            { difficulty: encounter.difficulty, monsters: encounter.monsters },
+                            () => {
+                                if (destroyed) {
+                                    return;
+                                }
+                                encounterOpen = false;
+                                tween.resume();
+                            },
+                        );
+                    }, 0);
+                    return;
+                }
+            },
+            onComplete,
+        });
+    }
+
     function onSiteTap(siteId: number): void {
         const live = getSession();
         const cfg = getSiteConfig(siteId);
@@ -318,49 +386,18 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         accelerateTime(plan.gameSeconds, plan.realSeconds);
         const animMs = plan.realSeconds * 1000;
 
-        // Encounter check uses full plan distance (original: distance from last check).
-        const encounter = rollTravelEncounter(plan.distance);
-
-        ctx.scene.tweens.add({
-            targets: actorImg,
-            x: to.x,
-            y: to.y,
-            duration: animMs,
-            ease: 'Linear',
-            onComplete: () => {
-                if (destroyed) {
-                    return;
-                }
-                clearPath();
-                markers.get(siteId)?.setHighlight(false);
-
-                if (encounter) {
-                    // Original: pause travel until RandomBattleDialog resolves.
-                    openRandomBattleDialog(
-                        ctx.scene,
-                        { difficulty: encounter.difficulty, monsters: encounter.monsters },
-                        () => {
-                            if (destroyed) {
-                                return;
-                            }
-                            moving = false;
-                            if (!arriveAt(siteId)) {
-                                ctx.showToast('无法前往');
-                                return;
-                            }
-                            enterSite(siteId);
-                        },
-                    );
-                    return;
-                }
-
-                moving = false;
-                if (!arriveAt(siteId)) {
-                    ctx.showToast('无法前往');
-                    return;
-                }
-                enterSite(siteId);
-            },
+        moveActorWithEncounters(to, plan.distance, animMs, () => {
+            if (destroyed) {
+                return;
+            }
+            clearPath();
+            markers.get(siteId)?.setHighlight(false);
+            moving = false;
+            if (!arriveAt(siteId)) {
+                ctx.showToast('无法前往');
+                return;
+            }
+            enterSite(siteId);
         });
     }
 
@@ -541,41 +578,25 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         const to = toScreen(def.coordinate.x, def.coordinate.y);
         makeLine(from, to);
         accelerateTime(gameSeconds, 3);
-        const encounter = rollTravelEncounter(
+        moveActorWithEncounters(
+            to,
             Math.hypot(def.coordinate.x - live.map.pos.x, def.coordinate.y - live.map.pos.y),
-        );
-        ctx.scene.tweens.add({
-            targets: actorImg,
-            x: to.x,
-            y: to.y,
-            duration: 3000,
-            ease: 'Linear',
-            onComplete: () => {
+            3000,
+            () => {
                 if (destroyed) {
                     return;
                 }
                 clearPath();
-                const finish = () => {
-                    moving = false;
-                    mutateSession((s) => {
-                        s.map.pos = { ...def.coordinate };
-                        s.isAtHome = false;
-                        s.isAtSite = false;
-                        s.nowSiteId = null;
-                    });
-                    enterNpc(npcId);
-                };
-                if (encounter) {
-                    openRandomBattleDialog(
-                        ctx.scene,
-                        { difficulty: encounter.difficulty, monsters: encounter.monsters },
-                        finish,
-                    );
-                    return;
-                }
-                finish();
+                moving = false;
+                mutateSession((s) => {
+                    s.map.pos = { ...def.coordinate };
+                    s.isAtHome = false;
+                    s.isAtSite = false;
+                    s.nowSiteId = null;
+                });
+                enterNpc(npcId);
             },
-        });
+        );
     }
 
     function enterNpc(npcId: number): void {
