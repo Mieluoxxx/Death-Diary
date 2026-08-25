@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend layer index and applicable project conventions."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Time-based canvas regressions must cover intermediate animation state and same-target refresh idempotence."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"The fix changes game clock, session state, and UI event propagation."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Timer callback and test seams must preserve TypeScript contracts."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Sleep formulas must remain owned by survivalLoop instead of being duplicated in facility callbacks."}

@@ -124,6 +124,9 @@ export function addTimerCallback(
         priority?: number;
     },
 ): TimerCallbackHandle {
+    if (!Number.isFinite(internalTime) || internalTime <= 0) {
+        throw new RangeError('timeClock: internalTime must be a positive finite number');
+    }
     const session = requireSession();
     const startTime = options?.startTime ?? session.gameTime;
     const handle: TimerCallbackHandle = {
@@ -197,35 +200,62 @@ export function tickTimeClock(realDeltaSeconds: number): void {
 }
 
 function advanceGameTime(session: SessionState, deltaGameSeconds: number): void {
-    const previousParts = clockPartsFromGameTime(session.gameTime);
-    const nextTime = session.gameTime + deltaGameSeconds;
-    applyGameTimeToSession(session, nextTime);
+    const targetTime = session.gameTime + deltaGameSeconds;
 
-    // Process callbacks against the new time.
-    const finished: TimerCallbackHandle[] = [];
-    for (const callback of clock.callbacks) {
-        callback.delegate.process?.(deltaGameSeconds);
-        if (nextTime >= callback.endTime) {
+    // Split large frames at timer boundaries so repeating callbacks catch up without drift.
+    while (session.gameTime < targetTime) {
+        const currentTime = session.gameTime;
+        const nextCallbackTime = clock.callbacks.reduce(
+            (earliest, callback) => Math.min(earliest, callback.endTime),
+            targetTime,
+        );
+        const nextTime = Math.min(targetTime, Math.max(currentTime, nextCallbackTime));
+        const segmentDelta = nextTime - currentTime;
+        const previousParts = clockPartsFromGameTime(currentTime);
+        applyGameTimeToSession(session, nextTime);
+
+        if (segmentDelta > 0) {
+            const processingCallbacks = [...clock.callbacks];
+            for (const callback of processingCallbacks) {
+                if (clock.callbacks.includes(callback)) {
+                    callback.delegate.process?.(segmentDelta);
+                }
+            }
+        }
+
+        const dueCallbacks = clock.callbacks
+            .filter((callback) => callback.endTime <= nextTime)
+            .sort((left, right) => right.priority - left.priority || left.id - right.id);
+        for (const callback of dueCallbacks) {
+            if (!clock.callbacks.includes(callback)) {
+                continue;
+            }
             callback.delegate.end?.();
+            if (!clock.callbacks.includes(callback)) {
+                continue;
+            }
             callback.repeat -= 1;
-            finished.push(callback);
+            if (callback.repeat > 0) {
+                callback.startTime = callback.endTime;
+                callback.endTime += callback.internalTime;
+            } else {
+                removeTimerCallback(callback);
+            }
         }
+
+        emitClockChanges(previousParts, nextTime);
     }
 
-    for (const callback of finished) {
-        if (callback.repeat > 0) {
-            callback.startTime = nextTime;
-            callback.endTime = nextTime + callback.internalTime;
-        } else {
-            removeTimerCallback(callback);
-        }
-    }
-
-    if (clock.isAccelerated && nextTime >= clock.accelerateEndTime) {
+    if (clock.isAccelerated && targetTime >= clock.accelerateEndTime) {
         clock.isAccelerated = false;
         clock.timeScale = TIME_SCALE_ORIGIN;
     }
+}
 
+function emitClockChanges(
+    previousParts: ReturnType<typeof clockPartsFromGameTime>,
+    nextTime: number,
+): void {
     const parts = clockPartsFromGameTime(nextTime);
     const minuteChanged =
         previousParts.day !== parts.day ||

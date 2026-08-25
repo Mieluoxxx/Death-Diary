@@ -28,3 +28,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 2: 修复睡眠状态时间线
+
+**Date**: 2026-08-25
+**Task**: 修复睡眠状态时间线
+**Branch**: `codex/fix-sleep-hourly-attr-updates`
+
+### Summary
+
+修复加速时间跨整点漏回调，并让属性填充动画在高频刷新下保持进行；增加时钟、睡眠和动画生命周期回归测试。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `46bf8e5` | (see git log) |
+| `daac5c9` | (see git log) |
+
+### Status
+
+[OK] **Completed**

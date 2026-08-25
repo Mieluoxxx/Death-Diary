@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend quality-check routing for the affected game systems."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Review lint, tests, scope discipline, and regression coverage."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Review timer callback typing and test-only boundaries."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Verify survival rules were not duplicated across sleep and timer code."}
