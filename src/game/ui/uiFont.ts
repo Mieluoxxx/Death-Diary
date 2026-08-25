@@ -109,3 +109,29 @@ export async function ensureUiFontLoaded(timeoutMs = 4000): Promise<boolean> {
         return false;
     }
 }
+
+/**
+ * Phaser Text bakes glyphs into a canvas texture at creation time. If the
+ * bundled face is still loading then (slow CDN, cold cache), those early Text
+ * objects are stuck with the fallback family — same fontFamily string, wrong
+ * glyphs. Once document.fonts reports the face loaded, redraw every Text
+ * object across all scenes so early text converges to the UI face.
+ */
+export function scheduleTextRedrawOnFontReady(game: Phaser.Game): void {
+    if (typeof document === 'undefined' || !document.fonts) {
+        return;
+    }
+    const redraw = () => {
+        for (const scene of game.scene.getScenes(true)) {
+            for (const child of scene.children.list) {
+                if (child.type === 'Text') {
+                    (child as Phaser.GameObjects.Text).updateText();
+                }
+            }
+        }
+    };
+    document.fonts.ready.then(() => {
+        // Give the FontFace a beat to actually rasterize before redrawing.
+        setTimeout(redraw, 0);
+    });
+}
