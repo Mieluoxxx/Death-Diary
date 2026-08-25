@@ -50,3 +50,24 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: Refine main menu save entry
+
+**Date**: 2026-08-26
+**Task**: Refine main menu save entry
+**Branch**: `main`
+
+### Summary
+
+Matched the top-left save entry to the menu's white brush-button style, adjusted readable status colors, and moved it higher after visual review.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1fad1cf` | (see git log) |
+
+### Status
+
+[OK] **Completed**
