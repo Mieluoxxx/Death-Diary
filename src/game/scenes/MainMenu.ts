@@ -106,16 +106,22 @@ export class MainMenu extends Scene {
             settingsBtn.on('pointerout', () => settingsBtn.setAlpha(1));
         }
 
-        const cloudStatusBg = this.add
-            .rectangle(132, 74, 224, 48, 0x111111, 0.82)
-            .setStrokeStyle(1, 0xd8cdb9)
-            .setInteractive({ useHandCursor: true });
+        const hasMenuButton =
+            this.textures.exists('ui') && this.textures.get('ui').has('btn_big_white_normal.png');
+        const cloudStatusBg = hasMenuButton
+            ? this.add
+                  .image(132, 46, 'ui', 'btn_big_white_normal.png')
+                  .setDisplaySize(224, 56)
+                  .setInteractive({ useHandCursor: true })
+            : this.add
+                  .rectangle(132, 46, 224, 48, 0xe8e0d0)
+                  .setInteractive({ useHandCursor: true });
         this.cloudStatusText = this.add
-            .text(132, 74, '', {
+            .text(132, 46, '', {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: '17px',
-                color: '#f0e6d2',
+                color: '#111111',
             })
             .setOrigin(0.5);
         cloudStatusBg.on('pointerup', () => {
@@ -203,27 +209,27 @@ export class MainMenu extends Scene {
         }
         if (!getCurrentAccount()) {
             this.cloudStatusText.setText(t(hasSession() ? 'deviceOnlySave' : 'protectSave', lan));
-            this.cloudStatusText.setColor('#d8b878');
+            this.cloudStatusText.setColor('#111111');
             return;
         }
         const state = getCloudSaveStatus().state;
         if (state === 'pending' || state === 'syncing') {
             this.cloudStatusText.setText(t('cloudPending', lan));
-            this.cloudStatusText.setColor('#d8b878');
+            this.cloudStatusText.setColor('#6b552b');
             return;
         }
         if (state === 'offline') {
             this.cloudStatusText.setText(t('cloudOffline', lan));
-            this.cloudStatusText.setColor('#d8b878');
+            this.cloudStatusText.setColor('#6b552b');
             return;
         }
         if (state === 'conflict') {
             this.cloudStatusText.setText(t('cloudConflict', lan));
-            this.cloudStatusText.setColor('#ff8888');
+            this.cloudStatusText.setColor('#8f1d1d');
             return;
         }
         this.cloudStatusText.setText(t('cloudSynced', lan));
-        this.cloudStatusText.setColor('#a8e6a3');
+        this.cloudStatusText.setColor('#285d2a');
     }
 
     private logoFrameForLanguage(lan: LangCode): string {
