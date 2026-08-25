@@ -110,7 +110,7 @@ export class EndScene extends Scene {
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                    color: '#f0e6d2',
+                    color: '#ffffff',
                 })
                 .setOrigin(0.5);
 
