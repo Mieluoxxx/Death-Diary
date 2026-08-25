@@ -87,7 +87,7 @@ export class ChooseScene extends Scene {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: '28px',
-                color: '#f0e6d2',
+                color: '#ffffff',
             })
             .setOrigin(0.5, 0.5);
 
@@ -100,7 +100,7 @@ export class ChooseScene extends Scene {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: '26px',
-                color: '#f0e6d2',
+                color: '#ffffff',
             })
             .setOrigin(0.5);
 
@@ -375,7 +375,7 @@ export class ChooseScene extends Scene {
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: '18px',
-                    color: '#f0e6d2',
+                    color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(this.cellWidth - 12),
                     stroke: '#000000',

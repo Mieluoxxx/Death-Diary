@@ -1,5 +1,6 @@
 import { loadInitialItems } from './game/data/initialItems';
 import StartGame from './game/main';
+import { scheduleTextRedrawOnFontReady } from './game/ui/uiFont';
 import { getCurrentAccount, initializeAccount } from './game/session/authStore';
 import { initializeCloudSave } from './game/session/cloudSave';
 import {
@@ -14,6 +15,11 @@ async function initializeApplication(): Promise<void> {
     await initializeSessionStore();
 
     const game = StartGame('game-container');
+    // E2E/debug hook: game instance for tests to inspect scenes (e.g. font checks).
+    (window as unknown as { __deathDiaryGame?: unknown }).__deathDiaryGame = game;
+    // Redraw every Text object once the bundled CJK face finishes loading,
+    // so early-created text (which baked the fallback glyphs) converges to it.
+    scheduleTextRedrawOnFontReady(game);
     const cachedAccount = getCurrentAccount();
     const couldContinue = getSession() !== null;
     void initializeAccount()

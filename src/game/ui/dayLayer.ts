@@ -95,7 +95,7 @@ export async function openDayLayer(
             fontFamily: UI_FONT_FAMILY,
             resolution: UI_TEXT_RESOLUTION,
             fontSize: '60px',
-            color: '#f0e6d2',
+            color: '#ffffff',
         })
         .setOrigin(0.5)
         .setAlpha(0);
@@ -109,7 +109,7 @@ export async function openDayLayer(
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                color: '#f0e6d2',
+                color: '#ffffff',
                 align: 'center',
                 wordWrap: uiWordWrap(contentWidth),
             })
@@ -127,7 +127,7 @@ export async function openDayLayer(
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                    color: '#f0e6d2',
+                    color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(contentWidth),
                 },
@@ -146,7 +146,7 @@ export async function openDayLayer(
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                color: '#f0e6d2',
+                color: '#ffffff',
             })
             .setOrigin(0, 1)
             .setAlpha(0);
@@ -166,7 +166,7 @@ export async function openDayLayer(
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                    color: '#f0e6d2',
+                    color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(contentWidth),
                 },
@@ -206,7 +206,7 @@ export async function openDayLayer(
                     fontFamily: UI_FONT_FAMILY,
                     resolution: UI_TEXT_RESOLUTION,
                     fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
-                    color: '#f0e6d2',
+                    color: '#ffffff',
                 })
                 .setOrigin(0, 0.5)
                 .setAlpha(0);

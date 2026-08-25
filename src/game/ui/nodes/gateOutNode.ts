@@ -52,7 +52,7 @@ export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${GATE_OUT_FONT_SIZE}px`,
-                color: '#f0e6d2',
+                color: '#ffffff',
                 wordWrap: uiWordWrap(textWidth),
             })
             .setOrigin(0, 0),
@@ -64,7 +64,7 @@ export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${GATE_OUT_FONT_SIZE}px`,
-                color: '#d8d0c0',
+                color: '#ffffff',
                 wordWrap: uiWordWrap(textWidth),
             })
             .setOrigin(0, 1),
