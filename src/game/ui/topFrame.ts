@@ -10,8 +10,8 @@ import { getLanguage } from '../settings/settingsStore';
 import { openStatusDialog, type StatusQuickItem } from './dialogSmall';
 import { createItemDetailModel, topStatusItemContainer } from './itemDetailContext';
 import { openItemDetailDialog } from './itemDialog';
-import { openSettingLayer } from './settingLayer';
 import { mountScrollViewport } from './scrollViewport';
+import { openSettingLayer } from './settingLayer';
 import {
     ATTR_STATUS_ID,
     type AttrKey,
@@ -162,6 +162,8 @@ type AttrFillEntry = {
     reverse: boolean;
     /** Displayed fill ratio currently on screen (0–1). */
     displayRatio: number;
+    /** Fill ratio the active tween is currently approaching (0–1). */
+    targetRatio: number;
     tweenProxy: { ratio: number } | null;
 };
 
@@ -231,27 +233,36 @@ function playAttrChangeWarn(scene: Scene, baseIcon: GameObjects.Image, wentUp: b
     });
 }
 
-function animateAttrFill(
+export function animateAttrFill(
     scene: Scene,
     entry: AttrFillEntry,
     targetRatio: number,
     showWarn: boolean,
 ): void {
     const clampedTarget = Math.max(0, Math.min(1, targetRatio));
-    const fromRatio = entry.displayRatio;
-    if (Math.abs(clampedTarget - fromRatio) < 0.001) {
-        applyBottomFillCrop(entry.fill, clampedTarget);
-        entry.displayRatio = clampedTarget;
+    const sameTarget = Math.abs(clampedTarget - entry.targetRatio) < 0.001;
+    if (sameTarget && entry.tweenProxy) {
         return;
     }
 
-    if (showWarn) {
-        playAttrChangeWarn(scene, entry.base, clampedTarget > fromRatio);
+    const fromRatio = entry.displayRatio;
+    if (!sameTarget) {
+        if (entry.tweenProxy) {
+            scene.tweens.killTweensOf(entry.tweenProxy);
+            entry.tweenProxy = null;
+        }
+        entry.targetRatio = clampedTarget;
     }
 
-    // Kill previous fill tween for this entry.
-    if (entry.tweenProxy) {
-        scene.tweens.killTweensOf(entry.tweenProxy);
+    if (Math.abs(clampedTarget - fromRatio) < 0.001) {
+        applyBottomFillCrop(entry.fill, clampedTarget);
+        entry.displayRatio = clampedTarget;
+        entry.targetRatio = clampedTarget;
+        return;
+    }
+
+    if (showWarn && !sameTarget) {
+        playAttrChangeWarn(scene, entry.base, clampedTarget > fromRatio);
     }
 
     const proxy = { ratio: fromRatio };
@@ -262,11 +273,18 @@ function animateAttrFill(
         duration: ATTR_FILL_TWEEN_MS,
         ease: 'Sine.easeOut',
         onUpdate: () => {
+            if (entry.tweenProxy !== proxy) {
+                return;
+            }
             entry.displayRatio = proxy.ratio;
             applyBottomFillCrop(entry.fill, proxy.ratio);
         },
         onComplete: () => {
+            if (entry.tweenProxy !== proxy) {
+                return;
+            }
             entry.displayRatio = clampedTarget;
+            entry.targetRatio = clampedTarget;
             entry.tweenProxy = null;
             applyBottomFillCrop(entry.fill, clampedTarget);
         },
@@ -456,6 +474,7 @@ export function addTopFrame(
                     base,
                     reverse,
                     displayRatio,
+                    targetRatio: displayRatio,
                     tweenProxy: null,
                 });
             }
