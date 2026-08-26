@@ -1,30 +1,40 @@
+import { getItemDef, itemWeight } from '../data/itemConfig';
 import {
     getNpcDef,
     isNpcId,
     NPC_IDS,
-    ROLE_NPC_ID,
     type NpcDef,
     type NpcId,
     type NpcItemStack,
     type NpcReward,
+    ROLE_NPC_ID,
 } from '../data/npcConfig';
 import { getSiteConfig } from '../data/siteConfig';
 import {
     appendSessionLog,
     getSession,
-    mutateSession,
     type ItemCounts,
+    mutateSession,
     type NpcState,
     type RoleKey,
 } from '../session/sessionStore';
-import { getBagCapacity, getBagWeight, getCount } from './inventory';
-import { isIapUnlocked } from './iapStore';
-import { Sound, playEffect } from './audioManager';
+import { playEffect, Sound } from './audioManager';
 import { gameBusEmit } from './gameBus';
-import { getItemDef, itemWeight } from '../data/itemConfig';
+import { isIapUnlocked } from './iapStore';
+import { getBagCapacity, getBagWeight, getCount } from './inventory';
 
 const NPC_REPUTATION_MAX = 10;
 const SOCIAL_EFFECT_IAP_ID = 104;
+const NPC_VISIT_OVERRIDE_KEY = '__deathDiaryNpcVisitChanceOverride';
+type NpcVisitTestHooks = typeof globalThis & {
+    [NPC_VISIT_OVERRIDE_KEY]?: number | null;
+};
+
+/** E2E/debug override; pass null to restore the normal 25% chance. */
+export function setNpcVisitChanceOverride(chance: number | null): void {
+    const hooks = globalThis as NpcVisitTestHooks;
+    hooks[NPC_VISIT_OVERRIDE_KEY] = chance === null ? null : Math.max(0, Math.min(1, chance));
+}
 
 export type NpcActionResult =
     | { ok: true }
@@ -43,8 +53,9 @@ export type NpcActionResult =
 export type NpcVisit = {
     npcId: NpcId;
     name: string;
-    kind: 'gift' | 'help' | 'met';
+    kind: 'gift' | 'help';
     deliveredRewards: NpcReward[];
+    need: NpcItemStack | null;
 };
 
 function addCount(counts: ItemCounts, itemId: number, amount: number): void {
@@ -163,12 +174,12 @@ export function giveNpcNeed(npcId: number): NpcActionResult {
         return { ok: false, reason: 'max_reputation' };
     }
     const need = getNpcNeed(npc.id);
-    if (!need || getCount(session.bag, need.itemId) < need.num) {
+    if (!need || getCount(session.storage, need.itemId) < need.num) {
         return { ok: false, reason: 'not_enough' };
     }
     mutateSession((live) => {
         const liveState = live.npcs[npc.id];
-        addCount(live.bag, need.itemId, -need.num);
+        addCount(live.storage, need.itemId, -need.num);
         applyReputationGain(liveState, npc, 1);
     });
     playEffect(Sound.GOOD_EFFECT);
@@ -309,7 +320,9 @@ export function refreshNpcTrading(): void {
 /** Original dawn visit: introduce an NPC, deliver unlocked rewards, or flag a request. */
 export function runNpcDailyVisit(random: () => number = Math.random): NpcVisit | null {
     const session = getSession();
-    if (!session || session.day < 2 || random() > 0.25) {
+    const override = (globalThis as NpcVisitTestHooks)[NPC_VISIT_OVERRIDE_KEY];
+    const visitChance = override ?? 0.25;
+    if (!session || session.day < 2 || random() > visitChance) {
         return null;
     }
     const roleNpcId = ROLE_NPC_ID[session.role as RoleKey];
@@ -319,20 +332,18 @@ export function runNpcDailyVisit(random: () => number = Math.random): NpcVisit |
     }
     const npcId = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))]!;
     const npc = getNpcDef(npcId)!;
-    const wasUnlocked = session.npcs[npcId].unlocked;
     unlockNpc(npcId);
     const deliveredRewards = deliverRewards(npcId);
-    const kind: NpcVisit['kind'] =
-        deliveredRewards.length > 0 ? 'gift' : wasUnlocked ? 'help' : 'met';
-    if (kind === 'help') {
-        const need = getNpcNeed(npcId);
-        if (need) {
-            appendSessionLog(
-                `${npc.name} 托人询问你是否有${getItemDef(need.itemId).name}x${need.num}。`,
-            );
-        }
+    // Original NPCManager.needHelp runs on the first visit too; unlocking is
+    // not a standalone encounter state.
+    const kind: NpcVisit['kind'] = deliveredRewards.length > 0 ? 'gift' : 'help';
+    const need = kind === 'help' ? getNpcNeed(npcId) : null;
+    if (need) {
+        appendSessionLog(
+            `${npc.name} 托人询问你是否有${getItemDef(need.itemId).name}x${need.num}。`,
+        );
     }
-    const visit = { npcId, name: npc.name, kind, deliveredRewards };
+    const visit = { npcId, name: npc.name, kind, deliveredRewards, need };
     playEffect(Sound.NPC_KNOCK);
     gameBusEmit('npc_visit', visit);
     gameBusEmit('session_updated');

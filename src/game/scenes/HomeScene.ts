@@ -7,12 +7,14 @@ import { clearActiveUpgrades, homeBuildFrame } from '../systems/buildSystem';
 import { gameBusClear, gameBusOff, gameBusOn } from '../systems/gameBus';
 import { ensureDogHouseBuilt, isDogHouseUnlocked } from '../systems/iapStore';
 import type { NightRaidResult } from '../systems/nightRaidSystem';
+import type { NpcVisit } from '../systems/npcSystem';
 import { debugSkipGameHours, startSurvivalLoop, stopSurvivalLoop } from '../systems/survivalLoop';
 import { tickTimeClock } from '../systems/timeClock';
 import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../systems/userGuide';
 import { type BuildPanelHandle, openBuildPanel } from '../ui/buildPanel';
 import { openDayLayer } from '../ui/dayLayer';
 import { createNavigationHost, type NavHostHandle, NavNode } from '../ui/navigation';
+import { openNpcVisitDialog } from '../ui/npcVisitDialog';
 import { openSettingLayer } from '../ui/settingLayer';
 import { addTopFrame, type TopFrameHandle } from '../ui/topFrame';
 import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
@@ -81,6 +83,7 @@ export class HomeScene extends Scene {
     private boundRefresh: (() => void) | null = null;
     private boundDied: (() => void) | null = null;
     private boundNightRaid: ((res: NightRaidResult) => void) | null = null;
+    private boundNpcVisit: ((visit: NpcVisit) => void) | null = null;
     private guideWarn: GuideWarnHandle | null = null;
     private stopGuideListener: (() => void) | null = null;
 
@@ -148,12 +151,16 @@ export class HomeScene extends Scene {
         this.boundNightRaid = (res) => {
             void openDayLayer(this, res);
         };
+        this.boundNpcVisit = (visit) => {
+            openNpcVisitDialog(this, visit);
+        };
 
         gameBusOn('session_updated', this.boundRefresh);
         gameBusOn('time_tick', this.boundRefresh);
         gameBusOn('logChanged', this.boundRefresh);
         gameBusOn('player_died', this.boundDied);
         gameBusOn('night_raid', this.boundNightRaid);
+        gameBusOn('npc_visit', this.boundNpcVisit);
         this.stopGuideListener = onGuideChanged(() => this.refreshHomeGuide());
         this.refreshHomeGuide();
 
@@ -171,7 +178,12 @@ export class HomeScene extends Scene {
         // Settings / day-end layer → freeze simulation.
         const overlayOpen = this.children.list.some((child) => {
             const name = (child as GameObjects.Container).name;
-            return name === 'settingLayer' || name === 'dayLayer' || name === 'guideDialog';
+            return (
+                name === 'settingLayer' ||
+                name === 'dayLayer' ||
+                name === 'npcVisitDialog' ||
+                name === 'guideDialog'
+            );
         });
         if (overlayOpen) {
             return;
@@ -194,6 +206,10 @@ export class HomeScene extends Scene {
         if (this.boundNightRaid) {
             gameBusOff('night_raid', this.boundNightRaid);
             this.boundNightRaid = null;
+        }
+        if (this.boundNpcVisit) {
+            gameBusOff('npc_visit', this.boundNpcVisit);
+            this.boundNpcVisit = null;
         }
         this.stopGuideListener?.();
         this.stopGuideListener = null;
