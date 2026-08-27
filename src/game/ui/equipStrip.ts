@@ -5,7 +5,7 @@
 
 import type { GameObjects } from 'phaser';
 import { type EquipSlot, getItemDef, HAND_ITEM_ID, itemsForSlot } from '../data/itemConfig';
-import { getSession } from '../session/sessionStore';
+import { getSession, type ItemCounts } from '../session/sessionStore';
 import { type EquipPos, EquipPosMap, equipItem, getCount } from '../systems/inventory';
 import type { NodeMountContext } from './navigation';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
@@ -49,6 +49,8 @@ export type EquipStripOptions = {
      * Original: contentTopLine (770 from bg bottom).
      */
     topY: number;
+    /** Original NPC exchange reads its cloned temporary bag. */
+    getBagCounts?: () => ItemCounts;
     /** Called after a successful equip change. */
     onChanged?: () => void;
 };
@@ -70,6 +72,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
     let openPos: EquipPos | null = null;
     let dropRoot: GameObjects.Container | null = null;
     let selectedCap: GameObjects.Image | GameObjects.Rectangle | null = null;
+    const bagCounts = (): ItemCounts => opts.getBagCounts?.() ?? getSession()?.bag ?? {};
 
     ([0, 1, 2, 3] as EquipPos[]).forEach((pos, i) => {
         const x = equipLeft + padding * (i + 1) + TAB_BG_W * (i + 0.5);
@@ -214,7 +217,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
         const def = getItemDef(itemId);
         const name = itemId === HAND_ITEM_ID ? '拳头' : def.name || resolveItemName(itemId);
         const weight = itemId === HAND_ITEM_ID ? 0 : def.weight;
-        const bagNum = itemId === HAND_ITEM_ID ? 0 : getCount(getSession()?.bag ?? {}, itemId);
+        const bagNum = itemId === HAND_ITEM_ID ? 0 : getCount(bagCounts(), itemId);
         const speed = itemId === HAND_ITEM_ID ? 1 : (def.effectWeapon?.atkCD ?? 0);
         const topY = -LINE_H / 2 + 10;
         line.add(
@@ -268,12 +271,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
         closeDropDown();
         openPos = pos;
 
-        const session = getSession();
-        if (!session) {
-            return;
-        }
-
-        let list = itemsForSlot(SLOT_KIND[pos]).filter((id) => getCount(session.bag, id) > 0);
+        let list = itemsForSlot(SLOT_KIND[pos]).filter((id) => getCount(bagCounts(), id) > 0);
         if (pos === EquipPosMap.WEAPON) {
             list = [HAND_ITEM_ID, ...list];
         }

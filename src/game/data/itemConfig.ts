@@ -1,6 +1,6 @@
 /**
  * Full itemConfig port from Buried-City itemConfig.js (63 items + HAND).
- * Names from string_zh; value used by night-raid loot extraction.
+ * Names from string_zh; price is for NPC trades, value for night-raid loot extraction.
  */
 
 export type EquipSlot = 'gun' | 'weapon' | 'equip' | 'tool';
@@ -27,6 +27,8 @@ export type ItemDef = {
     id: number;
     name: string;
     weight: number;
+    /** Original NPC trade price (original itemConfig.price). */
+    price: number;
     /** Economy / raid loot value (original itemConfig.value). */
     value: number;
     slot?: EquipSlot;
@@ -47,6 +49,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: HAND_ITEM_ID,
         name: '徒手',
         weight: 0,
+        price: 0,
         value: 0,
         slot: 'weapon',
         effectWeapon: {
@@ -68,228 +71,266 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1101011,
         name: '木质材料',
         weight: 2,
+        price: 1,
         value: 1,
     },
     1101021: {
         id: 1101021,
         name: '金属材料',
         weight: 2,
+        price: 1,
         value: 1,
     },
     1101031: {
         id: 1101031,
         name: '柔性材料',
         weight: 1,
+        price: 1,
         value: 1,
     },
     1101041: {
         id: 1101041,
         name: '零件',
         weight: 1,
+        price: 1,
         value: 1,
     },
     1101051: {
         id: 1101051,
         name: '电器元件',
         weight: 1,
+        price: 1,
         value: 1,
     },
     1101061: {
         id: 1101061,
         name: '水',
         weight: 1,
+        price: 0.25,
         value: 0.28279166666666666,
     },
     1101071: {
         id: 1101071,
         name: '化学材料',
         weight: 6,
+        price: 1.5,
         value: 1.5,
     },
     1101073: {
         id: 1101073,
         name: '数据模组',
         weight: 2,
+        price: 6,
         value: 6,
     },
     1102011: {
         id: 1102011,
         name: '坏的手枪',
         weight: 1,
+        price: 1,
         value: 1,
     },
     1102022: {
         id: 1102022,
         name: '坏的猎枪',
         weight: 2,
+        price: 2,
         value: 2,
     },
     1102033: {
         id: 1102033,
         name: '坏的自动步枪',
         weight: 3,
+        price: 3,
         value: 3,
     },
     1102042: {
         id: 1102042,
         name: '武士刀残片',
         weight: 2,
+        price: 2,
         value: 2,
     },
     1102053: {
         id: 1102053,
         name: '战隼引擎',
         weight: 15,
+        price: 50,
         value: 50,
     },
     1102063: {
         id: 1102063,
         name: '发电机组件',
         weight: 20,
+        price: 70,
         value: 70,
     },
     1103011: {
         id: 1103011,
         name: '土豆',
         weight: 1,
+        price: 0.75,
         value: 0.7870296328125,
     },
     1103022: {
         id: 1103022,
         name: '烤土豆',
         weight: 2,
+        price: 5.25,
         value: 5.056622518148437,
     },
     1103033: {
         id: 1103033,
         name: '土豆泥',
         weight: 2,
+        price: 4,
         value: 3.7864089743437495,
     },
     1103041: {
         id: 1103041,
         name: '肉',
         weight: 1,
+        price: 1,
         value: 1.1254523749218752,
     },
     1103052: {
         id: 1103052,
         name: '肉汤',
         weight: 2,
+        price: 4.5,
         value: 4.45138906415578,
     },
     1103063: {
         id: 1103063,
         name: '烤肉',
         weight: 2,
+        price: 5.75,
         value: 5.666187600476133,
     },
     1103074: {
         id: 1103074,
         name: '风味炖菜',
         weight: 3,
+        price: 12,
         value: 11.30843054871349,
     },
     1103083: {
         id: 1103083,
         name: '罐头',
         weight: 2,
+        price: 5,
         value: 5,
     },
     1104011: {
         id: 1104011,
         name: '绷带',
         weight: 1,
+        price: 21.5,
         value: 21.05608633968867,
     },
     1104021: {
         id: 1104021,
         name: '药剂',
         weight: 1,
+        price: 16.5,
         value: 16.15383871468867,
     },
     1104032: {
         id: 1104032,
         name: '自制青霉素',
         weight: 1,
+        price: 31,
         value: 30.0731189840807,
     },
     1104043: {
         id: 1104043,
         name: '青霉素',
         weight: 1,
+        price: 60,
         value: 60,
     },
     1105011: {
         id: 1105011,
         name: '咖啡豆',
         weight: 0,
+        price: 2,
         value: 2,
     },
     1105022: {
         id: 1105022,
         name: '酒',
         weight: 1,
+        price: 3.75,
         value: 3.6694572875325524,
     },
     1105033: {
         id: 1105033,
         name: '酒精',
         weight: 1,
+        price: 11.5,
         value: 11.248722605665916,
     },
     1105042: {
         id: 1105042,
         name: '发芽的土豆',
         weight: 1,
+        price: 1,
         value: 1,
     },
     1105051: {
         id: 1105051,
         name: '草药',
         weight: 1,
+        price: 0.75,
         value: 0.6994851874999999,
     },
     1106013: {
         id: 1106013,
         name: '狗',
         weight: 15,
+        price: 60,
         value: 60,
     },
     1106054: {
         id: 1106054,
         name: '急救包',
         weight: 4,
+        price: 100,
         value: 100,
     },
     1107012: {
         id: 1107012,
         name: '原浆血清',
         weight: 1,
+        price: 22,
         value: 22,
     },
     1107022: {
         id: 1107022,
         name: '转移因子',
         weight: 1,
+        price: 45,
         value: 45,
     },
     1107032: {
         id: 1107032,
         name: '兴奋剂',
         weight: 1,
+        price: 22,
         value: 22,
     },
     1107042: {
         id: 1107042,
         name: '军用口粮',
         weight: 1,
+        price: 28,
         value: 28,
     },
     1301011: {
         id: 1301011,
         name: '手枪',
         weight: 1,
+        price: 15,
         value: 9.999,
         slot: 'gun',
         effectWeapon: {
@@ -311,6 +352,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301022,
         name: '猎枪',
         weight: 6,
+        price: 25.5,
         value: 16.968,
         slot: 'gun',
         effectWeapon: {
@@ -332,6 +374,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301033,
         name: '自动步枪',
         weight: 10,
+        price: 50,
         value: 32.825,
         slot: 'gun',
         effectWeapon: {
@@ -353,6 +396,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301041,
         name: 'Magnum',
         weight: 2,
+        price: 17,
         value: 12,
         slot: 'gun',
         effectWeapon: {
@@ -374,6 +418,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301052,
         name: 'M40',
         weight: 7,
+        price: 28,
         value: 18,
         slot: 'gun',
         effectWeapon: {
@@ -395,6 +440,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301063,
         name: 'FAMAS',
         weight: 9,
+        price: 55,
         value: 35,
         slot: 'gun',
         effectWeapon: {
@@ -416,6 +462,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301071,
         name: '电极手枪',
         weight: 3,
+        price: 30,
         value: 30,
         slot: 'gun',
         effectWeapon: {
@@ -437,6 +484,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1301082,
         name: '电极长枪',
         weight: 12,
+        price: 60,
         value: 60,
         slot: 'gun',
         effectWeapon: {
@@ -458,6 +506,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1302011,
         name: '撬棍',
         weight: 2,
+        price: 3.5,
         value: 3.3165,
         slot: 'weapon',
         effectWeapon: {
@@ -480,6 +529,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1302021,
         name: '斧头',
         weight: 2,
+        price: 2.25,
         value: 2.211,
         slot: 'weapon',
         effectWeapon: {
@@ -502,6 +552,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1302032,
         name: '武士刀',
         weight: 3,
+        price: 11,
         value: 10.908,
         slot: 'weapon',
         effectWeapon: {
@@ -523,6 +574,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1302043,
         name: '电锯',
         weight: 6,
+        price: 50,
         value: 50,
         slot: 'weapon',
         effectWeapon: {
@@ -545,6 +597,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1303012,
         name: '自制炸药',
         weight: 1,
+        price: 8,
         value: 8,
         slot: 'tool',
         effectWeapon: {
@@ -566,6 +619,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1303022,
         name: '僵尸诱饵',
         weight: 1,
+        price: 8,
         value: 8,
         slot: 'tool',
         effectWeapon: {
@@ -587,6 +641,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1303033,
         name: '火箭筒',
         weight: 1,
+        price: 18,
         value: 18,
         slot: 'tool',
         effectWeapon: {
@@ -608,6 +663,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1303044,
         name: '强效手雷',
         weight: 1,
+        price: 28,
         value: 28,
         slot: 'tool',
         effectWeapon: {
@@ -629,6 +685,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1304012,
         name: '厚外套',
         weight: 2,
+        price: 8.5,
         value: 8.442,
         slot: 'equip',
         effectArm: { def: 3 },
@@ -637,6 +694,7 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1304023,
         name: '防暴服',
         weight: 3,
+        price: 18.5,
         value: 18.290999999999997,
         slot: 'equip',
         effectArm: { def: 5 },
@@ -645,12 +703,14 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1304024,
         name: '靴子',
         weight: 0,
+        price: 8,
         value: 7.878000000000001,
     },
     1305011: {
         id: 1305011,
         name: '子弹',
         weight: 0,
+        price: 1,
         value: 1,
         effectWeapon: {
             atk: 50,
@@ -671,36 +731,42 @@ export const ITEM_CONFIG: Record<number, ItemDef> = {
         id: 1305023,
         name: '加强背包',
         weight: 0,
+        price: 13,
         value: 13.13,
     },
     1305024: {
         id: 1305024,
         name: '军用背包',
         weight: 0,
+        price: 38,
         value: 36.763999999999996,
     },
     1305034: {
         id: 1305034,
         name: '摩托车',
         weight: 0,
+        price: 40,
         value: 40,
     },
     1305044: {
         id: 1305044,
         name: '战隼',
         weight: 0,
+        price: 65,
         value: 65,
     },
     1305053: {
         id: 1305053,
         name: '强光手电',
         weight: 0,
+        price: 32,
         value: 32,
     },
     1305064: {
         id: 1305064,
         name: '高能探测器',
         weight: 0,
+        price: 48,
         value: 48,
     },
 };
@@ -711,6 +777,7 @@ export function getItemDef(itemId: number): ItemDef {
             id: itemId,
             name: `物品${itemId}`,
             weight: 1,
+            price: 1,
             value: 1,
         }
     );

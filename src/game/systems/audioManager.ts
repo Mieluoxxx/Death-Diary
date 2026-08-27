@@ -34,6 +34,7 @@ const N = {
     WORK_ROOM_STORAGE: 'WorkRoomStorageNode',
     RADIO: 'RadioNode',
     NPC: 'NpcNode',
+    NPC_STORAGE: 'NpcStorageNode',
 } as const;
 
 const MUSIC_BASE = 'audio/music';
@@ -388,7 +389,7 @@ export function applyNavMusic(nodeName: string): void {
     } else if (nodeName === N.MAP) {
         musicName = Music.MAP;
         changeSiteMusic();
-    } else if (nodeName === N.NPC) {
+    } else if (nodeName === N.NPC || nodeName === N.NPC_STORAGE) {
         musicName = Music.NPC;
     } else if (SITE_NODES[nodeName]) {
         musicName = getSiteMusic();

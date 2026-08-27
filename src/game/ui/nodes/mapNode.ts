@@ -12,7 +12,7 @@
  */
 
 import type { GameObjects, Tweens } from 'phaser';
-import { getNpcCopy, getNpcDef, NPC_IDS } from '../../data/npcConfig';
+import { getNpcDef, NPC_IDS } from '../../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
 import {
@@ -27,6 +27,7 @@ import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
+import { addNpcHearts } from '../npcHearts';
 import { openRandomBattleDialog } from '../randomBattleDialog';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
 import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
@@ -546,6 +547,150 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         }
     }
 
+    function showNpcTravelDialog(npcId: number, gameSeconds: number, onOk: () => void): void {
+        const live = getSession();
+        const npc = getNpcDef(npcId);
+        if (!live || !npc) {
+            return;
+        }
+
+        const { width, height } = ctx.scene.scale;
+        const overlay = ctx.scene.add.container(0, 0).setDepth(200).setName('npcTravelDialog');
+        ctx.content.add(overlay);
+        overlay.add(
+            ctx.scene.add
+                .rectangle(width / 2, height / 2, width, height, 0x000000, 200 / 255)
+                .setInteractive(),
+        );
+
+        const cocosBgBottom = 29 + (839 - DIALOG_H) / 2;
+        const bgBottomY = height - cocosBgBottom;
+        const bgTopY = bgBottomY - DIALOG_H;
+        const bgCenterX = width / 2;
+        const bgCenterY = bgTopY + DIALOG_H / 2;
+        const bgLeft = bgCenterX - DIALOG_W / 2;
+        const textLeft = bgLeft + 20;
+        const textRight = bgLeft + DIALOG_W - 20;
+        const textWidth = DIALOG_W - 40;
+        const titleY = bgTopY + 45;
+        const contentTop = bgTopY + 90;
+        const contentBottom = bgBottomY - 72;
+        const actionY = bgBottomY - 36;
+        const hours = Math.floor(gameSeconds / 3600);
+        const minutes = Math.floor((gameSeconds % 3600) / 60);
+        const timeLabel = `${hours > 0 ? `${hours}小时` : ''}${minutes}分钟`;
+
+        if (hasFrame(ctx, 'ui', DIALOG_FRAME)) {
+            overlay.add(
+                ctx.scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME).setOrigin(0.5),
+            );
+        } else {
+            overlay.add(
+                ctx.scene.add
+                    .rectangle(bgCenterX, bgCenterY, DIALOG_W, DIALOG_H, 0xe8e0d0)
+                    .setStrokeStyle(2, 0x333333),
+            );
+        }
+
+        let titleX = textLeft;
+        if (hasFrame(ctx, 'icon', 'icon_npc.png')) {
+            const icon = ctx.scene.add
+                .image(textLeft, titleY + 4, 'icon', 'icon_npc.png')
+                .setOrigin(0, 0.5)
+                .setName('npcTravelIcon');
+            overlay.add(icon);
+            titleX += icon.displayWidth;
+        }
+        overlay.add(
+            ctx.scene.add
+                .text(titleX, titleY, npc.name, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    color: '#111111',
+                })
+                .setOrigin(0, 0.5)
+                .setName('npcTravelName'),
+        );
+        addNpcHearts(
+            ctx.scene,
+            overlay,
+            textRight,
+            titleY,
+            live.npcs[npc.id].reputation,
+            'npcTravelHearts',
+        );
+
+        let portraitBottom = contentTop + 5;
+        const portraitFrame = `npc_dig_${npc.id}.png`;
+        if (hasFrame(ctx, 'npc', portraitFrame)) {
+            const portrait = ctx.scene.add
+                .image(bgCenterX, contentTop + 5, 'npc', portraitFrame)
+                .setOrigin(0.5, 0)
+                .setName('npcTravelPortrait');
+            overlay.add(portrait);
+            portraitBottom = contentTop + portrait.displayHeight;
+        }
+        overlay.add(
+            ctx.scene.add
+                .text(textLeft, portraitBottom, npc.des, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color: '#111111',
+                    wordWrap: uiWordWrap(textWidth),
+                })
+                .setOrigin(0, 0)
+                .setName('npcTravelDescription'),
+        );
+
+        const distance = ctx.scene.add
+            .text(textLeft, contentBottom - 70, `距离: ${timeLabel}路程`, {
+                fontFamily: UI_FONT_FAMILY,
+                resolution: UI_TEXT_RESOLUTION,
+                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                color: '#111111',
+            })
+            .setOrigin(0, 0)
+            .setName('npcTravelTime');
+        overlay.add(distance);
+        const tradeCount = Object.values(live.npcs[npc.id].storage).filter(
+            (count) => count > 0,
+        ).length;
+        overlay.add(
+            ctx.scene.add
+                .text(textLeft, distance.y + distance.height + 10, `交易物品: ${tradeCount}`, {
+                    fontFamily: UI_FONT_FAMILY,
+                    resolution: UI_TEXT_RESOLUTION,
+                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    color: '#111111',
+                })
+                .setOrigin(0, 0)
+                .setName('npcTravelTradeCount'),
+        );
+
+        const close = () => overlay.destroy(true);
+        const cancel = addAtlasButton(ctx.scene, bgCenterX - DIALOG_W / 4, actionY, {
+            atlas: 'ui',
+            frame: 'btn_common_black_normal.png',
+            label: '取消',
+            labelColor: '#eee',
+            onClick: close,
+        }).setName('npcTravelCancel');
+        overlay.add(cancel);
+        const go = addAtlasButton(ctx.scene, bgCenterX + DIALOG_W / 4, actionY, {
+            atlas: 'ui',
+            frame: 'btn_common_black_normal.png',
+            label: '前往',
+            labelColor: '#eee',
+            onClick: () => {
+                close();
+                onOk();
+            },
+        }).setName('npcTravelGo');
+        overlay.add(go);
+    }
+
     function onNpcTap(npcId: number): void {
         const live = getSession();
         const def = getNpcDef(npcId);
@@ -554,15 +699,13 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         }
         const from = live.map.pos;
         const dist = Math.hypot(def.coordinate.x - from.x, def.coordinate.y - from.y);
-        const name = getNpcCopy(npcId).name;
         if (dist < 8) {
             enterNpc(npcId);
             return;
         }
         // Rough travel time using same velocity baseline as sites (~distance map units).
         const gameSeconds = Math.max(60, Math.round(dist * 8));
-        const timeLabel = formatTravelTime(gameSeconds);
-        showTravelDialog(-1, `${name}家`, getNpcCopy(npcId).des, timeLabel, () => {
+        showNpcTravelDialog(npcId, gameSeconds, () => {
             startTravelToNpc(npcId, gameSeconds);
         });
     }

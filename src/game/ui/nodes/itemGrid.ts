@@ -113,7 +113,7 @@ export function mountItemGrid(
             if (scene.textures.exists('icon') && scene.textures.get('icon').has(iconFrame)) {
                 const icon = scene.add.image(0, 0, 'icon', iconFrame);
                 const maxDim = Math.max(icon.width, icon.height, 1);
-                icon.setScale((face * 0.95) / maxDim);
+                icon.setScale(face / maxDim);
                 cell.add(icon);
             }
 

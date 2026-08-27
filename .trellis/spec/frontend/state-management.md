@@ -49,3 +49,44 @@ Questions to answer:
 <!-- State management mistakes your team has made -->
 
 (To be filled by the team)
+
+---
+
+## NPC Inventory Boundary
+
+### Scope / Trigger
+
+Use this contract when one NPC action can consume items from more than one
+player inventory or when a UI stages an exchange before confirmation.
+
+### Signatures
+
+- `giveNpcNeed(npcId: number, source: 'bag' | 'storage'): NpcActionResult`
+
+### Contracts
+
+- Active NPC meetings pass `bag`; NPC home visits pass `storage`.
+- Callers must choose the source explicitly. Do not infer it from scene state
+  or fall back to another inventory.
+- Transaction drafts clone canonical inventories into UI-local maps. Canceling
+  discards the maps; only a gameplay-system commit updates `SessionState`.
+
+### Validation & Error Matrix
+
+| Condition | Result |
+|---|---|
+| Selected source lacks the requested item | return `not_enough`; do not consume another source |
+| Transaction page exits before commit | discard draft; canonical inventories remain unchanged |
+
+### Good / Base / Bad Cases
+
+- Good: `giveNpcNeed(npcId, 'bag')` from an active meeting.
+- Base: `giveNpcNeed(npcId, 'storage')` from a home visit.
+- Bad: `giveNpcNeed(npcId)` with an implicit or fallback source.
+
+### Tests Required
+
+- Assert bag/storage isolation in `src/game/systems/npcSystem.test.ts`.
+- Assert draft cancellation in `e2e/e2e-npc-trade.md`.
+
+### Wrong vs Correct

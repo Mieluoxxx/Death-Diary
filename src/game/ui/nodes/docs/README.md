@@ -17,7 +17,8 @@
 | `battleNode.ts` | `BATTLE_AND_WORK` | 战斗/搜刮过程 |
 | `workLootNode.ts` | `WORK_ROOM_STORAGE` | 搜刮收获：背包↔箱子 |
 | `radioNode.ts` | `RADIO` | 电台作弊终端 |
-| `npcNode.ts` | `NPC` | NPC 占位（交易未完整） |
+| `npcNode.ts` | `NPC` | NPC 会面：立绘、好感、需求与交易入口 |
+| `npcStorageNode.ts` | `NPC_STORAGE` | NPC 交易：装备栏与克隆双库存草稿 |
 | `itemGrid.ts` | （组件） | 可滚物品网格，供 gate/site/work 复用 |
 
 ## 布局模式

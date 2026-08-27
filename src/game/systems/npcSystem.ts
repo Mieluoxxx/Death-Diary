@@ -1,4 +1,4 @@
-import { getItemDef, itemWeight } from '../data/itemConfig';
+import { getItemDef, HAND_ITEM_ID, itemWeight } from '../data/itemConfig';
 import {
     getNpcDef,
     isNpcId,
@@ -120,6 +120,14 @@ export function getNpcState(npcId: number): NpcState | null {
     return getSession()?.npcs[npcId] ?? null;
 }
 
+export function getNpcDialog(npcId: number, random: () => number = Math.random): string {
+    const dialogs = getNpcDef(npcId)?.dialogs ?? [];
+    if (dialogs.length === 0) {
+        return '';
+    }
+    return dialogs[Math.min(dialogs.length - 1, Math.floor(random() * dialogs.length))]!;
+}
+
 export function unlockNpc(npcId: number): NpcActionResult {
     const npc = getNpcDef(npcId);
     const session = getSession();
@@ -157,7 +165,7 @@ export function getNpcNeed(npcId: number): NpcItemStack | null {
     return null;
 }
 
-export function giveNpcNeed(npcId: number): NpcActionResult {
+export function giveNpcNeed(npcId: number, source: 'bag' | 'storage'): NpcActionResult {
     const npc = getNpcDef(npcId);
     const session = getSession();
     if (!session) {
@@ -174,12 +182,12 @@ export function giveNpcNeed(npcId: number): NpcActionResult {
         return { ok: false, reason: 'max_reputation' };
     }
     const need = getNpcNeed(npc.id);
-    if (!need || getCount(session.storage, need.itemId) < need.num) {
+    if (!need || getCount(session[source], need.itemId) < need.num) {
         return { ok: false, reason: 'not_enough' };
     }
     mutateSession((live) => {
         const liveState = live.npcs[npc.id];
-        addCount(live.storage, need.itemId, -need.num);
+        addCount(live[source], need.itemId, -need.num);
         applyReputationGain(liveState, npc, 1);
     });
     playEffect(Sound.GOOD_EFFECT);
@@ -197,7 +205,7 @@ function weightedValue(
     const rates = new Map(favorite.map((entry) => [entry.itemId, entry.price]));
     return Object.entries(counts).reduce((total, [id, num]) => {
         const itemId = Number(id);
-        return total + getItemDef(itemId).value * num * (rates.get(itemId) ?? 1);
+        return total + getItemDef(itemId).price * num * (rates.get(itemId) ?? 1);
     }, 0);
 }
 
@@ -208,8 +216,14 @@ export function getNpcTradeRate(npcId: number, offer: ItemCounts, requested: Ite
         return 0;
     }
     const favorite = npc.favorite[state.reputation] ?? [];
-    const requestedValue = weightedValue(requested, []);
-    return requestedValue > 0 ? weightedValue(offer, favorite) / requestedValue : 0;
+    const finalStorage = { ...state.storage };
+    for (const [id, num] of Object.entries(offer)) {
+        addCount(finalStorage, Number(id), num);
+    }
+    for (const [id, num] of Object.entries(requested)) {
+        addCount(finalStorage, Number(id), -num);
+    }
+    return weightedValue(finalStorage, favorite) / weightedValue(state.storage, favorite);
 }
 
 function countsWeight(counts: ItemCounts): number {
@@ -263,10 +277,15 @@ export function commitNpcTrade(
             addCount(liveState.storage, itemId, -num);
             addCount(live.bag, itemId, num);
         }
+        for (const pos of [0, 1, 2, 3] as const) {
+            const itemId = live.equip[pos];
+            if (itemId !== HAND_ITEM_ID && itemId !== 0 && !live.bag[itemId]) {
+                live.equip[pos] = pos === 1 ? HAND_ITEM_ID : 0;
+            }
+        }
         liveState.tradingCount += 1;
     });
     playEffect(Sound.LOOT);
-    appendSessionLog(`你与${npc.name}完成了一次交换。`);
     gameBusEmit('session_updated');
     return { ok: true };
 }

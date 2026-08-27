@@ -17,6 +17,7 @@ import { mountGateOutNode } from './nodes/gateOutNode';
 import { mountHomeNode } from './nodes/homeNode';
 import { mountMapNode } from './nodes/mapNode';
 import { mountNpcNode } from './nodes/npcNode';
+import { mountNpcStorageNode } from './nodes/npcStorageNode';
 import { mountRadioNode } from './nodes/radioNode';
 import { mountSiteNode } from './nodes/siteNode';
 import { mountSiteStorageNode } from './nodes/siteStorageNode';
@@ -37,6 +38,7 @@ export const NavNode = {
     WORK_ROOM_STORAGE: 'WorkRoomStorageNode',
     RADIO: 'RadioNode',
     NPC: 'NpcNode',
+    NPC_STORAGE: 'NpcStorageNode',
 } as const;
 
 export type NavNodeName = (typeof NavNode)[keyof typeof NavNode];
@@ -105,6 +107,7 @@ const MOUNTERS: Record<string, NodeMounter> = {
     [NavNode.WORK_ROOM_STORAGE]: mountWorkLootNode,
     [NavNode.RADIO]: mountRadioNode,
     [NavNode.NPC]: mountNpcNode,
+    [NavNode.NPC_STORAGE]: mountNpcStorageNode,
 };
 
 export function createNavigationHost(

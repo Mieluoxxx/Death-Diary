@@ -272,7 +272,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
             actionCenterY,
             '同意',
             () => {
-                const result = giveNpcNeed(visit.npcId);
+                const result = giveNpcNeed(visit.npcId, 'storage');
                 if (!result.ok) return;
                 dismiss();
             },
