@@ -71,3 +71,25 @@ Matched the top-left save entry to the menu's white brush-button style, adjusted
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: Restore NPC meeting and trading
+
+**Date**: 2026-08-27
+**Task**: Restore NPC meeting and trading
+**Branch**: `main`
+
+### Summary
+
+Restored the original two-page NPC meeting and trade flow, exact pricing and inventory-source contracts, original-style quantity selection, and a passing Ego E2E scenario.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5ce6544` | (see git log) |
+| `5d6a666` | (see git log) |
+
+### Status
+
+[OK] **Completed**
