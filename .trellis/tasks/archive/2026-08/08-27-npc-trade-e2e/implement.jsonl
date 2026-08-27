@@ -1,0 +1,3 @@
+{"file":".trellis/spec/frontend/state-management.md","reason":"SessionState is canonical; NPC draft state must remain UI-local and commits must go through system APIs."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"The change crosses static config, NPC domain rules, navigation, UI, and E2E contracts."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Reuse the existing equip strip, section bar, item grid, and shared heart rendering instead of duplicating UI primitives."}

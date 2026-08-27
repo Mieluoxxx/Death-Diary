@@ -1,0 +1,2 @@
+{"file":".trellis/spec/frontend/state-management.md","reason":"Verify drafts never mutate SessionState before confirmation and both need-item sources are explicit."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Verify price and NPC state contracts propagate consistently through system and UI layers."}
