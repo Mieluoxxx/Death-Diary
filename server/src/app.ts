@@ -5,12 +5,16 @@ import { createMiddleware } from 'hono/factory';
 import { secureHeaders } from 'hono/secure-headers';
 import type { AuthenticatedUser, SaveRecord, StorageDatabase } from './db';
 import { EMPTY_INITIAL_ITEMS, type InitialItemsConfig } from './initialItems';
+import {
+    isSupportedSaveSchemaVersion,
+    parseCloudSaveEnvelope,
+    SAVE_SCHEMA_VERSION,
+} from '../../src/shared/saveContract';
 
 const AUTH_COOKIE = 'death_diary_session';
 const AUTH_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const MAX_JSON_BYTES = 512 * 1024;
 const MAX_CLIENT_BUILD_LENGTH = 64;
-const SAVE_SCHEMA_VERSION = 1;
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 24;
 const PASSWORD_MIN_LENGTH = 8;
@@ -143,7 +147,7 @@ function parseExpectedRevision(value: unknown): number {
 }
 
 function parseSchemaVersion(value: unknown): number {
-    if (!Number.isInteger(value) || (value as number) !== SAVE_SCHEMA_VERSION) {
+    if (!isSupportedSaveSchemaVersion(value)) {
         throw new ApiError(
             422,
             'unsupported_schema_version',
@@ -328,11 +332,14 @@ export function createApp(options: AppOptions): DeathDiaryApp {
         const user = context.get('authenticatedUser');
         const slot = parseSlot(context.req.param('slot'));
         const body = await readJsonBody(context);
-        if (!isRecord(body) || !isRecord(body.state)) {
+        if (!isRecord(body)) {
             throw new ApiError(422, 'invalid_save', '存档必须包含对象类型的 state。');
         }
         const expectedRevision = parseExpectedRevision(body.expectedRevision);
         const schemaVersion = parseSchemaVersion(body.schemaVersion);
+        if (!parseCloudSaveEnvelope({ schemaVersion, state: body.state })) {
+            throw new ApiError(422, 'invalid_save', '存档必须包含对象类型的 state。');
+        }
         const clientBuild = parseClientBuild(body.clientBuild);
         const stateJson = JSON.stringify(body.state);
         const result = options.database.putSave({

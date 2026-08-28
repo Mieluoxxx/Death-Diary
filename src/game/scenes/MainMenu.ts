@@ -111,7 +111,6 @@ export class MainMenu extends Scene {
         const cloudStatusBg = hasMenuButton
             ? this.add
                   .image(132, 46, 'ui', 'btn_big_white_normal.png')
-                  .setDisplaySize(224, 56)
                   .setInteractive({ useHandCursor: true })
             : this.add
                   .rectangle(132, 46, 224, 48, 0xe8e0d0)
@@ -120,7 +119,7 @@ export class MainMenu extends Scene {
             .text(132, 46, '', {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
-                fontSize: '17px',
+                fontSize: '20px',
                 color: '#111111',
             })
             .setOrigin(0.5);

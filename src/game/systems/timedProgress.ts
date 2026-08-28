@@ -6,7 +6,12 @@
  */
 
 import { gameBusEmit } from './gameBus';
-import { accelerateWorkTime, addTimerCallback, type TimerCallbackHandle } from './timeClock';
+import {
+    accelerateWorkTime,
+    addTimerCallback,
+    removeTimerCallback,
+    type TimerCallbackHandle,
+} from './timeClock';
 
 export type ProgressKind = 'facility' | 'craft' | 'build_upgrade';
 
@@ -68,7 +73,7 @@ export function startTimedProgress(opts: StartTimedProgressOpts): TimedProgressJ
     const key = progressKey(opts.channel);
     const existing = jobs.get(key);
     if (existing?.handle) {
-        // Leave previous timer running if still registered; mark idle so UI drops it.
+        removeTimerCallback(existing.handle);
         existing.isActioning = false;
         existing.handle = null;
     }
@@ -130,4 +135,16 @@ export function clearTimedProgress(channel: ProgressChannel): void {
     job.isActioning = false;
     job.handle = null;
     jobs.delete(key);
+}
+
+/** Clear all transient progress jobs when the owning game scene ends. */
+export function clearAllTimedProgress(): void {
+    for (const job of jobs.values()) {
+        if (job.handle) {
+            removeTimerCallback(job.handle);
+        }
+        job.isActioning = false;
+        job.handle = null;
+    }
+    jobs.clear();
 }

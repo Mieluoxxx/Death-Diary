@@ -75,7 +75,7 @@ type AccountCopy = {
 
 const COPY: Record<LangCode, AccountCopy> = {
     zh: {
-        protectTitle: '保护你的游戏进度',
+        protectTitle: '存档入口',
         protectBody:
             '游戏会一直保存在当前设备。登录账号后，还会自动备份到云端，清除浏览器数据或更换设备后也能恢复。',
         registerAndProtect: '注册并备份存档',
@@ -116,7 +116,7 @@ const COPY: Record<LangCode, AccountCopy> = {
         formatDay: (day) => `第 ${day} 天`,
     },
     'zh-Hant': {
-        protectTitle: '保護你的遊戲進度',
+        protectTitle: '存檔入口',
         protectBody:
             '遊戲會一直儲存在目前裝置。登入帳號後，也會自動備份到雲端，清除瀏覽器資料或更換裝置後仍可恢復。',
         registerAndProtect: '註冊並備份存檔',
@@ -157,7 +157,7 @@ const COPY: Record<LangCode, AccountCopy> = {
         formatDay: (day) => `第 ${day} 天`,
     },
     ja: {
-        protectTitle: 'ゲーム進行を保護',
+        protectTitle: 'セーブ入り口',
         protectBody:
             'ゲームは常にこの端末に保存されます。ログインするとクラウドにも自動バックアップされ、別の端末でも復元できます。',
         registerAndProtect: '登録してバックアップ',
@@ -199,7 +199,7 @@ const COPY: Record<LangCode, AccountCopy> = {
         formatDay: (day) => `${day}日目`,
     },
     en: {
-        protectTitle: 'Protect your progress',
+        protectTitle: 'Save Entry',
         protectBody:
             'Your game is always saved on this device. Sign in to back it up automatically and restore it after clearing browser data or changing devices.',
         registerAndProtect: 'Register and back up',

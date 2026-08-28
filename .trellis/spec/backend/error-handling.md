@@ -1,51 +1,66 @@
 # Error Handling
 
-> How errors are handled in this project.
+## Scope / Trigger
 
----
+The Hono API is the trust boundary for account credentials, save envelopes,
+revision checks, and JSON payload size. Validation must happen before database
+writes.
 
-## Overview
+## Signatures
 
-<!--
-Document your project's error handling conventions here.
+- `createApp(options: AppOptions): DeathDiaryApp`
+- `parseCloudSaveEnvelope<T>(value: unknown): CloudSaveEnvelope<T> | null`
+- `StorageDatabase.putSave(input): WriteResult<SaveRecord>`
 
-Questions to answer:
-- What error types do you define?
-- How are errors propagated?
-- How are errors logged?
-- How are errors returned to clients?
--->
+## Contracts
 
-(To be filled by the team)
+- Known client errors use `{ error: { code, message } }`.
+- `ApiError` carries an HTTP status in `400|401|403|404|409|413|422`.
+- Unknown errors are logged with `console.error` and returned as
+  `internal_error`; credentials, tokens, and save contents are not logged.
+- Save writes require `expectedRevision`, `schemaVersion`, `clientBuild`, and
+  `state: { session: object }`.
+- Revision mismatch returns `409 revision_conflict` with the current record.
 
----
+## Validation & Error Matrix
 
-## Error Types
+| Condition | HTTP / code |
+|---|---|
+| Invalid JSON or oversized body | `422 invalid_json` / `413 payload_too_large` |
+| Unsupported save schema | `422 unsupported_schema_version` |
+| Missing/non-object save session | `422 invalid_save` |
+| Missing/expired auth cookie | `401 unauthorized` |
+| Cross-origin mutating request | `403 origin_forbidden` |
+| Stale save revision | `409 revision_conflict` |
+| Unexpected exception | `500 internal_error` |
 
-<!-- Custom error classes/types -->
+## Good / Base / Bad Cases
 
-(To be filled by the team)
+- Good: parse and validate the shared save envelope, then call
+  `StorageDatabase.putSave` with its revision and hash.
+- Base: return a stable API error body for expected client mistakes.
+- Bad: cast `body.state` and write it before validating `state.session`.
 
----
+## Tests Required
 
-## Error Handling Patterns
+- `server/src/app.test.ts` must cover valid save round-trip, malformed save,
+  unsupported schema, origin rejection, and stale revision conflict.
+- Shared contract tests must cover v1 acceptance and malformed envelopes.
 
-<!-- Try-catch patterns, error propagation -->
+## Wrong vs Correct
 
-(To be filled by the team)
+### Wrong
 
----
+```ts
+const state = body.state as SaveState;
+database.putSave({ stateJson: JSON.stringify(state), ...input });
+```
 
-## API Error Responses
+### Correct
 
-<!-- Standard error response format -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Error handling mistakes your team has made -->
-
-(To be filled by the team)
+```ts
+const schemaVersion = parseSchemaVersion(body.schemaVersion);
+if (!parseCloudSaveEnvelope({ schemaVersion, state: body.state })) {
+    throw new ApiError(422, 'invalid_save', '存档必须包含对象类型的 state。');
+}
+```

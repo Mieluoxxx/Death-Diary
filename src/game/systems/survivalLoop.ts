@@ -28,6 +28,7 @@ import {
     type SessionState,
 } from '../session/sessionStore';
 import { clearCraftRuntime } from './craftSystem';
+import { clearBattle } from './battleSystem';
 import { gameBusEmit } from './gameBus';
 import { runNightRaid } from './nightRaidSystem';
 import { refreshNpcTrading, runNpcDailyVisit } from './npcSystem';
@@ -60,6 +61,7 @@ import {
     startTimeClock,
     stopTimeClock,
 } from './timeClock';
+import { clearAllTimedProgress } from './timedProgress';
 
 const SECONDS_PER_HOUR = 60 * 60;
 const SECONDS_PER_DAY = 24 * 60 * 60;
@@ -122,8 +124,10 @@ export function startSurvivalLoop(): void {
 
 export function stopSurvivalLoop(): void {
     survivalActive = false;
-    stopTimeClock();
+    clearBattle();
+    clearAllTimedProgress();
     clearCraftRuntime();
+    stopTimeClock();
 }
 
 function scheduleDailyHour(hour: number, onFire: () => void): void {

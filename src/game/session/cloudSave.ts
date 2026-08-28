@@ -1,9 +1,9 @@
 import { type AccountUser, getCurrentAccount } from './authStore';
 import type { SessionState } from './sessionStore';
+import { isRecord, parseCloudSaveEnvelope, SAVE_SCHEMA_VERSION } from '../../shared/saveContract';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 const SAVE_SLOT = 0;
-const SAVE_SCHEMA_VERSION = 1;
 const CLIENT_BUILD = 'web-1.1.0';
 const RETRY_DELAY_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 2_500;
@@ -67,10 +67,6 @@ let checkpointQueued = false;
 let blockedByConflict = false;
 let currentStatus: CloudSaveStatus = { state: 'idle' };
 let pendingConflict: CloudSaveConflict | null = null;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function emitStatus(detail: CloudSaveStatus): void {
     currentStatus = detail;
@@ -157,16 +153,16 @@ async function fetchRemoteSave(): Promise<CloudSaveResponse | null> {
         throw new Error(`Cloud save read failed: ${response.status}`);
     }
     const body = (await response.json()) as unknown;
-    if (
-        !isRecord(body) ||
-        !Number.isInteger(body.revision) ||
-        !isRecord(body.state) ||
-        !isRecord(body.state.session)
-    ) {
+    const envelope = parseCloudSaveEnvelope<SessionState>(body);
+    if (!isRecord(body) || !Number.isInteger(body.revision) || !envelope) {
         emitStatus({ state: 'invalid_remote' });
         throw new Error('Cloud save response has an invalid shape.');
     }
-    return body as CloudSaveResponse;
+    return {
+        ...body,
+        schemaVersion: envelope.schemaVersion,
+        state: envelope.state,
+    } as CloudSaveResponse;
 }
 
 async function uploadSession(

@@ -150,6 +150,26 @@ describe('storage API', () => {
             state: {},
         });
         expect(invalid.status).toBe(422);
+        expect(await invalid.json()).toEqual({
+            error: {
+                code: 'unsupported_schema_version',
+                message: '当前服务仅支持 schemaVersion=1。',
+            },
+        });
+
+        const malformed = await putJson(app, '/api/v1/saves/0', cookie, {
+            expectedRevision: 0,
+            schemaVersion: 1,
+            clientBuild: '1.1.0',
+            state: {},
+        });
+        expect(malformed.status).toBe(422);
+        expect(await malformed.json()).toEqual({
+            error: {
+                code: 'invalid_save',
+                message: '存档必须包含对象类型的 state。',
+            },
+        });
 
         const forbidden = await app.request('/api/v1/saves/0', {
             method: 'PUT',

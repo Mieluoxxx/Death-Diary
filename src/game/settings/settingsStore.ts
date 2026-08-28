@@ -129,10 +129,10 @@ export function t(key: string, lan: LangCode = getLanguage()): string {
             en: 'Account & Cloud Save',
         },
         protectSave: {
-            zh: '保护游戏进度',
-            'zh-Hant': '保護遊戲進度',
-            ja: 'セーブを保護',
-            en: 'Protect save',
+            zh: '存档入口',
+            'zh-Hant': '存檔入口',
+            ja: 'セーブ入り口',
+            en: 'Save Entry',
         },
         deviceOnlySave: {
             zh: '存档仅在本机',

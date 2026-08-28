@@ -10,14 +10,17 @@ import {
     stopTimeClock,
     tickTimeClock,
 } from './timeClock';
-import { clearTimedProgress } from './timedProgress';
+import {
+    clearAllTimedProgress,
+    clearTimedProgress,
+    getTimedProgressJob,
+    startTimedProgress,
+} from './timedProgress';
 
 afterEach(() => {
     stopSurvivalLoop();
     stopTimeClock();
-    for (const actionId of [0, 1, 2]) {
-        clearTimedProgress({ kind: 'facility', id: 9, actionId });
-    }
+    clearAllTimedProgress();
     gameBusClear();
 });
 
@@ -229,6 +232,32 @@ describe('time clock callback scheduling', () => {
 });
 
 describe('sleep survival updates', () => {
+    test('replacing a progress job removes the old timer callback', () => {
+        createClockSession();
+        startTimeClock();
+        const channel = { kind: 'facility' as const, id: 9, actionId: 0 };
+        let endCount = 0;
+
+        startTimedProgress({ channel, duration: 3600, onEnd: () => endCount++ });
+        startTimedProgress({ channel, duration: 3600, onEnd: () => endCount++ });
+        tickTimeClock(36);
+
+        expect(endCount).toBe(1);
+    });
+
+    test('clears transient progress jobs without changing session state', () => {
+        const session = createClockSession();
+        startTimeClock();
+        const channel = { kind: 'facility' as const, id: 9, actionId: 0 };
+
+        startTimedProgress({ channel, duration: 3600 });
+
+        expect(getSession()).toBe(session);
+        clearAllTimedProgress();
+        expect(getTimedProgressJob(channel)).toBeNull();
+        expect(() => clearTimedProgress(channel)).not.toThrow();
+    });
+
     test.each([
         { actionId: 0, hours: 1 },
         { actionId: 1, hours: 4 },

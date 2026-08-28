@@ -1,5 +1,7 @@
 # 死亡日记（Death-Diary）
 
+项目结构和状态边界见 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+
 基于 *Buried Town / Buried-City* 的 Phaser 4 + Bun + TypeScript Web 重制版，设计分辨率为 **640×1136**（`Scale.FIT`）。
 
 ![主菜单](screenshot.png)
