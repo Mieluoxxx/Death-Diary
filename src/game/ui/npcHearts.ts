@@ -46,6 +46,8 @@ export function addNpcHearts(
         fills.forEach((fill, index) => {
             fill.setVisible(index < full || (half && index === full));
             fill.setFrame(index < full ? 'icon_heart_full.png' : 'icon_heart_half.png');
+            // setFrame resets origin to the frame pivot (0.5); re-assert left alignment.
+            fill.setOrigin(0, 0.5);
         });
     };
     root.setReputation(reputation);
