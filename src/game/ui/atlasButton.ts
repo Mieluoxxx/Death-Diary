@@ -27,6 +27,9 @@ export function addAtlasButton(
 ): AtlasButton {
     const enabled = opts.enabled !== false;
     const labelSizeTier = opts.labelSizeTier ?? 'COMMON_2';
+    // 原版 createCommonBtnBlack/White：黑按钮白字、白按钮黑字。漏传 labelColor 时按 frame 自适应，
+    // 避免黑按钮拿到深色默认字（历史 bug：黑底深字几乎不可见）。
+    const defaultLabelColor = /white/i.test(opts.frame) ? '#111' : '#f5f0e6';
     const img = scene.add.image(0, 0, opts.atlas, opts.frame);
     img.setInteractive({ useHandCursor: enabled });
 
@@ -40,7 +43,7 @@ export function addAtlasButton(
                 0,
                 opts.label,
                 uiSpriteBtnTextStyle(labelSizeTier, {
-                    color: opts.labelColor ?? (enabled ? '#111' : '#666'),
+                    color: opts.labelColor ?? defaultLabelColor,
                 }),
             )
             .setOrigin(0.5);
@@ -82,7 +85,7 @@ export function addAtlasButton(
                 0,
                 label,
                 uiSpriteBtnTextStyle(labelSizeTier, {
-                    color: opts.labelColor ?? (enabled ? '#111' : '#666'),
+                    color: opts.labelColor ?? defaultLabelColor,
                 }),
             )
             .setOrigin(0.5);
