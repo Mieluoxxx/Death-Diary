@@ -1,0 +1,3 @@
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"本任务核心是消除节点间复制粘贴：quantityDialog/takeAllButton 共享件必须被多处复用，不得再内联。"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"转移必须走 systems API（transferItems/transferAll），UI 层不得直接改 SessionState；滑条确认回调同规。"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"新增共享组件遵循文件内代码风格与禁止模式约束。"}

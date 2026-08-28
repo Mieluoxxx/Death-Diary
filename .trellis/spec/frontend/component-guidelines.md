@@ -6,17 +6,28 @@
 
 ## Overview
 
-<!--
-Document your project's component conventions here.
+Phaser UI is built from mountable node modules under `src/game/ui/nodes/` sharing small
+factory helpers under `src/game/ui/` (e.g. `mountItemGrid`, `mountEquipStrip`,
+`addSectionBar`, `openQuantityDialog`, `addTakeAllButton`). A node module receives a
+`NodeMountContext` and returns a `NodeMountResult` (nav callbacks + `destroy`).
 
-Questions to answer:
-- What component patterns do you use?
-- How are props defined?
-- How do you handle composition?
-- What accessibility standards apply?
--->
+### Double-panel transfer contract (original `ItemChangeNode`)
 
-(To be filled by the team)
+All bag ↔ storage/box/site pages must follow the same interaction contract, sourced from
+the original Buried-City `ItemChangeNode.js`:
+
+- single tap on an item → transfer 1 (via `transferItems`/`transferAll` in `systems/inventory`, never direct `SessionState` mutation)
+- long press (≥450ms, handled by `mountItemGrid` `onInspect`) → shared `openQuantityDialog`
+  (slider fill width scales with `value/max`, left-aligned, POPUP sound — mirrors original `cc.ControlSlider`)
+- optional take-all button → shared `addTakeAllButton`; guide highlight stays with the caller
+
+Do NOT re-implement these inline in a node; wire the shared helpers instead. Exception:
+home storage (`storageNode.ts`) opens the item detail dialog — the original uses
+`showItemDialog` there, which is a different contract, not a deviation.
+
+When porting original UI, derive geometry from Cocos y-up coordinates per container
+(anchor + position), not by eyeballing screenshots; record per-item conclusions in the
+task's `research/audit.md` with aligned/kept-and-why verdicts.
 
 ---
 

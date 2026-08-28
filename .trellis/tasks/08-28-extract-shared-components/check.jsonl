@@ -1,0 +1,2 @@
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"验证重复实现已消除、共享组件无反向复制。"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"验证所有转移路径仍通过 systems API，无 SessionState 直改。"}

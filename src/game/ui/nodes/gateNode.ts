@@ -11,10 +11,9 @@ import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferItems } from '../../systems/inventory';
 import { playerOut } from '../../systems/mapSystem';
 import { mountEquipStrip } from '../equipStrip';
-import { createItemDetailModel } from '../itemDetailContext';
-import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
+import { openQuantityDialog } from '../quantityDialog';
 import { addSectionBar } from '../sectionBar';
 import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
 import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
@@ -75,16 +74,13 @@ export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
         },
         onInspect: (itemId) => {
             equip.closeDropDown();
-            openItemDetailDialog(
-                ctx.scene,
-                createItemDetailModel(
-                    itemId,
-                    { kind: 'bag' },
-                    {
-                        onToast: (msg) => ctx.showToast(msg),
-                    },
-                ),
-            );
+            openQuantityDialog(ctx.scene, itemId, getSession()?.bag?.[itemId] ?? 1, (amount) => {
+                const res = transferItems('bag', 'storage', itemId, amount);
+                if (!res.ok) {
+                    ctx.showToast(transferFailMessage(res));
+                }
+                refresh();
+            });
         },
     });
 
@@ -110,15 +106,17 @@ export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
         },
         onInspect: (itemId) => {
             equip.closeDropDown();
-            openItemDetailDialog(
+            openQuantityDialog(
                 ctx.scene,
-                createItemDetailModel(
-                    itemId,
-                    { kind: 'storage' },
-                    {
-                        onToast: (msg) => ctx.showToast(msg),
-                    },
-                ),
+                itemId,
+                getSession()?.storage?.[itemId] ?? 1,
+                (amount) => {
+                    const res = transferItems('storage', 'bag', itemId, amount);
+                    if (!res.ok) {
+                        ctx.showToast(transferFailMessage(res));
+                    }
+                    refresh();
+                },
             );
         },
     });
