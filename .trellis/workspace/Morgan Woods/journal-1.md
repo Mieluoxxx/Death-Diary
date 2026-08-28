@@ -93,3 +93,24 @@ Restored the original two-page NPC meeting and trade flow, exact pricing and inv
 ### Status
 
 [OK] **Completed**
+
+
+## Session 5: 抽取数量滑条/全部拿取共享组件并对齐原版双栏转移交互
+
+**Date**: 2026-08-28
+**Task**: 抽取数量滑条/全部拿取共享组件并对齐原版双栏转移交互
+**Branch**: `main`
+
+### Summary
+
+对齐原版 ItemChangeNode 契约：workLoot/siteStorage 长按接入共享 openQuantityDialog（填充条比例伸缩+POPUP 音效+DialogBig 排版），gate/npcStorage 复用同一滑条；新增 takeAllButton 共享组件消除两处重复；家仓库保留物品详情语义并记录审计理由（research/audit.md）。typecheck/lint/build 全绿。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `37c4adf` | (see git log) |
+
+### Status
+
+[OK] **Completed**
