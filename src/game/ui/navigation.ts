@@ -23,7 +23,7 @@ import { mountSiteNode } from './nodes/siteNode';
 import { mountSiteStorageNode } from './nodes/siteStorageNode';
 import { mountStorageNode } from './nodes/storageNode';
 import { mountWorkLootNode } from './nodes/workLootNode';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
+import { uiTextStyle } from './uiFont';
 import { addGuideWarn, type GuideWarnHandle } from './userGuideUi';
 export const NavNode = {
     HOME: 'HomeNode',
@@ -148,9 +148,7 @@ export function createNavigationHost(
     const titleY = toScreenY(ACTION_BAR_LOCAL_Y);
     const titleText = scene.add
         .text(width / 2, titleY, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+            ...uiTextStyle('COMMON_1'),
             color: '#ffffff',
         })
         .setOrigin(0.5);
@@ -256,9 +254,7 @@ export function createNavigationHost(
     root.add(rightBtn);
     rightLabel = scene.add
         .text(toScreenX(BG_WIDTH - 60), titleY + 28, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: '14px',
+            ...uiTextStyle(14),
             color: '#dddddd',
         })
         .setOrigin(0.5, 0)
@@ -367,9 +363,7 @@ export function createNavigationHost(
             content.add(
                 scene.add
                     .text(width / 2, height / 2, `未实现: ${nodeName}`, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: '20px',
+                        ...uiTextStyle(20),
                         color: '#fff',
                     })
                     .setOrigin(0.5),

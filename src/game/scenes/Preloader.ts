@@ -2,7 +2,7 @@ import { Scene } from 'phaser';
 import { PRELOAD_ATLAS_KEYS } from '../assets/frames.gen';
 import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import { bindAudio, queueStartupAudio } from '../systems/audioManager';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
+import { uiTextStyle } from '../ui/uiFont';
 
 export class Preloader extends Scene {
     constructor() {
@@ -21,9 +21,7 @@ export class Preloader extends Scene {
 
         this.add
             .text(width / 2, height / 2 - 40, '加载资源…', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '18px',
+                ...uiTextStyle(18),
                 color: '#cccccc',
             })
             .setOrigin(0.5);

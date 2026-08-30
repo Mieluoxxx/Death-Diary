@@ -19,12 +19,12 @@ import { currentRoom, flushTempToSite, getSite } from '../../systems/mapSystem';
 import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import { mountEquipStrip } from '../equipStrip';
-import { addTakeAllButton } from '../takeAllButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { openQuantityDialog } from '../quantityDialog';
 import { addSectionBar } from '../sectionBar';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { addTakeAllButton } from '../takeAllButton';
+import { uiTextStyle } from '../uiFont';
 import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
 import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
 
@@ -66,9 +66,7 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
 
     const weightText = ctx.scene.add
         .text(bgLeft + ctx.bgWidth - 18, bagSectionCy, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+            ...uiTextStyle('COMMON_2'),
             color: '#111111',
         })
         .setOrigin(1, 0.5);
@@ -144,13 +142,18 @@ export function mountWorkLootNode(ctx: NodeMountContext): NodeMountResult {
         },
         onInspect: (itemId) => {
             equip.closeDropDown();
-            openQuantityDialog(ctx.scene, itemId, getSession()?.tempLoot?.[itemId] ?? 1, (amount) => {
-                const res = transferItems('temp', 'bag', itemId, amount, siteId);
-                if (!res.ok) {
-                    ctx.showToast(transferFailMessage(res));
-                }
-                refresh();
-            });
+            openQuantityDialog(
+                ctx.scene,
+                itemId,
+                getSession()?.tempLoot?.[itemId] ?? 1,
+                (amount) => {
+                    const res = transferItems('temp', 'bag', itemId, amount, siteId);
+                    if (!res.ok) {
+                        ctx.showToast(transferFailMessage(res));
+                    }
+                    refresh();
+                },
+            );
         },
     });
 

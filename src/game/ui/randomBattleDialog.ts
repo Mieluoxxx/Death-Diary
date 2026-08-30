@@ -24,7 +24,7 @@ import { EquipPosMap } from '../systems/inventory';
 import { isLowVigour } from '../systems/playerAttrs';
 import { pauseTimeClock, resumeTimeClock } from '../systems/timeClock';
 import { addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 
 const DIALOG_FRAME = 'dialog_big_bg.png';
 const DIALOG_WIDTH = 448;
@@ -157,9 +157,7 @@ export function openRandomBattleDialog(
     root.add(
         scene.add
             .text(titleTextX, titleTopY + TITLE_HEIGHT / 2, '遭遇僵尸！', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#111111',
             })
             .setOrigin(0, 0.5),
@@ -193,7 +191,12 @@ export function openRandomBattleDialog(
 
             if (hasFrame(scene, 'dig_monster', 'monster_dig_mid_bg.png')) {
                 const mid = scene.add
-                    .image(bgCenterX, dig.y + dig.displayHeight / 2, 'dig_monster', 'monster_dig_mid_bg.png')
+                    .image(
+                        bgCenterX,
+                        dig.y + dig.displayHeight / 2,
+                        'dig_monster',
+                        'monster_dig_mid_bg.png',
+                    )
                     .setOrigin(0.5)
                     .setScale(0.8);
                 contentLayer.add(mid);
@@ -222,9 +225,7 @@ export function openRandomBattleDialog(
             .setInteractive({ useHandCursor: true });
         const text = scene.add
             .text(x, actionCenterY, label, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);
@@ -240,9 +241,7 @@ export function openRandomBattleDialog(
         const desText = BATTLE_DES[difficulty - 1] ?? BATTLE_DES[0]!;
         const des = scene.add
             .text(textLeft, belowDig, desText, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
                 wordWrap: uiWordWrap(textWidth),
             })
@@ -267,9 +266,7 @@ export function openRandomBattleDialog(
 
         const equipLabel = scene.add
             .text(textLeft, cursorY, '你的装备:', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
             })
             .setOrigin(0, 0);
@@ -312,9 +309,7 @@ export function openRandomBattleDialog(
         contentLayer.add(
             scene.add
                 .text(textLeft, cursorY, `威胁等级: ${difficulty}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#b01010',
                 })
                 .setOrigin(0, 0),
@@ -324,9 +319,7 @@ export function openRandomBattleDialog(
         if (!hasWeapon) {
             const warn = scene.add
                 .text(textLeft, cursorY, '你没有装备任何武器，只能徒手进攻！', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#b01010',
                     wordWrap: uiWordWrap(textWidth),
                 })
@@ -338,9 +331,7 @@ export function openRandomBattleDialog(
             contentLayer.add(
                 scene.add
                     .text(textLeft, cursorY, '你的精力值过低，攻击速度降为50%！', {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: '#b01010',
                         wordWrap: uiWordWrap(textWidth),
                     })
@@ -374,20 +365,14 @@ export function openRandomBattleDialog(
                 ? scene.textures.get('ui').get('pb.png').width
                 : bg.width - 4;
             if (hasFrame(scene, 'ui', 'pb.png')) {
-                fill = scene.add
-                    .image(bg.x - fillMax / 2, bg.y, 'ui', 'pb.png')
-                    .setOrigin(0, 0.5);
+                fill = scene.add.image(bg.x - fillMax / 2, bg.y, 'ui', 'pb.png').setOrigin(0, 0.5);
                 fill.setCrop(0, 0, 1, fill.height);
                 fill.setVisible(false);
                 actionLayer.add(fill);
             }
         } else {
-            actionLayer.add(
-                scene.add.rectangle(bgCenterX, pbY, 268, 17, 0x333333).setOrigin(0.5),
-            );
-            fill = scene.add
-                .rectangle(bgCenterX - 132, pbY, 1, 13, 0xc4a35a)
-                .setOrigin(0, 0.5);
+            actionLayer.add(scene.add.rectangle(bgCenterX, pbY, 268, 17, 0x333333).setOrigin(0.5));
+            fill = scene.add.rectangle(bgCenterX - 132, pbY, 1, 13, 0xc4a35a).setOrigin(0, 0.5);
             actionLayer.add(fill);
             bgTop = pbY - 8;
         }
@@ -395,9 +380,7 @@ export function openRandomBattleDialog(
         const countLabel = !isDodge
             ? scene.add
                   .text(bgCenter + 134, bgTop - 4, `僵尸数量:${totalMon}/${totalMon}`, {
-                      fontFamily: UI_FONT_FAMILY,
-                      resolution: UI_TEXT_RESOLUTION,
-                      fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                      ...uiTextStyle('COMMON_3'),
                       color: '#111111',
                   })
                   .setOrigin(1, 1)
@@ -412,7 +395,11 @@ export function openRandomBattleDialog(
                 if (!fill) {
                     return;
                 }
-                if ('setCrop' in fill && typeof fill.setCrop === 'function' && hasFrame(scene, 'ui', 'pb.png')) {
+                if (
+                    'setCrop' in fill &&
+                    typeof fill.setCrop === 'function' &&
+                    hasFrame(scene, 'ui', 'pb.png')
+                ) {
                     const img = fill as GameObjects.Image;
                     const w = Math.max(1, Math.round(fillMax * p));
                     img.setCrop(0, 0, w, img.height);
@@ -449,9 +436,7 @@ export function openRandomBattleDialog(
             const y = logBottom - i * lineH;
             const label = scene.add
                 .text(textLeft, y, '', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                     wordWrap: uiWordWrap(textWidth),
                 })
@@ -466,7 +451,9 @@ export function openRandomBattleDialog(
                 const label = logLabels[i]!;
                 if (entry) {
                     label.setText(entry.text);
-                    label.setColor(entry.color && entry.color !== '#ffffff' ? entry.color : '#111111');
+                    label.setColor(
+                        entry.color && entry.color !== '#ffffff' ? entry.color : '#111111',
+                    );
                 } else {
                     label.setText('');
                 }
@@ -588,9 +575,7 @@ export function openRandomBattleDialog(
               : '战斗失败';
         const des = scene.add
             .text(textLeft, belowDig, title, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
                 wordWrap: uiWordWrap(textWidth),
             })
@@ -607,21 +592,22 @@ export function openRandomBattleDialog(
         }
         contentLayer.add(
             scene.add
-                .text(textLeft, y, costParts.length ? `消耗: ${costParts.join('，')}` : '消耗: 无', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
-                    color: '#111111',
-                })
+                .text(
+                    textLeft,
+                    y,
+                    costParts.length ? `消耗: ${costParts.join('，')}` : '消耗: 无',
+                    {
+                        ...uiTextStyle('COMMON_3'),
+                        color: '#111111',
+                    },
+                )
                 .setOrigin(0, 0),
         );
         y += 26;
         contentLayer.add(
             scene.add
                 .text(textLeft, y, `损失: 生命 ${result.playerHarm ?? 0}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                 })
                 .setOrigin(0, 0),

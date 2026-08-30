@@ -4,7 +4,7 @@ import { getPurchaseConfig } from '../data/purchaseList';
 import { getLanguage, t } from '../settings/settingsStore';
 import { isIapUnlocked, unlockIap } from '../systems/iapStore';
 import { addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 
 /**
  * Port of Buried-City PayDialog (DialogBig) used by shop pay item taps.
@@ -112,9 +112,7 @@ export function openPayDialog(
     root.add(
         scene.add
             .text(titleTextX, titleTopY + 18, name, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#111111',
                 wordWrap: uiWordWrap(titleWrap),
                 maxLines: 2,
@@ -126,9 +124,7 @@ export function openPayDialog(
     root.add(
         scene.add
             .text(bgLeft + DIALOG_WIDTH - LEFT_EDGE, titleTopY + TITLE_HEIGHT - 28, priceStr, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#111111',
             })
             .setOrigin(1, 0.5),
@@ -150,9 +146,7 @@ export function openPayDialog(
     let cursorY = contentTopY + 12;
     const desText = scene.add
         .text(textLeft, cursorY, des, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#111111',
             wordWrap: uiWordWrap(textWidth),
             lineSpacing: 4,
@@ -165,9 +159,7 @@ export function openPayDialog(
         root.add(
             scene.add
                 .text(textLeft, cursorY, effect, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#b01010',
                     wordWrap: uiWordWrap(textWidth),
                     lineSpacing: 4,
@@ -234,9 +226,7 @@ export function openPayDialog(
             .setInteractive({ useHandCursor: enabled });
         const text = scene.add
             .text(x, btnY, label, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);

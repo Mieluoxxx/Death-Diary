@@ -5,16 +5,16 @@
 
 import { type GameObjects, Scene } from 'phaser';
 import { getSession } from '../session/sessionStore';
+import { applyDeathMusic } from '../systems/audioManager';
 import {
     consumeFirstAidKit,
     countFirstAidKits,
     formatSurvivalDuration,
     relivePlayer,
 } from '../systems/deathSystem';
-import { applyDeathMusic } from '../systems/audioManager';
 import { stopSurvivalLoop } from '../systems/survivalLoop';
 import { addAtlasButton } from '../ui/atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { uiTextStyle, uiWordWrap } from '../ui/uiFont';
 
 const BG_WIDTH = 596;
 const BG_BOTTOM_OFFSET = 18;
@@ -54,9 +54,7 @@ export class DeathScene extends Scene {
         // Title bar: 死亡
         this.add
             .text(bgCenterX, bgBottomY - 803, '死亡', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#ffffff',
             })
             .setOrigin(0.5);
@@ -81,9 +79,7 @@ export class DeathScene extends Scene {
         const duration = formatSurvivalDuration(session);
         this.add
             .text(bgCenterX, digBottom, `在勉强生存了${duration}后，你终于倒下了`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#ffffff',
                 align: 'center',
                 wordWrap: uiWordWrap(BG_WIDTH - 80),
@@ -98,9 +94,7 @@ export class DeathScene extends Scene {
         if (hasKit) {
             this.add
                 .text(bgCenterX, btnY - 48, `你有${kitCount}个急救包`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#ffffff',
                 })
                 .setOrigin(0.5, 1);
@@ -115,9 +109,7 @@ export class DeathScene extends Scene {
         } else {
             this.add
                 .text(bgCenterX, btnY - 48, '你有0个急救包', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#aaaaaa',
                 })
                 .setOrigin(0.5, 1);
@@ -154,9 +146,7 @@ export class DeathScene extends Scene {
             .setInteractive({ useHandCursor: true });
         const text = this.add
             .text(x, y, label, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '22px',
+                ...uiTextStyle(22),
                 color: '#111111',
             })
             .setOrigin(0.5);

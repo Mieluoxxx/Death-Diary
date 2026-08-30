@@ -17,7 +17,7 @@ import { createItemDetailModel } from '../itemDetailContext';
 import { openItemDetailDialog } from '../itemDialog';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { isScrollTap, mountScrollViewport, type ScrollViewportHandle } from '../scrollViewport';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { uiTextStyle } from '../uiFont';
 import { addGuideWarn } from '../userGuideUi';
 import {
     ITEM_CELL_PITCH_X,
@@ -173,9 +173,7 @@ export function mountStorageNode(ctx: NodeMountContext): NodeMountResult {
             scroll.content.add(
                 ctx.scene.add
                     .text(8, y + SECTION_TITLE_H / 2, sec.title, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                        ...uiTextStyle('COMMON_2'),
                         color: '#ffffff',
                     })
                     .setOrigin(0, 0.5),
@@ -197,9 +195,7 @@ export function mountStorageNode(ctx: NodeMountContext): NodeMountResult {
             scroll.content.add(
                 ctx.scene.add
                     .text(tableWidth / 2, 40, '仓库空空如也', {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: '#888888',
                     })
                     .setOrigin(0.5, 0),
@@ -263,9 +259,7 @@ function addItemCell(
     cell.add(
         ctx.scene.add
             .text(half - 4, half - 4, String(num), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 3,

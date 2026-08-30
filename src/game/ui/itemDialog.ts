@@ -10,7 +10,7 @@ import { playPopup } from '../systems/audioManager';
 import { advanceGuide, GuideStep, isGuideStep } from '../systems/userGuide';
 import { addAtlasButton } from './atlasButton';
 import type { ItemDetailModel } from './itemDetailContext';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 import { addGuideWarn } from './userGuideUi';
 
 const DIALOG_FRAME = 'dialog_big_bg.png';
@@ -101,9 +101,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
     root.add(
         scene.add
             .text(titleX, titleTopY, title, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#111111',
                 wordWrap: uiWordWrap(bgLeft + DIALOG_WIDTH - LEFT_EDGE - titleX),
                 maxLines: 1,
@@ -114,9 +112,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
     root.add(
         scene.add
             .text(titleX, titleTopY + 40, `库存:${count}`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
             })
             .setOrigin(0, 0),
@@ -147,9 +143,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
     root.add(
         scene.add
             .text(textLeft, desY, description, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
                 wordWrap: uiWordWrap(textWidth),
                 lineSpacing: 4,
@@ -234,9 +228,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
             .setInteractive({ useHandCursor: true });
         const useText = scene.add
             .text(bgCenterX - 90, actionCenterY, '返回', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);
@@ -246,9 +238,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
             .setInteractive({ useHandCursor: true });
         const closeText = scene.add
             .text(bgCenterX + 90, actionCenterY, primaryAction.label, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);
@@ -260,9 +250,7 @@ export function openItemDetailDialog(scene: Scene, model: ItemDetailModel): Game
             .setInteractive({ useHandCursor: true });
         const fallbackText = scene.add
             .text(bgCenterX, actionCenterY, '知道了', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);

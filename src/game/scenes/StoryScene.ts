@@ -2,7 +2,7 @@ import { Scene } from 'phaser';
 import { HOME_ATLAS_KEYS } from '../assets/atlasManifest';
 import { applyLinearFilter, queuePreloadAtlases } from '../assets/loadAtlas';
 import { queueGameAudio } from '../systems/audioManager';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { uiTextStyle, uiWordWrap } from '../ui/uiFont';
 
 /**
  * Port of Buried-City StoryScene.js StoryLayer.
@@ -50,9 +50,7 @@ export class StoryScene extends Scene {
         const textTop = 550;
         const poem = this.add
             .text(width / 2, textTop, LINES.join('\n'), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#ffffff',
                 align: 'left',
                 lineSpacing: 8,
@@ -63,9 +61,7 @@ export class StoryScene extends Scene {
 
         const author = this.add
             .text(width / 2 + 80, textTop + poem.height + 12, '——Cissy Liu', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '18px',
+                ...uiTextStyle(18),
                 color: '#ffffff',
             })
             .setOrigin(1, 0)
@@ -73,9 +69,7 @@ export class StoryScene extends Scene {
 
         this.loadingLabel = this.add
             .text(width / 2, height - 80, '正在加载避难所…', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '18px',
+                ...uiTextStyle(18),
                 color: '#888888',
             })
             .setOrigin(0.5)

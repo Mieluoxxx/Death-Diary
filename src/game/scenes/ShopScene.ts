@@ -5,7 +5,7 @@ import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { isIapUnlocked } from '../systems/iapStore';
 import { addAtlasButton } from '../ui/atlasButton';
 import { openPayDialog } from '../ui/payDialog';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { uiTextStyle, uiWordWrap } from '../ui/uiFont';
 
 /**
  * Port of Buried-City ShopScene / ShopLayer (main-menu permanent IAP list).
@@ -187,9 +187,7 @@ export class ShopScene extends Scene {
                 .setDepth(DEPTH_BACK);
             this.add
                 .text(width / 2, backY, t('return', lan), {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '20px',
+                    ...uiTextStyle(20),
                     color: '#111',
                 })
                 .setOrigin(0.5)
@@ -229,9 +227,7 @@ export class ShopScene extends Scene {
         root.add(
             this.add
                 .text(0, toLocalY(218), t(`p_${purchaseId}_name`, lan), {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#111111',
                     align: 'center',
                     wordWrap: uiWordWrap(NODE_WIDTH - 16),
@@ -266,9 +262,7 @@ export class ShopScene extends Scene {
                 toLocalY(26),
                 getPurchaseConfig(purchaseId).productPriceStr,
                 {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#111111',
                 },
             )
@@ -277,9 +271,7 @@ export class ShopScene extends Scene {
 
         const unlockLabel = this.add
             .text(0, toLocalY(118), t('unlocked', lan), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '36px',
+                ...uiTextStyle(36),
                 color: '#f5f0e6',
                 stroke: '#000000',
                 strokeThickness: 6,

@@ -12,7 +12,7 @@ import {
 } from '../settings/settingsStore';
 import { playClick, setMusicEnabled, setSfxEnabled } from '../systems/audioManager';
 import { addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from './uiFont';
+import { uiTextStyle } from './uiFont';
 
 type SelectorKind = 'music' | 'sfx' | 'language' | null;
 
@@ -106,9 +106,7 @@ export function openSettingLayer(
     let selectorKind: SelectorKind = null;
 
     const labelStyle = {
-        fontFamily: UI_FONT_FAMILY,
-        resolution: UI_TEXT_RESOLUTION,
-        fontSize: '20px',
+        ...uiTextStyle(20),
         color: '#ffffff',
     };
     const py = (cocosY: number) => height - cocosY;
@@ -160,9 +158,7 @@ export function openSettingLayer(
 
         const label = scene.add
             .text(0, 0, title, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#111111',
             })
             .setOrigin(0.5);
@@ -412,9 +408,7 @@ export function openSettingLayer(
     if (!confirmLabel) {
         confirmLabel = scene.add
             .text(0, 0, t('confirm', pendingLan), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '28px',
+                ...uiTextStyle(28),
                 color: '#111',
             })
             .setOrigin(0.5);

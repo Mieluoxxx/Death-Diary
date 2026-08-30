@@ -17,7 +17,7 @@ import { mountEquipStrip } from '../equipStrip';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { openQuantityDialog } from '../quantityDialog';
 import { addSectionBar } from '../sectionBar';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { UI_FONT_SIZE, uiTextStyle } from '../uiFont';
 import { ITEM_GRID_COLUMNS, mountItemGrid } from './itemGrid';
 
 const RATE_LABELS = [
@@ -135,9 +135,7 @@ export function mountNpcStorageNode(ctx: NodeMountContext): NodeMountResult {
     addSectionBar(ctx, bgLeft, bagSectionY, ctx.bgWidth, '背包');
     const weightText = ctx.scene.add
         .text(bgLeft + ctx.bgWidth - 18, bagSectionY, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2 + 4}px`,
+            ...uiTextStyle(UI_FONT_SIZE.COMMON_2 + 4),
             color: '#111111',
         })
         .setOrigin(1, 0.5);
@@ -195,9 +193,7 @@ export function mountNpcStorageNode(ctx: NodeMountContext): NodeMountResult {
     addSectionBar(ctx, bgLeft, npcSectionY, ctx.bgWidth, npc.name);
     const rateText = ctx.scene.add
         .text(bgLeft + ctx.bgWidth - 188, npcSectionY, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+            ...uiTextStyle('COMMON_2'),
             color: '#111111',
         })
         .setOrigin(1, 0.5)

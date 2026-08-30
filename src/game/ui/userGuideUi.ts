@@ -1,7 +1,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { skipGuide } from '../systems/userGuide';
 import { addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 
 export type GuideWarnHandle = { destroy: () => void };
 
@@ -47,9 +47,7 @@ export function addGuideWarn(scene: Scene, target: BoundsTarget): GuideWarnHandl
         root.add(
             scene.add
                 .text(0, 0, '!', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '24px',
+                    ...uiTextStyle(24),
                     color: '#111111',
                 })
                 .setOrigin(0.5),
@@ -120,9 +118,7 @@ export function showGuideDialog(
     root.add(
         scene.add
             .text(panelX, textY, options.text, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '22px',
+                ...uiTextStyle(22),
                 color: '#111111',
                 lineSpacing: 8,
                 align: 'left',
@@ -134,9 +130,7 @@ export function showGuideDialog(
     root.add(
         scene.add
             .text(panelX, panelY + panelH / 2 - 42, '点击继续', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '18px',
+                ...uiTextStyle(18),
                 color: '#555555',
             })
             .setOrigin(0.5),

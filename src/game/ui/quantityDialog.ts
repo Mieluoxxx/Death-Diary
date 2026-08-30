@@ -8,7 +8,7 @@ import { ITEM_STRINGS } from '../data/buildStrings';
 import { getItemDef } from '../data/itemConfig';
 import { playEffect, Sound } from '../systems/audioManager';
 import { type AtlasButton, addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 
 export function openQuantityDialog(
     scene: Scene,
@@ -56,9 +56,7 @@ export function openQuantityDialog(
     // DialogCommon title: y = titleNode.height/2 → center baseline bgTop+45.
     const title = scene.add
         .text(titleX, bgTop + 45, item.name, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+            ...uiTextStyle('COMMON_1'),
             color: '#111111',
         })
         .setOrigin(0, 0.5);
@@ -66,9 +64,7 @@ export function openQuantityDialog(
     // DialogCommon txt_1/txt_2 (COMMON_3): top-anchored 2px below the title,
     // weight first, count 35px after txt_1.
     const infoStyle = {
-        fontFamily: UI_FONT_FAMILY,
-        resolution: UI_TEXT_RESOLUTION,
-        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+        ...uiTextStyle('COMMON_3'),
         color: '#111111',
     };
     const infoY = bgTop + 45 + title.height / 2 + 2;
@@ -91,9 +87,7 @@ export function openQuantityDialog(
         root.add(
             scene.add
                 .text(textLeft, descriptionY, description, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                     wordWrap: uiWordWrap(panelW - 40),
                     lineSpacing: 4,

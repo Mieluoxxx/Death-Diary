@@ -20,7 +20,7 @@ import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { mountSiteChromeCaptions } from '../siteChrome';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { uiTextStyle, uiWordWrap } from '../uiFont';
 
 const LEFT_EDGE = 40;
 const CONTENT_TOP = 770;
@@ -68,9 +68,7 @@ export function mountAdSiteNode(ctx: NodeMountContext): NodeMountResult {
         ctx.content.add(
             ctx.scene.add
                 .text(ctx.width / 2, digBottom + 40, cfg.des, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(rightEdge - leftEdge),
@@ -138,10 +136,7 @@ export function mountAdSiteNode(ctx: NodeMountContext): NodeMountResult {
     });
     ctx.content.add(storageBtn);
 
-    if (
-        site?.haveNewItems &&
-        hasFrame(ctx, 'map', 'map_actor.png')
-    ) {
+    if (site?.haveNewItems && hasFrame(ctx, 'map', 'map_actor.png')) {
         notifyIcon = ctx.scene.add
             .image(ctx.width / 2 + 70, btnY - 18, 'map', 'map_actor.png')
             .setOrigin(0.5)

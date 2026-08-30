@@ -32,7 +32,7 @@ import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { formatSiteProgress, mountSiteChromeCaptions } from '../siteChrome';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { uiTextStyle, uiWordWrap } from '../uiFont';
 import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
 
 const LOG_LINES = 7;
@@ -130,9 +130,7 @@ export function mountBattleNode(ctx: NodeMountContext): NodeMountResult {
         ctx.content.add(
             ctx.scene.add
                 .text(ctx.width / 2, ctx.height / 2, '没有可进入的房间', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '20px',
+                    ...uiTextStyle(20),
                     color: '#ccc',
                 })
                 .setOrigin(0.5),
@@ -162,9 +160,7 @@ function mountBattleBegin(
     const desText = BATTLE_DES[difficulty - 1] ?? BATTLE_DES[0]!;
     const des = ctx.scene.add
         .text(ctx.width / 2, belowDig + 20, desText, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+            ...uiTextStyle('COMMON_2'),
             color: '#ffffff',
             align: 'center',
             wordWrap: uiWordWrap(ctx.bgWidth - 80),
@@ -193,9 +189,7 @@ function mountBattleBegin(
     // 你的装备:
     const equipLabel = ctx.scene.add
         .text(left, cursorY, '你的装备:', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#ffffff',
         })
         .setOrigin(0, 0);
@@ -248,9 +242,7 @@ function mountBattleBegin(
     // 威胁等级: N (red)
     const threat = ctx.scene.add
         .text(left, cursorY, `威胁等级: ${difficulty}`, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#ff3333',
         })
         .setOrigin(0, 0);
@@ -261,9 +253,7 @@ function mountBattleBegin(
     if (!hasWeapon) {
         const warn = ctx.scene.add
             .text(left, cursorY, '你没有装备任何武器，只能徒手进攻！', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#ff3333',
                 wordWrap: uiWordWrap(ctx.bgWidth - 80),
             })
@@ -277,9 +267,7 @@ function mountBattleBegin(
         ctx.content.add(
             ctx.scene.add
                 .text(left, cursorY, '你的精力值过低，攻击速度降为50%！', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#ff3333',
                     wordWrap: uiWordWrap(ctx.bgWidth - 80),
                 })
@@ -393,9 +381,7 @@ function placeBottomProgress(
     const countLabel = showCount
         ? ctx.scene.add
               .text(bgCenterX + 134, bgTopY - 5, '', {
-                  fontFamily: UI_FONT_FAMILY,
-                  resolution: UI_TEXT_RESOLUTION,
-                  fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                  ...uiTextStyle('COMMON_3'),
                   color: '#ffffff',
               })
               .setOrigin(1, 1)
@@ -493,9 +479,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
     ctx.content.add(
         ctx.scene.add
             .text(ctx.width / 2, digBottom + 20, WORK_DES[wt] ?? WORK_DES[0]!, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#ffffff',
                 align: 'center',
                 wordWrap: uiWordWrap(ctx.bgWidth - 80),
@@ -578,9 +562,7 @@ function mountWorkBegin(ctx: NodeMountContext, siteId: number, workType: number)
         ctx.content.add(
             ctx.scene.add
                 .text(x, btnY + iconW / 2 + 10, `耗时:${minutes}m`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#ffffff',
                 })
                 .setOrigin(0.5, 0),
@@ -682,9 +664,7 @@ function mountBattleProcess(
         const y = ctx.bgBottomY - (i * LOG_STEP + LOG_BASE_Y);
         const label = ctx.scene.add
             .text(logLeft, y, '', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#ffffff',
                 wordWrap: uiWordWrap(logWidth),
             })
@@ -783,9 +763,7 @@ function mountBattleProcess(
             ctx.content.add(
                 ctx.scene.add
                     .text(ctx.width / 2, belowDig + 16, endTitle, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                        ...uiTextStyle('COMMON_2'),
                         color: '#ffffff',
                     })
                     .setOrigin(0.5, 0),
@@ -812,9 +790,7 @@ function mountBattleProcess(
             ctx.content.add(
                 ctx.scene.add
                     .text(left, y, costLine, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: '#ffffff',
                     })
                     .setOrigin(0, 0),
@@ -825,9 +801,7 @@ function mountBattleProcess(
             ctx.content.add(
                 ctx.scene.add
                     .text(left, y, `损失: 生命 ${harm}`, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: '#ffffff',
                     })
                     .setOrigin(0, 0),
@@ -839,9 +813,7 @@ function mountBattleProcess(
                 ctx.content.add(
                     ctx.scene.add
                         .text(left, y, `损坏: ${names}`, {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                            ...uiTextStyle('COMMON_3'),
                             color: '#ff6666',
                         })
                         .setOrigin(0, 0),
@@ -853,9 +825,7 @@ function mountBattleProcess(
                 ctx.content.add(
                     ctx.scene.add
                         .text(left, y, '你逃离了战场。', {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                            ...uiTextStyle('COMMON_3'),
                             color: '#ffcc66',
                         })
                         .setOrigin(0, 0),

@@ -15,7 +15,7 @@ import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { addNpcHearts } from '../npcHearts';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { uiTextStyle, uiWordWrap } from '../uiFont';
 
 const ACTION_BAR_Y = 803;
 const CONTENT_TOP_Y = 770;
@@ -107,9 +107,7 @@ export function mountNpcNode(ctx: NodeMountContext): NodeMountResult {
     root.add(
         ctx.scene.add
             .text(ctx.width / 2, portraitTop + 267 + 20, getNpcDialog(npcId) ?? npc.des, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#ffffff',
                 align: 'center',
                 wordWrap: uiWordWrap(ctx.bgWidth - 80),
@@ -120,9 +118,7 @@ export function mountNpcNode(ctx: NodeMountContext): NodeMountResult {
 
     const needText = ctx.scene.add
         .text(bgLeft + ctx.bgWidth / 4, ctx.bgBottomY - 130, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#00ff00',
             align: 'center',
             wordWrap: uiWordWrap(260),
@@ -133,9 +129,7 @@ export function mountNpcNode(ctx: NodeMountContext): NodeMountResult {
 
     const tradeText = ctx.scene.add
         .text(bgLeft + (ctx.bgWidth / 4) * 3, ctx.bgBottomY - 130, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#00ff00',
         })
         .setOrigin(0.5, 1)

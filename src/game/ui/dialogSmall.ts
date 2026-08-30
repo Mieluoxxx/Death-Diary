@@ -1,9 +1,9 @@
 import type { GameObjects, Scene } from 'phaser';
-import { playPopup } from '../systems/audioManager';
 import { getLanguage, t } from '../settings/settingsStore';
+import { playPopup } from '../systems/audioManager';
 import { addAtlasButton } from './atlasButton';
 import { isScrollTap, mountScrollViewport, type ScrollViewportHandle } from './scrollViewport';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { UI_FONT_SIZE, uiTextStyle, uiWordWrap } from './uiFont';
 
 /**
  * Port of Buried-City DialogSmall used by topFrame status dialogs.
@@ -120,9 +120,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
     const titleWrapWidth = Math.max(80, bgLeft + DIALOG_WIDTH - LEFT_EDGE - titleTextX);
     const titleText = scene.add
         .text(titleTextX, titleTopY + 14, config.title, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+            ...uiTextStyle('COMMON_1'),
             color: '#111111',
             wordWrap: uiWordWrap(titleWrapWidth),
             maxLines: 1,
@@ -144,9 +142,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
         root.add(
             scene.add
                 .text(titleTextX, currentY, config.currentLine, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                     wordWrap: uiWordWrap(titleWrapWidth),
                     maxLines: 1,
@@ -169,9 +165,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
     const desMaxLines = Math.max(1, Math.floor(desMaxHeight / desLineHeight));
     const des = scene.add
         .text(textLeft, contentTopY + 5, config.description, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#111111',
             // Critical: useAdvancedWrap breaks CJK by character (basic wrap only uses spaces).
             wordWrap: uiWordWrap(textWidth),
@@ -244,9 +238,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
                         cellCenterY + cellSize / 2 - 4,
                         String(row.num),
                         {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                            ...uiTextStyle('COMMON_2'),
                             color: '#ffffff',
                             stroke: '#000000',
                             strokeThickness: 3,
@@ -319,9 +311,7 @@ export function openStatusDialog(scene: Scene, config: StatusDialogConfig): Game
             .setInteractive({ useHandCursor: true });
         const fallbackText = scene.add
             .text(bgCenterX, actionCenterY, okLabel, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);

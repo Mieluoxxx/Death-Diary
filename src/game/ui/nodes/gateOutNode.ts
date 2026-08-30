@@ -5,7 +5,7 @@
 
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { UI_FONT_SIZE, uiTextStyle, uiWordWrap } from '../uiFont';
 
 const TIPS = [
     '门外一片死寂，风里带着灰尘和焦味。',
@@ -49,9 +49,7 @@ export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
     ctx.content.add(
         ctx.scene.add
             .text(textLeft, labelY, '你走出了避难所。', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${GATE_OUT_FONT_SIZE}px`,
+                ...uiTextStyle(GATE_OUT_FONT_SIZE),
                 color: '#ffffff',
                 wordWrap: uiWordWrap(textWidth),
             })
@@ -61,9 +59,7 @@ export function mountGateOutNode(ctx: NodeMountContext): NodeMountResult {
     ctx.content.add(
         ctx.scene.add
             .text(textLeft, labelY - GATE_OUT_TEXT_GAP, tip, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${GATE_OUT_FONT_SIZE}px`,
+                ...uiTextStyle(GATE_OUT_FONT_SIZE),
                 color: '#ffffff',
                 wordWrap: uiWordWrap(textWidth),
             })

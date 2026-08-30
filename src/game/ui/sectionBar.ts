@@ -4,7 +4,7 @@
  */
 
 import type { NodeMountContext } from './navigation';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
+import { uiTextStyle } from './uiFont';
 
 export function addSectionBar(
     ctx: NodeMountContext,
@@ -27,9 +27,7 @@ export function addSectionBar(
     ctx.content.add(
         ctx.scene.add
             .text(left + 16, centerY, title, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#111111',
             })
             .setOrigin(0, 0.5),

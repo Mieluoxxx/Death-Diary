@@ -15,7 +15,7 @@ import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { openQuantityDialog } from '../quantityDialog';
 import { addSectionBar } from '../sectionBar';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { UI_FONT_SIZE, uiTextStyle } from '../uiFont';
 import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
 
 export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
@@ -47,9 +47,7 @@ export function mountGateNode(ctx: NodeMountContext): NodeMountResult {
     addSectionBar(ctx, panelLeft, bagSectionY, panelWidth, '背包');
     const weightText = ctx.scene.add
         .text(panelLeft + panelWidth - 18, bagSectionY, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2 + 4}px`,
+            ...uiTextStyle(UI_FONT_SIZE.COMMON_2 + 4),
             color: '#111111',
         })
         .setOrigin(1, 0.5);

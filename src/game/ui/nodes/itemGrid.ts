@@ -9,7 +9,7 @@ import { getItemDef } from '../../data/itemConfig';
 import type { ItemCounts } from '../../session/sessionStore';
 import { listItems, type TransferResult } from '../../systems/inventory';
 import { isScrollTap, mountScrollViewport } from '../scrollViewport';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { uiTextStyle } from '../uiFont';
 
 export const ITEM_CELL_SIZE = 84;
 export const ITEM_CELL_PITCH_X = 110;
@@ -78,9 +78,7 @@ export function mountItemGrid(
                 scroll.content.add(
                     scene.add
                         .text(opts.width / 2, 40, opts.emptyText, {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                            ...uiTextStyle('COMMON_3'),
                             color: '#888888',
                         })
                         .setOrigin(0.5, 0),
@@ -121,9 +119,7 @@ export function mountItemGrid(
             cell.add(
                 scene.add
                     .text(half - 4, half - 4, String(row.num), {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                        ...uiTextStyle('COMMON_2'),
                         color: '#ffffff',
                         stroke: '#000000',
                         strokeThickness: 3,
@@ -135,9 +131,7 @@ export function mountItemGrid(
                 cell.add(
                     scene.add
                         .text(0, half + 6, resolveItemName(row.itemId), {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: '12px',
+                            ...uiTextStyle(12),
                             color: '#e8e0d0',
                             align: 'center',
                             wordWrap: { width: cellW - 8 },

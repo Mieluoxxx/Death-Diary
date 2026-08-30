@@ -42,7 +42,7 @@ import {
     type ScrollViewportHandle,
     trackScrollButton,
 } from './scrollViewport';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 import { addGuideWarn, type GuideWarnHandle } from './userGuideUi';
 
 export type BuildPanelHandle = {
@@ -117,9 +117,7 @@ export function openBuildPanel(
     const titleY = toScreenY(ACTION_BAR_LOCAL_Y);
     const titleText = scene.add
         .text(width / 2, titleY, buildLevelName(bid, getBuildLevel(bid)), {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+            ...uiTextStyle('COMMON_1'),
             color: '#ffffff',
         })
         .setOrigin(0.5);
@@ -246,9 +244,7 @@ export function openBuildPanel(
     const textLeft = iconBgX + 55 + 10;
     const costText = scene.add
         .text(textLeft, -22, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#ffffff',
             wordWrap: uiWordWrap(260),
             lineSpacing: 2,
@@ -315,9 +311,7 @@ export function openBuildPanel(
     root.add(
         scene.add
             .text(bgLeft + 20, sectionY, '操作', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                ...uiTextStyle('COMMON_2'),
                 color: '#111111',
             })
             .setOrigin(0, 0.5),
@@ -360,9 +354,7 @@ export function openBuildPanel(
             actionListRoot.add(
                 scene.add
                     .text(0, 40, level < 0 ? '建造后解锁操作。' : '暂无操作。', {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: '#cccccc',
                         align: 'center',
                         wordWrap: uiWordWrap(520),
@@ -452,9 +444,7 @@ export function openBuildPanel(
             }
             const label = scene.add
                 .text(x, 0, `x${cost.num}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '16px',
+                    ...uiTextStyle(16),
                     color: cost.ok === false ? '#ff5555' : '#ffffff',
                 })
                 .setOrigin(0, 0.5);
@@ -711,9 +701,7 @@ function mountCraftRow(
         row.add(
             scene.add
                 .text(textLeft, iconY - 18, action.hint, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color,
                 })
                 .setOrigin(0, 0.5),
@@ -734,9 +722,7 @@ function mountCraftRow(
             row.add(
                 scene.add
                     .text(cx, iconY - 10, `x${cost.num}`, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: '16px',
+                        ...uiTextStyle(16),
                         color: cost.ok ? '#ffffff' : '#ff5555',
                     })
                     .setOrigin(0, 0.5),
@@ -872,9 +858,7 @@ function mountFacilityRow(
         row.add(
             scene.add
                 .text(textLeft, iconY - 18, action.hint, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color,
                 })
                 .setOrigin(0, 0.5),
@@ -894,9 +878,7 @@ function mountFacilityRow(
             row.add(
                 scene.add
                     .text(cx, iconY - 10, `x${cost.num}`, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: '16px',
+                        ...uiTextStyle(16),
                         color: cost.ok ? '#ffffff' : '#ff5555',
                     })
                     .setOrigin(0, 0.5),

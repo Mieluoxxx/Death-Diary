@@ -12,7 +12,7 @@ import {
 } from '../medal/medalStore';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { addAtlasButton } from '../ui/atlasButton';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { uiTextStyle, uiWordWrap } from '../ui/uiFont';
 
 const MEDAL_ATLAS_KEYS = ['medal'] as const;
 
@@ -49,9 +49,7 @@ export class MedalScene extends Scene {
         // title Cocos y = 1070
         this.add
             .text(width / 2, toPhaserY(1070), t('medalWall', lan), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '48px',
+                ...uiTextStyle(48),
                 color: '#111111',
             })
             .setOrigin(0.5);
@@ -84,9 +82,7 @@ export class MedalScene extends Scene {
                 .setInteractive({ useHandCursor: true });
             this.add
                 .text(width / 2, toPhaserY(50), t('back', lan), {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '20px',
+                    ...uiTextStyle(20),
                     color: '#f5f0e6',
                 })
                 .setOrigin(0.5);
@@ -145,9 +141,7 @@ export class MedalScene extends Scene {
         const progressRatio = Math.min(1, medalInfo.aimCompleted / Math.max(1, medalInfo.aim));
         this.add
             .text(absX(490), absY(189), `${medalInfo.aimCompleted}/${medalInfo.aim}`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '16px',
+                ...uiTextStyle(16),
                 color: '#111111',
             })
             .setOrigin(0.5);
@@ -185,9 +179,7 @@ export class MedalScene extends Scene {
 
         const title = this.add
             .text(textX, textY, strings.name, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '18px',
+                ...uiTextStyle(18),
                 color: '#111111',
                 wordWrap: uiWordWrap(320),
             })
@@ -196,9 +188,7 @@ export class MedalScene extends Scene {
 
         const condition = this.add
             .text(textX, textY, strings.condition, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '16px',
+                ...uiTextStyle(16),
                 color: '#111111',
                 wordWrap: uiWordWrap(320),
             })
@@ -207,9 +197,7 @@ export class MedalScene extends Scene {
 
         this.add
             .text(textX, textY, strings.des, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '16px',
+                ...uiTextStyle(16),
                 color: '#333333',
                 wordWrap: uiWordWrap(320),
             })

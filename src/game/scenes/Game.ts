@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
+import { uiTextStyle } from '../ui/uiFont';
 
 export class Game extends Scene {
     constructor() {
@@ -20,9 +20,7 @@ export class Game extends Scene {
                 height / 2,
                 `局内场景（占位）\n角色: ${role}\n天赋: ${talentLabel}\n\n点击返回主菜单`,
                 {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '24px',
+                    ...uiTextStyle(24),
                     color: '#ffffff',
                     align: 'center',
                 },

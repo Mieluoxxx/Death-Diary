@@ -18,7 +18,7 @@ import {
 import { type ItemCounts, mutateSession } from '../../session/sessionStore';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { mountScrollViewport } from '../scrollViewport';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { uiTextStyle, uiWordWrap } from '../uiFont';
 
 /**
  * Content well in Cocos local y-up (via ctx.toScreenY, which already adds CONTENT_Y_NUDGE).
@@ -77,9 +77,7 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
 
     const logText = ctx.scene.add
         .text(0, 0, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#ffffff',
             lineSpacing: 4,
             wordWrap: uiWordWrap(viewW),
@@ -113,8 +111,7 @@ export function mountRadioNode(ctx: NodeMountContext): NodeMountResult {
         color: '#f4efe5',
         caretColor: '#f4efe5',
         boxShadow: 'inset 0 0 0 1px #2a2a2a',
-        fontFamily: UI_FONT_FAMILY,
-        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+        ...uiTextStyle('COMMON_3'),
         fontWeight: 'normal',
         lineHeight: '44px',
         userSelect: 'text',

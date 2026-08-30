@@ -1,14 +1,14 @@
 import { type GameObjects, Scene } from 'phaser';
 import { loadInitialItems } from '../data/initialItems';
 import { getCurrentAccount } from '../session/authStore';
-import { hasSession } from '../session/sessionStore';
 import { getCloudSaveStatus, syncCloudSaveCheckpoint } from '../session/cloudSave';
+import { hasSession } from '../session/sessionStore';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { applyMainPageMusic, stopMusic } from '../systems/audioManager';
-import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
 import { openAccountLayer } from '../ui/accountLayer';
+import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
 import { openSettingLayer } from '../ui/settingLayer';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
+import { uiTextStyle } from '../ui/uiFont';
 
 /**
  * Port of Buried-City MenuScene.js MenuLayer layout.
@@ -60,9 +60,7 @@ export class MainMenu extends Scene {
         } else {
             this.add
                 .text(bgCenterX, 160, '死亡日记', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '42px',
+                    ...uiTextStyle(42),
                     color: '#ffffff',
                 })
                 .setOrigin(0.5);
@@ -117,9 +115,7 @@ export class MainMenu extends Scene {
                   .setInteractive({ useHandCursor: true });
         this.cloudStatusText = this.add
             .text(132, 46, '', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#111111',
             })
             .setOrigin(0.5);
@@ -151,9 +147,7 @@ export class MainMenu extends Scene {
 
         this.versionText = this.add
             .text(16, height - 20, `${t('version', lan)} 1.4.0`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#888',
             })
             .setOrigin(0, 1);
@@ -275,9 +269,7 @@ export class MainMenu extends Scene {
             .setInteractive({ useHandCursor: enabled });
         const text = this.add
             .text(x, y, label, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '28px',
+                ...uiTextStyle(28),
                 color: enabled ? '#111' : '#666',
             })
             .setOrigin(0.5);

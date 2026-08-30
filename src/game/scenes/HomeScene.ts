@@ -17,7 +17,7 @@ import { createNavigationHost, type NavHostHandle, NavNode } from '../ui/navigat
 import { openNpcVisitDialog } from '../ui/npcVisitDialog';
 import { openSettingLayer } from '../ui/settingLayer';
 import { addTopFrame, type TopFrameHandle } from '../ui/topFrame';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { uiTextStyle, uiWordWrap } from '../ui/uiFont';
 import { addGuideWarn, type GuideWarnHandle, showGuideDialog } from '../ui/userGuideUi';
 
 /**
@@ -468,9 +468,7 @@ export class HomeScene extends Scene {
         }
         this.toastText = this.add
             .text(width / 2, height * 0.42, message, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '18px',
+                ...uiTextStyle(18),
                 color: '#111111',
                 backgroundColor: '#f0e6d2',
                 padding: { x: 16, y: 10 },

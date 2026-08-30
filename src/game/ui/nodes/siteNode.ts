@@ -18,7 +18,7 @@ import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { formatSiteProgress, mountSiteChromeCaptions } from '../siteChrome';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { uiTextStyle, uiWordWrap } from '../uiFont';
 import { addGuideWarn } from '../userGuideUi';
 
 const LEFT_EDGE = 40;
@@ -66,9 +66,7 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
         ctx.content.add(
             ctx.scene.add
                 .text(ctx.width / 2, digBottom + 40, cfg.des, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(rightEdge - leftEdge),

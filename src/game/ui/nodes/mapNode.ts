@@ -29,7 +29,7 @@ import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { NavNode } from '../navigation';
 import { addNpcHearts } from '../npcHearts';
 import { openRandomBattleDialog } from '../randomBattleDialog';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from '../uiFont';
+import { uiTextStyle, uiWordWrap } from '../uiFont';
 import { addGuideWarn, type GuideWarnHandle } from '../userGuideUi';
 
 /** map_bg source size (original). */
@@ -467,9 +467,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         overlay.add(
             ctx.scene.add
                 .text(titleTextX, titleY - 10, name, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#111111',
                 })
                 .setOrigin(0, 0.5),
@@ -490,9 +488,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         // Description
         const desText = ctx.scene.add
             .text(textLeft, digBottom, des, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
                 wordWrap: uiWordWrap(textWidth),
             })
@@ -503,9 +499,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         overlay.add(
             ctx.scene.add
                 .text(textLeft, contentBottom - 28, `行程 ${timeLabel}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                 })
                 .setOrigin(0, 1),
@@ -604,9 +598,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         overlay.add(
             ctx.scene.add
                 .text(titleX, titleY, npc.name, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#111111',
                 })
                 .setOrigin(0, 0.5)
@@ -634,9 +626,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         overlay.add(
             ctx.scene.add
                 .text(textLeft, portraitBottom, npc.des, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                     wordWrap: uiWordWrap(textWidth),
                 })
@@ -646,9 +636,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
 
         const distance = ctx.scene.add
             .text(textLeft, contentBottom - 70, `距离: ${timeLabel}路程`, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
             })
             .setOrigin(0, 0)
@@ -660,9 +648,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
         overlay.add(
             ctx.scene.add
                 .text(textLeft, distance.y + distance.height + 10, `交易物品: ${tradeCount}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                 })
                 .setOrigin(0, 0)

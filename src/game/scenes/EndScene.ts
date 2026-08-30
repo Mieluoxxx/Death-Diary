@@ -13,7 +13,7 @@ import { getSession } from '../session/sessionStore';
 import { survivalClockParts } from '../systems/deathSystem';
 import { stopSurvivalLoop } from '../systems/survivalLoop';
 import { addAtlasButton } from '../ui/atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../ui/uiFont';
+import { uiTextStyle } from '../ui/uiFont';
 
 /** Design size of end_bg.png (matches game resolution). */
 const END_BG_W = 640;
@@ -64,18 +64,14 @@ export class EndScene extends Scene {
             const titlePos = toScreen(42, 736);
             this.add
                 .text(titlePos.x, titlePos.y, '你存活了', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#ffffff',
                 })
                 .setOrigin(0, 0.5);
 
             // Original numbers: day(132,630) hour(320,630) minute(508,630), size 110, black
             const numStyle = {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${Math.round(110 * Math.min(scaleX, scaleY))}px`,
+                ...uiTextStyle(Math.round(110 * Math.min(scaleX, scaleY))),
                 color: '#111111',
             } as const;
 
@@ -107,9 +103,7 @@ export class EndScene extends Scene {
         } else {
             this.add
                 .text(bgCenterX, bgCenterY - 160, '你存活了', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#ffffff',
                 })
                 .setOrigin(0.5);
@@ -120,9 +114,7 @@ export class EndScene extends Scene {
                     bgCenterY - 40,
                     `${parts.day} 天  ${parts.hour} 时  ${parts.minute} 分`,
                     {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: '40px',
+                        ...uiTextStyle(40),
                         color: '#ffffff',
                     },
                 )
@@ -153,9 +145,7 @@ export class EndScene extends Scene {
             .setInteractive({ useHandCursor: true });
         this.add
             .text(x, y, '返回主菜单', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#111111',
             })
             .setOrigin(0.5);

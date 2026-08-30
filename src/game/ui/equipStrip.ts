@@ -8,8 +8,8 @@ import { type EquipSlot, getItemDef, HAND_ITEM_ID, itemsForSlot } from '../data/
 import { getSession, type ItemCounts } from '../session/sessionStore';
 import { type EquipPos, EquipPosMap, equipItem, getCount } from '../systems/inventory';
 import type { NodeMountContext } from './navigation';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
 import { resolveItemName } from './nodes/itemGrid';
+import { uiTextStyle } from './uiFont';
 
 const SLOT_KIND: Record<EquipPos, EquipSlot> = {
     0: 'gun',
@@ -179,9 +179,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
             line.add(
                 ctx.scene.add
                     .text(0, 0, '无', {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                        ...uiTextStyle('COMMON_2'),
                         color: '#ffffff',
                     })
                     .setOrigin(0.5),
@@ -226,9 +224,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
         line.add(
             ctx.scene.add
                 .text(textX, topY, name, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#ffffff',
                 })
                 .setOrigin(0, 0),
@@ -236,9 +232,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
         line.add(
             ctx.scene.add
                 .text(textX, topY + 30, `重量:${weight}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#ffffff',
                 })
                 .setOrigin(0, 0),
@@ -246,9 +240,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
         line.add(
             ctx.scene.add
                 .text(textX, topY + 54, `余量:${bagNum}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#ffffff',
                 })
                 .setOrigin(0, 0),
@@ -258,9 +250,7 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
             line.add(
                 ctx.scene.add
                     .text(DROP_W / 2 - 16, topY + 30, `速度:${speed}`, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: '#ffffff',
                     })
                     .setOrigin(1, 0),

@@ -7,7 +7,7 @@ import { gameBusEmit } from '../systems/gameBus';
 import { giveNpcNeed, type NpcVisit } from '../systems/npcSystem';
 import { pauseTimeClock, resumeTimeClock } from '../systems/timeClock';
 import { addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { UI_FONT_SIZE, uiTextStyle, uiWordWrap } from './uiFont';
 
 const DIALOG_FRAME = 'dialog_big_bg.png';
 const DIALOG_WIDTH = 448;
@@ -34,9 +34,7 @@ function addFallbackButton(
         .setInteractive({ useHandCursor: enabled });
     const text = scene.add
         .text(x, y, label, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+            ...uiTextStyle('COMMON_2'),
             color: enabled ? '#f5f0e6' : '#999999',
         })
         .setOrigin(0.5);
@@ -88,9 +86,7 @@ function addRewardText(
         parent.add(
             scene.add
                 .text(x, cursor, text, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#111111',
                     wordWrap: uiWordWrap(DIALOG_WIDTH - LEFT_EDGE * 2),
                 })
@@ -153,9 +149,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
     root.add(
         scene.add
             .text(titleX, bgTopY + 20, visit.name, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#111111',
                 wordWrap: uiWordWrap(bgLeft + DIALOG_WIDTH - LEFT_EDGE - titleX),
                 maxLines: 1,
@@ -169,9 +163,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
                 bgTopY + 57,
                 `好感度 ${getSession()?.npcs[visit.npcId].reputation ?? 0}/10`,
                 {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                 },
             )
@@ -193,9 +185,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
         root.add(
             scene.add
                 .text(textLeft, cursorY, '实在不好意思开口，你能帮个忙吗？', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                     wordWrap: uiWordWrap(textWidth),
                 })
@@ -205,9 +195,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
         root.add(
             scene.add
                 .text(textLeft, cursorY, '对方需要', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                 })
                 .setOrigin(0, 0),
@@ -233,9 +221,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
                         cursorY + 8,
                         `${getItemDef(need.itemId).name} x${need.num}`,
                         {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                            ...uiTextStyle('COMMON_2'),
                             color: have >= need.num ? '#111111' : '#b00000',
                         },
                     )
@@ -244,9 +230,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
             root.add(
                 scene.add
                     .text(textLeft + 48, cursorY + 38, `你的库存：${have}`, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                        ...uiTextStyle('COMMON_3'),
                         color: have >= need.num ? '#111111' : '#b00000',
                     })
                     .setOrigin(0, 0),
@@ -284,9 +268,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
     root.add(
         scene.add
             .text(textLeft, cursorY, '我想你一定需要这个吧？不用谢，大家要一起熬过这个难关。', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#111111',
                 wordWrap: uiWordWrap(textWidth),
             })

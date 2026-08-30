@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION } from '../ui/uiFont';
+import { uiTextStyle } from '../ui/uiFont';
 
 export class GameOver extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
@@ -18,9 +18,7 @@ export class GameOver extends Scene {
         this.background.setAlpha(0.5);
 
         this.gameover_text = this.add.text(512, 384, 'Game Over', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: '64px',
+            ...uiTextStyle(64),
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 8,

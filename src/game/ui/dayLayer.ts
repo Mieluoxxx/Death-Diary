@@ -1,11 +1,11 @@
 import type { GameObjects, Scene } from 'phaser';
-import { Sound, playEffect } from '../systems/audioManager';
 import { loadAtlas } from '../assets/loadAtlas';
 import { getItemDef } from '../data/itemConfig';
 import { getSession } from '../session/sessionStore';
+import { playEffect, Sound } from '../systems/audioManager';
 import type { NightRaidResult } from '../systems/nightRaidSystem';
 import { resumeTimeClock } from '../systems/timeClock';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { UI_FONT_SIZE, uiTextStyle, uiWordWrap } from './uiFont';
 
 /**
  * Port of Buried-City DayLayer (DayScene.js).
@@ -92,9 +92,7 @@ export async function openDayLayer(
 
     const dayLabel = scene.add
         .text(width / 2, toY(922), `第${nextDisplayDay()}天`, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: '60px',
+            ...uiTextStyle(60),
             color: '#ffffff',
         })
         .setOrigin(0.5)
@@ -106,9 +104,7 @@ export async function openDayLayer(
     if (!res.happened) {
         const peace = scene.add
             .text(width / 2, toY(624), '今天晚上很平静。', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#ffffff',
                 align: 'center',
                 wordWrap: uiWordWrap(contentWidth),
@@ -124,9 +120,7 @@ export async function openDayLayer(
                 toY(624),
                 '僵尸潮爆发，小镇到处都是暴躁的僵尸。凭借坚固的防御，你的小屋挺过了冲击，没有任何损失。',
                 {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(contentWidth),
@@ -143,9 +137,7 @@ export async function openDayLayer(
         // - lost items top = title.y - titleH/2 - 20  (gap below title)
         const lossTitle = scene.add
             .text(bgLeft + 64, toY(550), '你的损失:', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#ffffff',
             })
             .setOrigin(0, 1)
@@ -163,9 +155,7 @@ export async function openDayLayer(
                 titleCenterY - 40,
                 '僵尸潮爆发，小镇到处都是暴躁的僵尸。几个僵尸突破了防御，进到家中大肆破坏。',
                 {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(contentWidth),
@@ -203,9 +193,7 @@ export async function openDayLayer(
 
             const label = scene.add
                 .text(cursorX + cellW, rowMidY, `${itemLabel(it.itemId)}×${it.num}`, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                    ...uiTextStyle('COMMON_1'),
                     color: '#ffffff',
                 })
                 .setOrigin(0, 0.5)
@@ -229,9 +217,7 @@ export async function openDayLayer(
         if (items.length === 0) {
             const empty = scene.add
                 .text(bgLeft + 64, cursorY, '（仓库空无一物）', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                    ...uiTextStyle('COMMON_2'),
                     color: '#aaaaaa',
                 })
                 .setOrigin(0, 0)

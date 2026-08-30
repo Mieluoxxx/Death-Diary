@@ -11,15 +11,15 @@
 
 import { getSiteConfig } from '../../data/siteConfig';
 import { getSession } from '../../session/sessionStore';
-import { Sound, playEffect } from '../../systems/audioManager';
+import { playEffect, Sound } from '../../systems/audioManager';
 import { gameBusOff, gameBusOn } from '../../systems/gameBus';
 import { getBagCapacity, getBagWeight, transferAll, transferItems } from '../../systems/inventory';
 import { mountEquipStrip } from '../equipStrip';
-import { addTakeAllButton } from '../takeAllButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
 import { openQuantityDialog } from '../quantityDialog';
 import { addSectionBar } from '../sectionBar';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from '../uiFont';
+import { addTakeAllButton } from '../takeAllButton';
+import { UI_FONT_SIZE, uiTextStyle } from '../uiFont';
 import { ITEM_GRID_COLUMNS, mountItemGrid, transferFailMessage } from './itemGrid';
 export function mountSiteStorageNode(ctx: NodeMountContext): NodeMountResult {
     const siteId = Number(ctx.userData);
@@ -53,9 +53,7 @@ export function mountSiteStorageNode(ctx: NodeMountContext): NodeMountResult {
 
     const weightText = ctx.scene.add
         .text(bgLeft + ctx.bgWidth - 18, bagSectionCy, '', {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_2 + 4}px`,
+            ...uiTextStyle(UI_FONT_SIZE.COMMON_2 + 4),
             color: '#111111',
         })
         .setOrigin(1, 0.5);

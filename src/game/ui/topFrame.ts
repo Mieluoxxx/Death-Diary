@@ -21,7 +21,7 @@ import {
     getStatusCopy,
     type StatusInfoId,
 } from './statusCopy';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 
 /**
  * Port of Buried-City TopFrameNode + StatusButton + AttrButton (web slice).
@@ -324,9 +324,7 @@ export function addTopFrame(
     const cellW = LINE_WIDTH / 6;
 
     const labelStyle = {
-        fontFamily: UI_FONT_FAMILY,
-        resolution: UI_TEXT_RESOLUTION,
-        fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+        ...uiTextStyle('COMMON_2'),
         color: '#ffffff',
     };
 
@@ -625,9 +623,7 @@ export function addTopFrame(
         const phaserBottomY = topY + FRAME_HEIGHT - cocosBottomY;
         const lineText = scene.add
             .text(thirdLineLeft, phaserBottomY, '', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                ...uiTextStyle('COMMON_3'),
                 color: '#ffffff',
             })
             .setOrigin(0, 1);
@@ -793,9 +789,7 @@ function openLogPanel(
         scroll.content.add(
             scene.add
                 .text(10, 10, '—', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#888888',
                 })
                 .setOrigin(0, 0),
@@ -806,9 +800,7 @@ function openLogPanel(
             const timeLabel = entry.timeLabel
                 ? scene.add
                       .text(10, cursorY, entry.timeLabel, {
-                          fontFamily: UI_FONT_FAMILY,
-                          resolution: UI_TEXT_RESOLUTION,
-                          fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                          ...uiTextStyle('COMMON_2'),
                           color: '#ffffff',
                           wordWrap: uiWordWrap(textWidth),
                       })
@@ -821,9 +813,7 @@ function openLogPanel(
 
             const body = scene.add
                 .text(10, cursorY, entry.text, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#ffffff',
                     wordWrap: uiWordWrap(textWidth),
                 })

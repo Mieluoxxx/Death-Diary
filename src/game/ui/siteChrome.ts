@@ -10,7 +10,7 @@
 
 import type { GameObjects } from 'phaser';
 import type { NodeMountContext } from './navigation';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION } from './uiFont';
+import { uiTextStyle } from './uiFont';
 
 /** Cocos actionBarBaseHeight — title row y (from bg bottom). */
 const ACTION_BAR_LOCAL_Y = 803;
@@ -48,9 +48,7 @@ export function mountSiteChromeCaptions(
     const rightX = ctx.width / 2 + ctx.bgWidth / 2 - CONTENT_EDGE + 20;
 
     const style = {
-        fontFamily: UI_FONT_FAMILY,
-        resolution: UI_TEXT_RESOLUTION,
-        fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+        ...uiTextStyle('COMMON_3'),
         color: '#ffffff',
     } as const;
 
@@ -60,9 +58,7 @@ export function mountSiteChromeCaptions(
         // Measure title width so progress starts after the name.
         const titleProbe = ctx.scene.add
             .text(0, 0, opts.siteName, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
             })
             .setVisible(false);
         const progressX = titleX + titleProbe.width + PROGRESS_GAP;

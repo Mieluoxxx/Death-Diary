@@ -4,11 +4,11 @@
  */
 import type { GameObjects, Scene } from 'phaser';
 import { buildLevelDes, buildLevelName } from '../data/buildStrings';
-import { playPopup } from '../systems/audioManager';
 import { getBuildLevel, getStorageCount } from '../session/sessionStore';
+import { playPopup } from '../systems/audioManager';
 import { BuildUpgradeType, canUpgradeBuild } from '../systems/buildSystem';
 import { addAtlasButton } from './atlasButton';
-import { UI_FONT_FAMILY, UI_FONT_SIZE, UI_TEXT_RESOLUTION, uiWordWrap } from './uiFont';
+import { uiTextStyle, uiWordWrap } from './uiFont';
 
 const DIALOG_FRAME = 'dialog_big_bg.png';
 const FALLBACK_FRAME = 'dialog_small_2_bg.png';
@@ -94,9 +94,7 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
     root.add(
         scene.add
             .text(titleX, titleTopY + 18, title, {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_1}px`,
+                ...uiTextStyle('COMMON_1'),
                 color: '#111111',
                 wordWrap: uiWordWrap(bgLeft + DIALOG_WIDTH - LEFT_EDGE - titleX),
                 maxLines: 1,
@@ -127,9 +125,7 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
 
     const des = scene.add
         .text(textLeft, cursorY, description, {
-            fontFamily: UI_FONT_FAMILY,
-            resolution: UI_TEXT_RESOLUTION,
-            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+            ...uiTextStyle('COMMON_3'),
             color: '#111111',
             wordWrap: uiWordWrap(textWidth),
             lineSpacing: 4,
@@ -145,9 +141,7 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
         if (costs.length > 0) {
             const needLabel = scene.add
                 .text(textLeft, cursorY, '建造需要:', {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                    ...uiTextStyle('COMMON_3'),
                     color: '#111111',
                 })
                 .setOrigin(0, 0);
@@ -175,9 +169,7 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
                 root.add(
                     scene.add
                         .text(cellX + 40, cellY + 12, `x${cost.num}`, {
-                            fontFamily: UI_FONT_FAMILY,
-                            resolution: UI_TEXT_RESOLUTION,
-                            fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
+                            ...uiTextStyle('COMMON_3'),
                             color: ok ? '#111111' : '#cc2222',
                         })
                         .setOrigin(0, 0.5),
@@ -201,7 +193,10 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
         }
     });
 
-    if (scene.textures.exists('ui') && scene.textures.get('ui').has('btn_common_black_normal.png')) {
+    if (
+        scene.textures.exists('ui') &&
+        scene.textures.get('ui').has('btn_common_black_normal.png')
+    ) {
         root.add(
             addAtlasButton(scene, bgCenterX, actionCenterY, {
                 atlas: 'ui',
@@ -218,9 +213,7 @@ export function openBuildDetailDialog(scene: Scene, bid: number): GameObjects.Co
             .setInteractive({ useHandCursor: true });
         const fallbackText = scene.add
             .text(bgCenterX, actionCenterY, '知道了', {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '20px',
+                ...uiTextStyle(20),
                 color: '#f5f0e6',
             })
             .setOrigin(0.5);

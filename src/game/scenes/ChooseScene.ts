@@ -7,7 +7,7 @@ import {
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { isRoleLuoUnlocked, isRoleYaziUnlocked, isTalentIapUnlocked } from '../systems/iapStore';
 import { type AtlasButton, addAtlasButton } from '../ui/atlasButton';
-import { UI_FONT_FAMILY, UI_TEXT_RESOLUTION, uiWordWrap } from '../ui/uiFont';
+import { uiTextStyle, uiWordWrap } from '../ui/uiFont';
 
 /**
  * Port of Buried-City ChooseScene.js / ChooseLayer + SlideView.
@@ -84,9 +84,7 @@ export class ChooseScene extends Scene {
         // titleRole: Cocos y = height - 50 → Phaser y = 50
         this.add
             .text(centerX, 50, t('chooseRole', lan), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '28px',
+                ...uiTextStyle(28),
                 color: '#ffffff',
             })
             .setOrigin(0.5, 0.5);
@@ -97,9 +95,7 @@ export class ChooseScene extends Scene {
         // talent title: Cocos y = 616
         this.add
             .text(centerX, toPhaserY(616), t('chooseTalent', lan), {
-                fontFamily: UI_FONT_FAMILY,
-                resolution: UI_TEXT_RESOLUTION,
-                fontSize: '26px',
+                ...uiTextStyle(26),
                 color: '#ffffff',
             })
             .setOrigin(0.5);
@@ -372,9 +368,7 @@ export class ChooseScene extends Scene {
         cell.add(
             this.add
                 .text(0, nameY, name, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '18px',
+                    ...uiTextStyle(18),
                     color: '#ffffff',
                     align: 'center',
                     wordWrap: uiWordWrap(this.cellWidth - 12),
@@ -387,9 +381,7 @@ export class ChooseScene extends Scene {
         cell.add(
             this.add
                 .text(0, desY, des, {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '16px',
+                    ...uiTextStyle(16),
                     color: '#dddddd',
                     align: 'center',
                     wordWrap: uiWordWrap(this.cellWidth - 12),
@@ -527,9 +519,7 @@ export class ChooseScene extends Scene {
         root.add(
             this.add
                 .text(0, -110, t(`talent_${talentId}`, lan), {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '18px',
+                    ...uiTextStyle(18),
                     color: unlocked ? '#eeeeee' : '#666666',
                 })
                 .setOrigin(0.5),
@@ -618,9 +608,7 @@ export class ChooseScene extends Scene {
         overlay.add(
             this.add
                 .text(width / 2, height / 2 - 36, t('talentLocked', lan), {
-                    fontFamily: UI_FONT_FAMILY,
-                    resolution: UI_TEXT_RESOLUTION,
-                    fontSize: '18px',
+                    ...uiTextStyle(18),
                     color: '#222222',
                     wordWrap: uiWordWrap(340),
                     align: 'center',
@@ -655,9 +643,7 @@ export class ChooseScene extends Scene {
             overlay.add(
                 this.add
                     .text(btnX, height / 2 + 55, label, {
-                        fontFamily: UI_FONT_FAMILY,
-                        resolution: UI_TEXT_RESOLUTION,
-                        fontSize: '20px',
+                        ...uiTextStyle(20),
                         color: '#f5f0e6',
                     })
                     .setOrigin(0.5),
