@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import {
+    isSupportedSaveSchemaVersion,
     parseCloudSaveEnvelope,
     SAVE_SCHEMA_VERSION,
-    isSupportedSaveSchemaVersion,
 } from './saveContract';
 
 describe('cloud save contract', () => {

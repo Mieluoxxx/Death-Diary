@@ -1,6 +1,6 @@
 import { isFoodItem, isUsableItem } from '../data/itemEffects';
 import { getSession, type ItemCounts } from '../session/sessionStore';
-import { useItem, type ItemUseSource } from '../systems/itemUse';
+import { type ItemUseSource, useItem } from '../systems/itemUse';
 
 /** A concrete session inventory which can supply an item-detail dialog. */
 export type ItemDetailContainer =

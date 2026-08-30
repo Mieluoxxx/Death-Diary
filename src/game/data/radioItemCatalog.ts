@@ -3,7 +3,7 @@
  * Built from full ITEM_CONFIG (skip HAND placeholder).
  */
 
-import { HAND_ITEM_ID, ITEM_CONFIG, getItemDef } from './itemConfig';
+import { getItemDef, HAND_ITEM_ID, ITEM_CONFIG } from './itemConfig';
 
 export type RadioItemEntry = {
     id: number;

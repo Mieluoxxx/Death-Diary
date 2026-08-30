@@ -21,7 +21,7 @@ import {
     mutateSession,
     type SessionState,
 } from '../session/sessionStore';
-import { Sound, playEffect } from './audioManager';
+import { playEffect, Sound } from './audioManager';
 import { gameBusEmit } from './gameBus';
 
 export type EquipPos = 0 | 1 | 2 | 3;

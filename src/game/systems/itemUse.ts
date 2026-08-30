@@ -4,6 +4,7 @@
 
 import { itemName } from '../data/buildStrings';
 import {
+    type AttrChanceMap,
     BANDAGE_ITEM_ID,
     BUFF_EFFECTS,
     DIY_PENICILLIN_ITEM_ID,
@@ -12,13 +13,12 @@ import {
     isFoodItem,
     isMedicineItem,
     MEDICINE_EFFECTS,
-    type AttrChanceMap,
 } from '../data/itemEffects';
 import {
     appendSessionLog,
     getSession,
-    mutateSession,
     type ItemCounts,
+    mutateSession,
     type SessionState,
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';

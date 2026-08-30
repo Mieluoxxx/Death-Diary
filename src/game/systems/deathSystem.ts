@@ -3,8 +3,8 @@
  */
 
 import { getSession, mutateSession, type SessionState } from '../session/sessionStore';
-import { recomputeHpMax } from './playerAttrs';
 import { gameBusEmit } from './gameBus';
+import { recomputeHpMax } from './playerAttrs';
 
 /** Original RELIVE_ITEMID. */
 export const FIRST_AID_KIT_ID = 1106054;

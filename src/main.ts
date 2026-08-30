@@ -1,6 +1,5 @@
 import { loadInitialItems } from './game/data/initialItems';
 import StartGame from './game/main';
-import { scheduleTextRedrawOnFontReady } from './game/ui/uiFont';
 import { getCurrentAccount, initializeAccount } from './game/session/authStore';
 import { initializeCloudSave } from './game/session/cloudSave';
 import {
@@ -9,6 +8,7 @@ import {
     initializeSessionStore,
     setSession,
 } from './game/session/sessionStore';
+import { scheduleTextRedrawOnFontReady } from './game/ui/uiFont';
 
 async function initializeApplication(): Promise<void> {
     void loadInitialItems();

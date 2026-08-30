@@ -11,6 +11,11 @@
  */
 
 import { BED_RATES } from '../data/buildActionConfig';
+import {
+    INFECT_IMMUNE_BUFF_ITEM_ID,
+    STARVE_IMMUNE_BUFF_ITEM_ID,
+    VIGOUR_IMMUNE_BUFF_ITEM_ID,
+} from '../data/itemEffects';
 import { findAttrBand } from '../data/playerAttrEffect';
 import {
     CHANGE_BY_TIME,
@@ -27,8 +32,8 @@ import {
     mutateSession,
     type SessionState,
 } from '../session/sessionStore';
-import { clearCraftRuntime } from './craftSystem';
 import { clearBattle } from './battleSystem';
+import { clearCraftRuntime } from './craftSystem';
 import { gameBusEmit } from './gameBus';
 import { runNightRaid } from './nightRaidSystem';
 import { refreshNpcTrading, runNpcDailyVisit } from './npcSystem';
@@ -44,11 +49,6 @@ import {
     isInCure,
     tickBuff,
 } from './playerAttrs';
-import {
-    INFECT_IMMUNE_BUFF_ITEM_ID,
-    STARVE_IMMUNE_BUFF_ITEM_ID,
-    VIGOUR_IMMUNE_BUFF_ITEM_ID,
-} from '../data/itemEffects';
 import {
     addTimerCallback,
     alignIntervalStart,

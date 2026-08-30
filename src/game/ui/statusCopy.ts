@@ -1,7 +1,7 @@
+import { findAttrBand } from '../data/playerAttrEffect';
 import type { SessionState } from '../session/sessionStore';
 import { formatClock } from '../session/sessionStore';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
-import { findAttrBand } from '../data/playerAttrEffect';
 
 /**
  * Port of Buried-City string ids used by topFrame showStatusDialog /

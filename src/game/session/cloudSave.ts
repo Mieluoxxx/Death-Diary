@@ -1,6 +1,6 @@
+import { isRecord, parseCloudSaveEnvelope, SAVE_SCHEMA_VERSION } from '../../shared/saveContract';
 import { type AccountUser, getCurrentAccount } from './authStore';
 import type { SessionState } from './sessionStore';
-import { isRecord, parseCloudSaveEnvelope, SAVE_SCHEMA_VERSION } from '../../shared/saveContract';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 const SAVE_SLOT = 0;

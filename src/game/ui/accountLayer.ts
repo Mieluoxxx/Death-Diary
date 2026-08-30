@@ -1,15 +1,16 @@
 import type { GameObjects, Scene } from 'phaser';
 import {
+    type AccountUser,
     activateAccount,
     cancelAccountAuthentication,
     getCurrentAccount,
     loginAccount,
     logoutAccount,
     registerAccount,
-    type AccountUser,
 } from '../session/authStore';
 import {
     adoptCloudSaveForAccount,
+    type CloudSaveSnapshot,
     commitLocalSaveToAccount,
     disconnectCloudSave,
     getCloudSaveStatus,
@@ -18,7 +19,6 @@ import {
     resolveCloudConflictWithLocal,
     resolveCloudConflictWithRemote,
     restartCloudSave,
-    type CloudSaveSnapshot,
 } from '../session/cloudSave';
 import {
     activateSessionProfile,
@@ -26,8 +26,8 @@ import {
     flushSessionSave,
     getSession,
     readSessionFromProfile,
-    setSession,
     type SessionState,
+    setSession,
 } from '../session/sessionStore';
 import { getLanguage, type LangCode, t } from '../settings/settingsStore';
 import { UI_FONT_FAMILY } from './uiFont';

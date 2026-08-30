@@ -3,10 +3,10 @@
  * Ports map.js / site.js: unlock graph, genRooms, roomEnd, travel arrive.
  */
 
+import { AD_REWARD_CONFIG, SCRAPYARD_CLAIMS_PER_DAY } from '../data/adConfig';
 import { RANDOM_LOOT_EXCLUDED_SET } from '../data/blackList';
 import { ITEM_CONFIG } from '../data/itemConfig';
 import { rollMonsterList } from '../data/monsterConfig';
-import { AD_REWARD_CONFIG, SCRAPYARD_CLAIMS_PER_DAY } from '../data/adConfig';
 import {
     AD_SITE_ID,
     getSiteConfig,
