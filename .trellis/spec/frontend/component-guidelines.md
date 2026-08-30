@@ -102,6 +102,21 @@ the next game-minute `session_updated` tick.
 
 ## Common Mistakes
 
-<!-- Component-related mistakes your team has made -->
+### Common Mistake: lazy-tier atlas used without scene registration
 
-(To be filled by the team)
+**Symptom**: A node/panel renders blank (title chrome only) — every
+`textures.exists(atlas) && textures.get(atlas).has(frame)` guard silently
+skips, so no error is thrown.
+
+**Cause**: The atlas is listed in `ATLAS_MANIFEST.lazy` (disk-truth coverage)
+but no scene ever loads it. Lazy atlases load **only** when a scene passes the
+key to `queuePreloadAtlases`/`loadAtlas`; having a key in `frames.gen.ts` does
+NOT mean the texture exists at runtime.
+
+**Fix**: Register the atlas in the loading tier of the scene that first needs
+it, e.g. add `'new_site'` to `HOME_ATLAS_KEYS` (atlasManifest.ts) when Home's
+map hosts the entry point.
+
+**Prevention**: When adding UI that reads a new atlas key, grep
+`atlasManifest.ts` for the atlas name — if it is only in `lazy`, add it to the
+owning scene's `*_ATLAS_KEYS` list in the same change.
