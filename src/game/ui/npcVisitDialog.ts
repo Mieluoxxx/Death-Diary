@@ -1,12 +1,13 @@
 import type { GameObjects, Scene } from 'phaser';
-import { getItemDef } from '../data/itemConfig';
+import type { NpcReward } from '../data/npcConfig';
 import { getSiteConfig } from '../data/siteConfig';
 import { appendSessionLog, getSession } from '../session/sessionStore';
-import { playPopup } from '../systems/audioManager';
+import { playEffect, Sound } from '../systems/audioManager';
 import { gameBusEmit } from '../systems/gameBus';
 import { giveNpcNeed, type NpcVisit } from '../systems/npcSystem';
 import { pauseTimeClock, resumeTimeClock } from '../systems/timeClock';
 import { addAtlasButton } from './atlasButton';
+import { addNpcHearts } from './npcHearts';
 import { UI_FONT_SIZE, uiTextStyle, uiWordWrap } from './uiFont';
 
 const DIALOG_FRAME = 'dialog_big_bg.png';
@@ -70,29 +71,51 @@ function addButton(
     addFallbackButton(scene, parent, x, y, label, onClick, enabled);
 }
 
-function addRewardText(
+/** Original ItemRichText form (gifts/help): 3-column grid of icon + "xN". */
+function addItemGrid(
     scene: Scene,
     parent: GameObjects.Container,
-    visit: NpcVisit,
+    items: readonly { itemId: number; num: number }[],
     x: number,
     y: number,
+    width: number,
+    colorOf: (item: { itemId: number; num: number }) => string = () => '#111111',
 ): number {
+    const col = 3;
+    const colWidth = width / col;
     let cursor = y;
-    for (const reward of visit.deliveredRewards) {
-        const text =
-            reward.kind === 'item'
-                ? `${getItemDef(reward.itemId).name} x${reward.num}`
-                : `${getSiteConfig(reward.siteId)?.name ?? `地点${reward.siteId}`}（新地点解锁）`;
-        parent.add(
-            scene.add
-                .text(x, cursor, text, {
-                    ...uiTextStyle('COMMON_2'),
-                    color: '#111111',
-                    wordWrap: uiWordWrap(DIALOG_WIDTH - LEFT_EDGE * 2),
-                })
-                .setOrigin(0, 0),
-        );
-        cursor += UI_FONT_SIZE.COMMON_2 + 10;
+    for (let start = 0; start < items.length; start += col) {
+        const row = items.slice(start, start + col);
+        let rowHeight: number = UI_FONT_SIZE.COMMON_3;
+        const cells: Array<{ itemId: number; num: number; icon: GameObjects.Image | null }> = [];
+        for (const reward of row) {
+            const frame = `icon_item_${reward.itemId}.png`;
+            const icon = hasFrame(scene, 'icon', frame)
+                ? (scene.add.image(0, 0, 'icon', frame).setScale(0.5) as GameObjects.Image)
+                : null;
+            if (icon) {
+                rowHeight = Math.max(rowHeight, icon.displayHeight);
+            }
+            cells.push({ itemId: reward.itemId, num: reward.num, icon });
+        }
+        for (let c = 0; c < cells.length; c += 1) {
+            const cell = cells[c]!;
+            const centerY = cursor + rowHeight / 2;
+            const left = x + c * colWidth;
+            if (cell.icon) {
+                cell.icon.setPosition(left + 10, centerY).setOrigin(0, 0.5);
+                parent.add(cell.icon);
+            }
+            parent.add(
+                scene.add
+                    .text(left + colWidth - 10, centerY, `x${cell.num}`, {
+                        ...uiTextStyle('COMMON_3'),
+                        color: colorOf(cell),
+                    })
+                    .setOrigin(1, 0.5),
+            );
+        }
+        cursor += rowHeight;
     }
     return cursor;
 }
@@ -107,7 +130,6 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
     }
 
     const { width, height } = scene.scale;
-    const root = scene.add.container(0, 0).setDepth(260).setName('npcVisitDialog');
     const cocosBgBottom = 29 + (839 - DIALOG_HEIGHT) / 2;
     const bgBottomY = height - cocosBgBottom;
     const bgTopY = bgBottomY - DIALOG_HEIGHT;
@@ -120,68 +142,76 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
     const actionCenterY = bgBottomY - ACTION_HEIGHT / 2;
 
     pauseTimeClock();
-    playPopup();
 
-    const dim = scene.add
-        .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
-        .setInteractive();
-    root.add(dim);
+    const reputation = getSession()?.npcs[visit.npcId].reputation ?? 0;
 
-    if (hasFrame(scene, 'ui', DIALOG_FRAME)) {
-        root.add(scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME).setOrigin(0.5));
-    } else {
+    // Original NpcDialog title bar: icon + name (left) and a heart strip pinned to
+    // the right edge. Each gift batch builds a fresh dialog (showNpcSendGiftDialog
+    // chains batches via npc.sendGift() recursion).
+    const buildFrame = (): { root: GameObjects.Container; topY: number } => {
+        playEffect(Sound.NPC_KNOCK);
+
+        const root = scene.add.container(0, 0).setDepth(260).setName('npcVisitDialog');
+
+        const dim = scene.add
+            .rectangle(width / 2, height / 2, width, height, 0x000000, 0.72)
+            .setInteractive();
+        root.add(dim);
+
+        if (hasFrame(scene, 'ui', DIALOG_FRAME)) {
+            root.add(scene.add.image(bgCenterX, bgCenterY, 'ui', DIALOG_FRAME).setOrigin(0.5));
+        } else {
+            root.add(
+                scene.add
+                    .rectangle(bgCenterX, bgCenterY, DIALOG_WIDTH, DIALOG_HEIGHT, 0xe8e0d0)
+                    .setStrokeStyle(2, 0x333333),
+            );
+        }
+
+        let titleX = textLeft;
+        if (hasFrame(scene, 'icon', 'icon_npc.png')) {
+            const icon = scene.add
+                .image(textLeft, bgTopY + TITLE_HEIGHT / 2, 'icon', 'icon_npc.png')
+                .setOrigin(0, 0.5)
+                .setScale(0.55);
+            root.add(icon);
+            titleX += icon.displayWidth + 8;
+        }
         root.add(
             scene.add
-                .rectangle(bgCenterX, bgCenterY, DIALOG_WIDTH, DIALOG_HEIGHT, 0xe8e0d0)
-                .setStrokeStyle(2, 0x333333),
-        );
-    }
-
-    let titleX = textLeft;
-    if (hasFrame(scene, 'icon', 'icon_npc.png')) {
-        const icon = scene.add
-            .image(textLeft, bgTopY + TITLE_HEIGHT / 2, 'icon', 'icon_npc.png')
-            .setOrigin(0, 0.5)
-            .setScale(0.55);
-        root.add(icon);
-        titleX += icon.displayWidth + 8;
-    }
-    root.add(
-        scene.add
-            .text(titleX, bgTopY + 20, visit.name, {
-                ...uiTextStyle('COMMON_1'),
-                color: '#111111',
-                wordWrap: uiWordWrap(bgLeft + DIALOG_WIDTH - LEFT_EDGE - titleX),
-                maxLines: 1,
-            })
-            .setOrigin(0, 0),
-    );
-    root.add(
-        scene.add
-            .text(
-                titleX,
-                bgTopY + 57,
-                `好感度 ${getSession()?.npcs[visit.npcId].reputation ?? 0}/10`,
-                {
-                    ...uiTextStyle('COMMON_3'),
+                .text(titleX, bgTopY + 20, visit.name, {
+                    ...uiTextStyle('COMMON_1'),
                     color: '#111111',
-                },
-            )
-            .setOrigin(0, 0),
-    );
+                    wordWrap: uiWordWrap(bgLeft + DIALOG_WIDTH - LEFT_EDGE - titleX),
+                    maxLines: 1,
+                })
+                .setOrigin(0, 0),
+        );
+        addNpcHearts(
+            scene,
+            root,
+            bgLeft + DIALOG_WIDTH - LEFT_EDGE,
+            bgTopY + TITLE_HEIGHT / 2,
+            reputation,
+            'npcVisitHearts',
+        );
 
-    let cursorY = contentTopY + 12;
-    const portraitFrame = `npc_dig_${visit.npcId}.png`;
-    if (hasFrame(scene, 'npc', portraitFrame)) {
-        const portrait = scene.add
-            .image(bgCenterX, cursorY, 'npc', portraitFrame)
-            .setOrigin(0.5, 0);
-        if (portrait.displayWidth > textWidth) portrait.setScale(textWidth / portrait.width);
-        root.add(portrait);
-        cursorY += portrait.displayHeight + 12;
-    }
+        let topY = contentTopY + 12;
+        const portraitFrame = `npc_dig_${visit.npcId}.png`;
+        if (hasFrame(scene, 'npc', portraitFrame)) {
+            const portrait = scene.add
+                .image(bgCenterX, topY, 'npc', portraitFrame)
+                .setOrigin(0.5, 0);
+            if (portrait.displayWidth > textWidth) portrait.setScale(textWidth / portrait.width);
+            root.add(portrait);
+            topY += portrait.displayHeight + 12;
+        }
+        return { root, topY };
+    };
 
     if (visit.kind === 'help') {
+        const { root, topY } = buildFrame();
+        let cursorY = topY;
         root.add(
             scene.add
                 .text(textLeft, cursorY, '实在不好意思开口，你能帮个忙吗？', {
@@ -205,35 +235,10 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
         const need = visit.need;
         const have = need ? (getSession()?.storage[need.itemId] ?? 0) : 0;
         if (need) {
-            const itemFrame = `icon_item_${need.itemId}.png`;
-            if (hasFrame(scene, 'icon', itemFrame)) {
-                root.add(
-                    scene.add
-                        .image(textLeft, cursorY + 24, 'icon', itemFrame)
-                        .setOrigin(0, 0.5)
-                        .setScale(0.55),
-                );
-            }
-            root.add(
-                scene.add
-                    .text(
-                        textLeft + 48,
-                        cursorY + 8,
-                        `${getItemDef(need.itemId).name} x${need.num}`,
-                        {
-                            ...uiTextStyle('COMMON_2'),
-                            color: have >= need.num ? '#111111' : '#b00000',
-                        },
-                    )
-                    .setOrigin(0, 0),
-            );
-            root.add(
-                scene.add
-                    .text(textLeft + 48, cursorY + 38, `你的库存：${have}`, {
-                        ...uiTextStyle('COMMON_3'),
-                        color: have >= need.num ? '#111111' : '#b00000',
-                    })
-                    .setOrigin(0, 0),
+            // Original help list is the same ItemRichText grid as gifts (icon +
+            // "xN"); items the player lacks render red. No inventory row exists.
+            cursorY = addItemGrid(scene, root, [need], textLeft, cursorY, textWidth, (item) =>
+                (getSession()?.storage[item.itemId] ?? 0) >= item.num ? '#111111' : '#b00000',
             );
         }
 
@@ -265,23 +270,95 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
         return root;
     }
 
-    root.add(
-        scene.add
-            .text(textLeft, cursorY, '我想你一定需要这个吧？不用谢，大家要一起熬过这个难关。', {
-                ...uiTextStyle('COMMON_3'),
-                color: '#111111',
-                wordWrap: uiWordWrap(textWidth),
-            })
-            .setOrigin(0, 0),
+    // Original showNpcSendGiftDialog: item batch and site batch are separate
+    // NpcDialogs; tapping 知道了 dismisses and chains into the next batch.
+    const items = visit.deliveredRewards.filter(
+        (reward): reward is Extract<NpcReward, { kind: 'item' }> => reward.kind === 'item',
     );
-    addRewardText(scene, root, visit, textLeft, cursorY + UI_FONT_SIZE.COMMON_3 + 24);
-    let closed = false;
-    const dismiss = () => {
-        if (closed) return;
-        closed = true;
-        root.destroy(true);
-        resumeTimeClock();
+    const sites = visit.deliveredRewards.filter(
+        (reward): reward is Extract<NpcReward, { kind: 'site' }> => reward.kind === 'site',
+    );
+
+    const openGiftBatch = (
+        mode: 'item' | 'site',
+        next: (() => void) | null,
+    ): GameObjects.Container => {
+        const { root, topY } = buildFrame();
+
+        if (mode === 'item') {
+            root.add(
+                scene.add
+                    .text(
+                        textLeft,
+                        topY,
+                        '我想你一定需要这个吧？不用谢，大家要一起熬过这个难关。',
+                        {
+                            ...uiTextStyle('COMMON_3'),
+                            color: '#111111',
+                            wordWrap: uiWordWrap(textWidth),
+                        },
+                    )
+                    .setOrigin(0, 0),
+            );
+            // Original 1069 label above the ItemRichText gift list.
+            const listY = topY + UI_FONT_SIZE.COMMON_3 + 24;
+            root.add(
+                scene.add
+                    .text(textLeft, listY, '你得到', {
+                        ...uiTextStyle('COMMON_3'),
+                        color: '#111111',
+                    })
+                    .setOrigin(0, 0),
+            );
+            addItemGrid(
+                scene,
+                root,
+                items,
+                textLeft,
+                listY + UI_FONT_SIZE.COMMON_3 + 10,
+                textWidth,
+            );
+        } else {
+            const names = sites.map(
+                (reward) => getSiteConfig(reward.siteId)?.name ?? `地点${reward.siteId}`,
+            );
+            root.add(
+                scene.add
+                    .text(
+                        textLeft,
+                        topY,
+                        `我知道一个地方，里面应该还有一些东西，你可能会需要${names
+                            .map((name) => `（新地点${name}解锁）`)
+                            .join('')}`,
+                        {
+                            ...uiTextStyle('COMMON_3'),
+                            color: '#111111',
+                            wordWrap: uiWordWrap(textWidth),
+                        },
+                    )
+                    .setOrigin(0, 0),
+            );
+        }
+
+        let closed = false;
+        const dismiss = () => {
+            if (closed) return;
+            closed = true;
+            root.destroy(true);
+            // Only the final batch resumes the (ref-counted) clock.
+            if (!next) {
+                resumeTimeClock();
+            }
+        };
+        addButton(scene, root, bgCenterX, actionCenterY, '知道了', () => {
+            dismiss();
+            next?.();
+        });
+        return root;
     };
-    addButton(scene, root, bgCenterX, actionCenterY, '知道了', dismiss);
-    return root;
+
+    return openGiftBatch(
+        items.length > 0 ? 'item' : 'site',
+        items.length > 0 && sites.length > 0 ? () => openGiftBatch('site', null) : null,
+    );
 }
