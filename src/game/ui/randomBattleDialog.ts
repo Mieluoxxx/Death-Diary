@@ -239,15 +239,14 @@ export function openRandomBattleDialog(
         const belowDig = placeDig();
         const desText = BATTLE_DES[difficulty - 1] ?? BATTLE_DES[0]!;
         const des = scene.add
-            .text(bgCenterX, belowDig, desText, {
+            .text(textLeft, belowDig, desText, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
                 fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
                 color: '#111111',
-                align: 'center',
                 wordWrap: uiWordWrap(textWidth),
             })
-            .setOrigin(0.5, 0);
+            .setOrigin(0, 0);
         contentLayer.add(des);
 
         // Log / equip band under des (original uses log area).
@@ -576,7 +575,7 @@ export function openRandomBattleDialog(
     const showEnd = (result: BattleSumRes) => {
         clearLayer(contentLayer);
         clearLayer(actionLayer);
-        placeDig();
+        const belowDig = placeDig();
 
         if (result.win) {
             appendSessionLog('你成功地消灭了僵尸，继续前进');
@@ -588,15 +587,14 @@ export function openRandomBattleDialog(
               ? '你逃离了战斗'
               : '战斗失败';
         const des = scene.add
-            .text(bgCenterX, contentTopY + 160, title, {
+            .text(textLeft, belowDig, title, {
                 fontFamily: UI_FONT_FAMILY,
                 resolution: UI_TEXT_RESOLUTION,
-                fontSize: `${UI_FONT_SIZE.COMMON_2}px`,
+                fontSize: `${UI_FONT_SIZE.COMMON_3}px`,
                 color: '#111111',
-                align: 'center',
                 wordWrap: uiWordWrap(textWidth),
             })
-            .setOrigin(0.5, 0);
+            .setOrigin(0, 0);
         contentLayer.add(des);
 
         let y = des.y + des.height + 16;
