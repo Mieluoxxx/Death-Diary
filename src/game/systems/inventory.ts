@@ -34,13 +34,6 @@ export const EquipPosMap = {
 };
 
 export const SLOT_BY_POS: EquipSlot[] = ['gun', 'weapon', 'equip', 'tool'];
-export const POS_BY_SLOT: Record<EquipSlot, EquipPos> = {
-    gun: 0,
-    weapon: 1,
-    equip: 2,
-    tool: 3,
-};
-
 export type TransferResult =
     | { ok: true }
     | {
@@ -116,11 +109,6 @@ function requireSession(): SessionState {
         throw new Error('No active session');
     }
     return session;
-}
-
-export function getBagCount(itemId: number): number {
-    const session = getSession();
-    return session ? getCount(session.bag, itemId) : 0;
 }
 
 /**
@@ -251,14 +239,6 @@ export function unequipByItemId(itemId: number): void {
     if (pos !== undefined) {
         unequipItem(pos);
     }
-}
-
-export function getEquipped(pos: EquipPos): number {
-    const session = getSession();
-    if (!session) {
-        return pos === EquipPosMap.WEAPON ? HAND_ITEM_ID : 0;
-    }
-    return session.equip[pos] ?? (pos === EquipPosMap.WEAPON ? HAND_ITEM_ID : 0);
 }
 
 export function getArmorDef(session: SessionState = requireSession()): number {

@@ -591,44 +591,6 @@ export function setSession(session: SessionState): void {
     persistSession(activeSession);
 }
 
-export function updateSession(partial: Partial<SessionState>): SessionState {
-    const current = getSession();
-    if (!current) {
-        throw new Error('No active session');
-    }
-    const next: SessionState = {
-        ...current,
-        ...partial,
-        attrs: partial.attrs ? { ...current.attrs, ...partial.attrs } : current.attrs,
-        logs: partial.logs ?? current.logs,
-        buildLevels: partial.buildLevels
-            ? { ...current.buildLevels, ...partial.buildLevels }
-            : current.buildLevels,
-        storage: partial.storage ? { ...current.storage, ...partial.storage } : current.storage,
-        bag: partial.bag ? { ...current.bag, ...partial.bag } : current.bag,
-        equip: partial.equip ? { ...current.equip, ...partial.equip } : current.equip,
-        navigation: partial.navigation ?? current.navigation,
-        map: partial.map
-            ? {
-                  pos: partial.map.pos ?? current.map.pos,
-                  homePos: partial.map.homePos ?? current.map.homePos,
-                  unlocked: partial.map.unlocked ?? current.map.unlocked,
-                  sites: partial.map.sites
-                      ? { ...current.map.sites, ...partial.map.sites }
-                      : current.map.sites,
-              }
-            : current.map,
-        npcs: partial.npcs ? { ...current.npcs, ...partial.npcs } : current.npcs,
-        tempLoot: partial.tempLoot ?? current.tempLoot,
-    };
-    if (typeof partial.gameTime === 'number') {
-        applyGameTimeToSession(next, partial.gameTime);
-    }
-    activeSession = next;
-    persistSession(next);
-    return next;
-}
-
 /**
  * Mutate the live session in place, persist, return it.
  * Prefer this for high-frequency ticks so we do not reallocate every hour.
@@ -662,18 +624,6 @@ export function formatClock(session: SessionState): string {
     const hourText = String(session.hour).padStart(2, '0');
     const minuteText = String(session.minute).padStart(2, '0');
     return `${hourText}:${minuteText}`;
-}
-
-/** Map attr fill ratio to icon tier 0/1/2 (visual only for web slice). */
-export function attrIconTier(ratio: number, reverse = false): 0 | 1 | 2 {
-    const value = reverse ? 1 - ratio : ratio;
-    if (value >= 0.66) {
-        return 0;
-    }
-    if (value >= 0.33) {
-        return 1;
-    }
-    return 2;
 }
 
 export function attrRatio(session: SessionState, attr: keyof PlayerAttrs): number {

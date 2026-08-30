@@ -105,14 +105,6 @@ function applyReputationGain(state: NpcState, npc: NpcDef, amount: number): numb
     return state.reputation - previous;
 }
 
-/** Map visibility is derived from this state; no secondary map NPC list exists. */
-export function isNpcUnlocked(npcId: number): boolean {
-    if (!isNpcId(npcId)) {
-        return false;
-    }
-    return Boolean(getSession()?.npcs[npcId].unlocked);
-}
-
 export function getNpcState(npcId: number): NpcState | null {
     if (!isNpcId(npcId)) {
         return null;

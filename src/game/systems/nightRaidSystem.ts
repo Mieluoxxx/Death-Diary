@@ -240,37 +240,3 @@ export function runNightRaid(): NightRaidResult {
     return result;
 }
 
-/** Debug / tests: force a raid with given strength (skips probability). */
-export function debugForceNightRaid(opts?: {
-    attackStrength?: number;
-    forceLose?: boolean;
-}): NightRaidResult {
-    const session = getSession();
-    if (!session) {
-        return { happened: false };
-    }
-
-    const attackStrength = opts?.attackStrength ?? rollStrength(Math.max(2, session.day));
-    const homeDef = opts?.forceLose ? 0 : homeDefense(session);
-    let items: NightRaidLostItem[] = [];
-    let win = true;
-
-    mutateSession((live) => {
-        const home = attackResult(live.storage, attackStrength, homeDef);
-        win = home.win;
-        items = home.items;
-    });
-
-    const result: NightRaidResult = {
-        happened: true,
-        defend: false,
-        win,
-        homeDef,
-        attackStrength,
-        items,
-    };
-    pauseTimeClock();
-    gameBusEmit('night_raid', result);
-    gameBusEmit('session_updated');
-    return result;
-}

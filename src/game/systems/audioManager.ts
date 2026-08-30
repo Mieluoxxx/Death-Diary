@@ -274,14 +274,6 @@ export function playEffect(key: SoundKey, loop = false): Phaser.Sound.BaseSound 
     return inst;
 }
 
-export function stopEffect(inst: Phaser.Sound.BaseSound | null | undefined): void {
-    if (!inst) {
-        return;
-    }
-    inst.stop();
-    inst.destroy();
-}
-
 export function playClick(): void {
     playEffect(Sound.CLICK);
 }
@@ -302,10 +294,6 @@ export function playWeaponAttack(itemId: number, kind: 'melee' | 'gun'): void {
         return;
     }
     playEffect(GUN_ATTACK_SFX[itemId] ?? Sound.ATTACK_4);
-}
-
-export function getPlayingMusic(): MusicKey | null {
-    return playingMusic;
 }
 
 export function getSiteMusic(): MusicKey {
@@ -418,10 +406,3 @@ export function applyMainPageMusic(): void {
     playMusic(Music.MAIN_PAGE, true);
 }
 
-/** Hard stop used when leaving the game shell (optional). */
-export function haltAllMusic(): void {
-    stopMusic();
-    playingMusic = null;
-    lastMusic = null;
-    currentNavMusic = null;
-}

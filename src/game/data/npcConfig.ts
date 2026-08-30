@@ -26,8 +26,6 @@ export type NpcDef = {
     extraGifts: readonly (NpcReward | null)[];
 };
 
-export type NpcCopy = Pick<NpcDef, 'name' | 'des'>;
-
 type RawItemStack = {
     readonly itemId: string | number;
     readonly num: string | number;
@@ -97,9 +95,4 @@ export function isNpcId(value: number): value is NpcId {
 
 export function getNpcDef(npcId: number): NpcDef | null {
     return isNpcId(npcId) ? NPC_CONFIG[npcId] : null;
-}
-
-export function getNpcCopy(npcId: number): NpcCopy {
-    const npc = getNpcDef(npcId);
-    return npc ? { name: npc.name, des: npc.des } : { name: `NPC${npcId}`, des: '' };
 }

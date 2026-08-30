@@ -237,21 +237,6 @@ export function startBuildUpgrade(
     return true;
 }
 
-export function getNextUpgradeCost(bid: number): BuildCostItem[] {
-    const check = canUpgradeBuild(bid);
-    return check.nextConfig?.cost ?? [];
-}
-
-export function getNextUpgradeMinutes(bid: number): number {
-    const check = canUpgradeBuild(bid);
-    return check.nextConfig?.createTime ?? 0;
-}
-
-export function digBuildFrame(bid: number, level: number): string {
-    const safeLevel = Math.max(0, level);
-    return `dig_build_${bid}_${safeLevel}.png`;
-}
-
 export function homeBuildFrame(bid: number, level: number): string {
     const safeLevel = Math.max(0, level);
     return `icon_start_build_${bid}_${safeLevel}.png`;

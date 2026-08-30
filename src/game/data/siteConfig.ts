@@ -24,7 +24,6 @@ export type SiteConfig = {
 
 export const HOME_SITE_ID = 100;
 export const STARTER_SITE_ID = 201;
-export const SUPERMARKET_SITE_ID = 1;
 export const AD_SITE_ID = 202;
 export const WORK_SITE_ID = 204;
 
@@ -694,9 +693,3 @@ export function travelTimeSeconds(distance: number): number {
     return distance / MAP_BASE_VELOCITY;
 }
 
-/** All site ids that can appear on the map (for debug / tooling). */
-export function allSiteIds(): number[] {
-    return Object.keys(SITE_CONFIG)
-        .map(Number)
-        .sort((a, b) => a - b);
-}

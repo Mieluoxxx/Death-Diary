@@ -233,26 +233,3 @@ export function checkDay(day: number): void {
     saveMedal();
 }
 
-export function checkMonsterKilled(num: number): void {
-    const map = getMedalMap();
-    for (const medalId of ['201', '202', '203'] as MedalId[]) {
-        const info = map[medalId];
-        if (info.completed !== 1) {
-            info.aimCompleted += Number(num);
-            checkCompleted(info, 2);
-        }
-    }
-    saveMedal();
-}
-
-export function checkSecretRoomEnd(num: number): void {
-    const map = getMedalMap();
-    for (const medalId of ['301', '302', '303'] as MedalId[]) {
-        const info = map[medalId];
-        if (info.completed !== 1) {
-            info.aimCompleted += Number(num);
-            checkCompleted(info, 3);
-        }
-    }
-    saveMedal();
-}

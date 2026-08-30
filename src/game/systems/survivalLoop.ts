@@ -77,10 +77,6 @@ const WEATHER_LOG: Record<number, string> = {
 
 let survivalActive = false;
 
-export function isSurvivalLoopActive(): boolean {
-    return survivalActive;
-}
-
 /**
  * Boot clock + survival timers for the current session.
  * Safe to call once per Home enter; no-ops if already running with same session.

@@ -41,8 +41,6 @@ export const NavNode = {
     NPC_STORAGE: 'NpcStorageNode',
 } as const;
 
-export type NavNodeName = (typeof NavNode)[keyof typeof NavNode];
-
 export type NavHostHandle = {
     root: GameObjects.Container;
     forward: (nodeName: string, userData?: unknown) => void;
@@ -469,10 +467,3 @@ export function createNavigationHost(
     };
 }
 
-/** Content area top Y (screen) under title bar. */
-export function contentTopScreenY(height: number): number {
-    const bgBottomY = height - BG_BOTTOM_OFFSET;
-    return bgBottomY - CONTENT_TOP_LOCAL_Y + CONTENT_Y_NUDGE;
-}
-
-export { ACTION_BAR_LOCAL_Y, BG_BOTTOM_OFFSET, BG_HEIGHT, BG_WIDTH, CONTENT_TOP_LOCAL_Y };

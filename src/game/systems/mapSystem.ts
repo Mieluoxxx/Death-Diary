@@ -13,7 +13,6 @@ import {
     HOME_SITE_ID,
     mapDistance,
     type SiteLoot,
-    STARTER_SITE_ID,
     travelTimeSeconds,
 } from '../data/siteConfig';
 import { getSiteProduceConfig, type WeightedSiteLoot } from '../data/siteProduceConfig';
@@ -23,26 +22,12 @@ import {
     getSession,
     getStageFromHour,
     mutateSession,
-    type SessionState,
     type SiteRoom,
     type SiteState,
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';
 import { flushBagToStorage } from './inventory';
 import { unlockNpc } from './npcSystem';
-
-export function defaultMapState(): SessionState['map'] {
-    const home = getSiteConfig(HOME_SITE_ID)!;
-    const starter = createSiteState(STARTER_SITE_ID);
-    return {
-        pos: { ...home.coordinate },
-        homePos: { ...home.coordinate },
-        unlocked: [HOME_SITE_ID, STARTER_SITE_ID],
-        sites: {
-            [STARTER_SITE_ID]: starter,
-        },
-    };
-}
 
 function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;

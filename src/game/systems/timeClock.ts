@@ -75,20 +75,12 @@ export function isTimeClockRunning(): boolean {
     return clock.running;
 }
 
-export function isTimeClockPaused(): boolean {
-    return clock.pausedRef > 0;
-}
-
 export function pauseTimeClock(): void {
     clock.pausedRef += 1;
 }
 
 export function resumeTimeClock(): void {
     clock.pausedRef = Math.max(0, clock.pausedRef - 1);
-}
-
-export function getGameTimeScale(): number {
-    return clock.timeScale;
 }
 
 /**

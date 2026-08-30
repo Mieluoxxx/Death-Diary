@@ -9,7 +9,7 @@ import {
     STARVE_IMMUNE_BUFF_ITEM_ID,
     VIGOUR_IMMUNE_BUFF_ITEM_ID,
 } from '../data/itemEffects';
-import { type AttrBand, type AttrEffectKey, findAttrBand } from '../data/playerAttrEffect';
+import { type AttrBand, findAttrBand } from '../data/playerAttrEffect';
 import {
     appendSessionLog,
     formatClock,
@@ -270,26 +270,6 @@ function bandHint(key: MutableAttrKey, bandId: number): string {
     return `档${bandId}`;
 }
 
-/** Apply a map of attr deltas (used by band effects). */
-export function applyEffectMap(effect: Partial<Record<AttrEffectKey, number>>): void {
-    for (const [attrKey, rawValue] of Object.entries(effect)) {
-        if (rawValue === undefined || rawValue === 0) {
-            continue;
-        }
-        if (
-            attrKey === 'hp' ||
-            attrKey === 'spirit' ||
-            attrKey === 'starve' ||
-            attrKey === 'vigour' ||
-            attrKey === 'injury' ||
-            attrKey === 'infect' ||
-            attrKey === 'temperature'
-        ) {
-            changeAttr(attrKey, rawValue);
-        }
-    }
-}
-
 export function changeHp(delta: number): number {
     return changeAttr('hp', delta);
 }
@@ -304,18 +284,6 @@ export function changeVigour(delta: number): number {
 
 export function changeSpirit(delta: number): number {
     return changeAttr('spirit', delta);
-}
-
-export function changeInjury(delta: number): number {
-    return changeAttr('injury', delta);
-}
-
-export function changeInfect(delta: number): number {
-    return changeAttr('infect', delta);
-}
-
-export function changeTemperature(delta: number): number {
-    return changeAttr('temperature', delta);
 }
 
 /** Apply / replace active buff (one at a time, original BuffManager). */

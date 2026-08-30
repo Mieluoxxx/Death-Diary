@@ -5,7 +5,7 @@
 
 import { BUILD_CONFIG } from '../data/buildConfig';
 import { buildLevelName } from '../data/buildStrings';
-import { FORMULA_CONFIG, type FormulaDef, getFormulaDef } from '../data/formulaConfig';
+import { type FormulaDef, getFormulaDef } from '../data/formulaConfig';
 import { getItemDef } from '../data/itemConfig';
 import {
     appendSessionLog,
@@ -514,9 +514,4 @@ export function clearCraftRuntime(): void {
     }
     runtime.clear();
     activeFormulaByBid.clear();
-}
-
-/** Expose for debug. */
-export function getFormulaConfigCount(): number {
-    return Object.keys(FORMULA_CONFIG).length;
 }

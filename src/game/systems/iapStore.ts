@@ -7,12 +7,7 @@
  * permanent flag and creates build 12 (level 0) on the live session when present.
  */
 
-import {
-    getPurchaseConfig,
-    isPermanentIapId,
-    type PermanentIapId,
-    PURCHASE_LIST,
-} from '../data/purchaseList';
+import { isPermanentIapId, PURCHASE_LIST } from '../data/purchaseList';
 import { getSession, setBuildLevel } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';
 
@@ -74,10 +69,6 @@ export function unlockIap(iapId: number): void {
     if (iapId === DOG_HOUSE_IAP_ID) {
         ensureDogHouseBuilt();
     }
-}
-
-export function getIapPriceStr(iapId: PermanentIapId): string {
-    return getPurchaseConfig(iapId).productPriceStr;
 }
 
 /** If IAP 107 is owned and dog house is still unbuilt, place level 0. */
