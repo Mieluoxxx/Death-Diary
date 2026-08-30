@@ -13,7 +13,7 @@
 
 import type { GameObjects, Tweens } from 'phaser';
 import { getNpcDef, NPC_IDS } from '../../data/npcConfig';
-import { getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
+import { BOSS_SITE_ID, getSiteConfig, HOME_SITE_ID } from '../../data/siteConfig';
 import { getSession, mutateSession } from '../../session/sessionStore';
 import {
     arriveAt,
@@ -131,6 +131,11 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
     let guideWarn: GuideWarnHandle | null = null;
 
     for (const siteId of session.map.unlocked) {
+        // Original map.forEach: boss-chain sub-sites (301+) live inside the
+        // boss hub UI, never on the map.
+        if (siteId >= 300) {
+            continue;
+        }
         const cfg = getSiteConfig(siteId);
         if (!cfg) {
             continue;
@@ -733,6 +738,10 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
     }
 
     function enterSite(siteId: number): void {
+        if (siteId === BOSS_SITE_ID) {
+            ctx.forward(NavNode.BOSS, siteId);
+            return;
+        }
         if (siteId === HOME_SITE_ID) {
             const live = getSession();
             if (live && !live.isAtHome) {

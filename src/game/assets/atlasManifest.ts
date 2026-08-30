@@ -42,6 +42,7 @@ export const HOME_ATLAS_KEYS = [
     'gate',
     'map',
     'site',
+    'new_site',
     'dig_monster',
     'dig_item',
     'dig_work',

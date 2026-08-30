@@ -26,6 +26,11 @@ export const HOME_SITE_ID = 100;
 export const STARTER_SITE_ID = 201;
 export const AD_SITE_ID = 202;
 export const WORK_SITE_ID = 204;
+export const BOSS_SITE_ID = 61;
+/** Boss-chain sub-sites, in original BossSite.bossSubSiteIds order. */
+export const BOSS_SUB_SITE_IDS = [
+    301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312,
+] as const;
 
 export const SITE_CONFIG: Record<number, SiteConfig> = {
     1: {
@@ -370,6 +375,8 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockNpcs: [],
         def: 10,
     },
+    // BOSS_SITE (original site.js BOSS_SITE=61): boss-chain hub, NOT a normal site —
+    // isSiteEnd() is always false; coordinate IS a map coordinate (61 < 300 renders on map).
     61: {
         id: 61,
         name: '081研究所',
@@ -453,6 +460,9 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockNpcs: [],
         def: 50,
     },
+    // Boss-chain sub-sites 301-312: coordinate is the BUTTON POSITION on the
+    // original bossSiteNode inset scene (new_site_bg), NOT a map coordinate —
+    // these sites never render on the map (original map.forEach filters siteId < 300).
     301: {
         id: 301,
         name: '升降台',
