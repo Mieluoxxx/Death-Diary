@@ -314,8 +314,10 @@ function isFireActive(session: SessionState): boolean {
         const stoveLevel = session.buildLevels[18] ?? -1;
         return stoveLevel >= 0 && session.electricFenceActive;
     }
-    // Bonfire (5): fuel > 0.
-    return (session.bonfireFuel ?? 0) > 0 && (session.buildLevels[5] ?? -1) >= 0;
+    // Bonfire (5): derived fuelLeft > 0 (burn-down included via round anchor).
+    return (
+        bonfireDerived(session).fuelLeft > 0 && (session.buildLevels[5] ?? -1) >= 0
+    );
 }
 
 function updateTemperature(session: SessionState): void {
@@ -485,6 +487,43 @@ export function debugSkipGameHours(hours: number): void {
     }
 }
 
+/** Original buildActionConfig['5']: one wood burns makeTime 240 min = 4 h. */
+export const BONFIRE_SECONDS_PER_FUEL = 240 * 60;
+/** Original BonfireBuildAction fuelMax = buildActionConfig['5'][0].max. */
+export const BONFIRE_FUEL_MAX = 6;
+
+export type BonfireDerived = {
+    /** A round is registered (anchor set) and fuel remains. */
+    burning: boolean;
+    /** Whole fuel units still alive this round (original this.fuel after burns). */
+    fuelLeft: number;
+    /** Original progress bar: (fuel × makeTime − pastTime) / (fuel × makeTime) × 100. */
+    pct: number;
+    burnedOut: boolean;
+};
+
+/**
+ * Derive live bonfire burn state from the round anchor (original
+ * BonfireBuildAction: startTime + continuously accumulating pastTime,
+ * fuel-- per makeTime with the timer re-registered while fuel > 0).
+ */
+export function bonfireDerived(session: SessionState): BonfireDerived {
+    const fuel = session.bonfireFuel ?? 0;
+    const anchor = session.bonfireRoundAnchorSec ?? 0;
+    if (fuel <= 0) {
+        return { burning: false, fuelLeft: 0, pct: 0, burnedOut: false };
+    }
+    const elapsed = Math.max(0, session.gameTime - anchor);
+    const burned = Math.floor(elapsed / BONFIRE_SECONDS_PER_FUEL);
+    const fuelLeft = Math.max(0, fuel - burned);
+    if (fuelLeft <= 0) {
+        return { burning: true, fuelLeft: 0, pct: 0, burnedOut: true };
+    }
+    const totalTime = fuelLeft * BONFIRE_SECONDS_PER_FUEL;
+    const pct = Math.max(0, ((totalTime - elapsed) / totalTime) * 100);
+    return { burning: true, fuelLeft, pct, burnedOut: false };
+}
+
 /** Add bonfire fuel unit (wood). Max 6 like original. */
 export function addBonfireFuel(): { ok: boolean; msg: string } {
     const session = getSession();
@@ -494,11 +533,14 @@ export function addBonfireFuel(): { ok: boolean; msg: string } {
     if ((session.buildLevels[5] ?? -1) < 0) {
         return { ok: false, msg: '你没有火炉' };
     }
-    if ((session.bonfireFuel ?? 0) >= 6) {
-        return { ok: false, msg: '燃料已满' };
+    const derived = bonfireDerived(session);
+    if (derived.fuelLeft >= BONFIRE_FUEL_MAX) {
+        // Original string 1134 via showTinyInfoDialog.
+        return { ok: false, msg: '火炉已经塞满了！' };
     }
     if ((session.storage[1101011] ?? 0) < 1) {
-        return { ok: false, msg: '木材不足' };
+        // Original string 1146 via showTinyInfoDialog.
+        return { ok: false, msg: '没有足够的木材' };
     }
     mutateSession((live) => {
         const wood = live.storage[1101011] ?? 0;
@@ -507,22 +549,34 @@ export function addBonfireFuel(): { ok: boolean; msg: string } {
         } else {
             live.storage[1101011] = wood - 1;
         }
-        live.bonfireFuel = (live.bonfireFuel ?? 0) + 1;
+        // Original addFuel: register the round timer only when fuel == 0;
+        // topping up mid-round keeps the anchor (pastTime never resets).
+        if (derived.fuelLeft <= 0) {
+            live.bonfireFuel = 1;
+            live.bonfireRoundAnchorSec = live.gameTime;
+        } else {
+            live.bonfireFuel = (live.bonfireFuel ?? 0) + 1;
+        }
+        // Original player.log.addMsg(1097).
+        appendSessionLog('你向火炉添加了燃料', `第${live.day}天 ${formatClock(live)}`);
     });
-    // One fuel lasts 240 min = 4 hours of heat (original makeTime 240 minutes).
+    // Original _sendUpdageSignal → build_node_update: panel rebuilds immediately
+    // so the burning hint/progress bar appear without waiting for the next tick.
+    gameBusEmit('facility_changed', { bid: 5 });
     gameBusEmit('session_updated');
-    return { ok: true, msg: `添柴成功（燃料${getSession()!.bonfireFuel}/6）` };
+    return { ok: true, msg: '' };
 }
 
 /**
- * Consume 1 fuel every 4 game hours while burning.
- * Original: each fuel unit lasts makeTime 240 minutes.
+ * Hourly tick: persist burn-out once the round's elapsed time exceeds the
+ * stored fuel (progress/fuelLeft are otherwise derived on the fly).
+ * Original end callback: resetActiveBtnIndex + updateTemperature; the UI
+ * returns to the unlit hint once fuel is cleared.
  */
 export function maybeBurnBonfireFuel(session: SessionState): void {
-    if ((session.bonfireFuel ?? 0) <= 0) {
+    if (!bonfireDerived(session).burnedOut) {
         return;
     }
-    if (session.hour % 4 === 0) {
-        session.bonfireFuel = Math.max(0, session.bonfireFuel - 1);
-    }
+    session.bonfireFuel = 0;
+    session.bonfireRoundAnchorSec = 0;
 }

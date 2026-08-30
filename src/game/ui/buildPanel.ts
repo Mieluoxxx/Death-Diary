@@ -631,6 +631,72 @@ export function openBuildPanel(
     };
 }
 
+type ActionCostRow = { itemId: number; num: number; ok: boolean };
+
+/**
+ * Original LabelTTF action hint (createCommonListItem): cc.size(268, 0)
+ * fixed-width auto wrap (CJK advanced), top-anchored at the icon's top edge.
+ */
+function addActionHintText(
+    scene: Scene,
+    row: GameObjects.Container,
+    hint: string,
+    hintColor: string | undefined,
+    x: number,
+    y: number,
+): void {
+    const color = hintColor === 'red' ? '#ff5555' : hintColor === 'white' ? '#ffffff' : '#cccccc';
+    row.add(
+        scene.add
+            .text(x, y, hint, {
+                ...uiTextStyle('COMMON_3'),
+                color,
+                wordWrap: uiWordWrap(268),
+            })
+            .setOrigin(0, 0),
+    );
+}
+
+/**
+ * Original ItemRichText (createCommonListItem): 268px grid, 3 columns per
+ * row, icon left / "xN" right, red when short. Extra items wrap to the next
+ * row; an empty list renders the original string 1230 (“无”).
+ */
+function addCostGrid(
+    scene: Scene,
+    row: GameObjects.Container,
+    costRows: ReadonlyArray<ActionCostRow>,
+    x: number,
+    y: number,
+): void {
+    const COLS = 3;
+    const COL_W = 268 / COLS;
+    const SCALE = 0.3; // original itemIconScale
+    const ROW_H = Math.max(84 * SCALE, 20); // icon_item 84² vs COMMON_3
+    if (costRows.length === 0) {
+        row.add(
+            scene.add.text(x, y, '无', { ...uiTextStyle('COMMON_3'), color: '#ffffff' }).setOrigin(0, 0),
+        );
+        return;
+    }
+    costRows.forEach((cost, i) => {
+        const cy = y + (Math.floor(i / COLS) + 0.5) * ROW_H;
+        const left = x + (i % COLS) * COL_W;
+        const frame = `icon_item_${cost.itemId}.png`;
+        if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame)) {
+            row.add(scene.add.image(left + 10, cy, 'icon', frame).setScale(SCALE).setOrigin(0, 0.5));
+        }
+        row.add(
+            scene.add
+                .text(left + COL_W - 10, cy, `x${cost.num}`, {
+                    ...uiTextStyle('COMMON_3'),
+                    color: cost.ok ? '#ffffff' : '#ff5555',
+                })
+                .setOrigin(1, 0.5),
+        );
+    });
+}
+
 function mountCraftRow(
     scene: Scene,
     parent: GameObjects.Container,
@@ -692,43 +758,9 @@ function mountCraftRow(
 
     const textLeft = -BG_WIDTH / 2 + 140;
     if (action.hint) {
-        const color =
-            action.hintColor === 'red'
-                ? '#ff5555'
-                : action.hintColor === 'white'
-                  ? '#ffffff'
-                  : '#cccccc';
-        row.add(
-            scene.add
-                .text(textLeft, iconY - 18, action.hint, {
-                    ...uiTextStyle('COMMON_3'),
-                    color,
-                })
-                .setOrigin(0, 0.5),
-        );
+        addActionHintText(scene, row, action.hint, action.hintColor, textLeft, iconY - 36);
     } else if (action.step === 0 && !action.isActioning) {
-        // Cost icons
-        let cx = textLeft;
-        action.costRows.forEach((cost) => {
-            const frame = `icon_item_${cost.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame)) {
-                const icon = scene.add
-                    .image(cx, iconY - 10, 'icon', frame)
-                    .setScale(0.28)
-                    .setOrigin(0, 0.5);
-                row.add(icon);
-                cx += icon.displayWidth + 2;
-            }
-            row.add(
-                scene.add
-                    .text(cx, iconY - 10, `x${cost.num}`, {
-                        ...uiTextStyle(16),
-                        color: cost.ok ? '#ffffff' : '#ff5555',
-                    })
-                    .setOrigin(0, 0.5),
-            );
-            cx += 36;
-        });
+        addCostGrid(scene, row, action.costRows, textLeft, iconY - 36);
     }
 
     // Progress bar
@@ -849,42 +881,9 @@ function mountFacilityRow(
 
     const textLeft = -BG_WIDTH / 2 + 140;
     if (action.hint) {
-        const color =
-            action.hintColor === 'red'
-                ? '#ff5555'
-                : action.hintColor === 'white'
-                  ? '#ffffff'
-                  : '#cccccc';
-        row.add(
-            scene.add
-                .text(textLeft, iconY - 18, action.hint, {
-                    ...uiTextStyle('COMMON_3'),
-                    color,
-                })
-                .setOrigin(0, 0.5),
-        );
+        addActionHintText(scene, row, action.hint, action.hintColor, textLeft, iconY - 36);
     } else if (!action.isActioning && action.costRows.length > 0) {
-        let cx = textLeft;
-        action.costRows.forEach((cost) => {
-            const frame = `icon_item_${cost.itemId}.png`;
-            if (scene.textures.exists('icon') && scene.textures.get('icon').has(frame)) {
-                const icon = scene.add
-                    .image(cx, iconY - 10, 'icon', frame)
-                    .setScale(0.28)
-                    .setOrigin(0, 0.5);
-                row.add(icon);
-                cx += icon.displayWidth + 2;
-            }
-            row.add(
-                scene.add
-                    .text(cx, iconY - 10, `x${cost.num}`, {
-                        ...uiTextStyle(16),
-                        color: cost.ok ? '#ffffff' : '#ff5555',
-                    })
-                    .setOrigin(0, 0.5),
-            );
-            cx += 36;
-        });
+        addCostGrid(scene, row, action.costRows, textLeft, iconY - 36);
     }
 
     const pbY = iconY + 22;

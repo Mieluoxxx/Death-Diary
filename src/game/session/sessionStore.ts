@@ -156,10 +156,16 @@ export type SessionState = {
     /** Active item buff (serum / immunity). */
     buff: SessionBuff | null;
     /**
-     * Bonfire (bid 5) fuel units remaining. Active when > 0 → +temp.
-     * Original BonfireBuildAction.fuel.
+     * Bonfire (bid 5) fuel units added this round. Original BonfireBuildAction.fuel
+     * (timer semantics: totalTime = bonfireFuel × makeTime; decrements are derived
+     * from bonfireRoundAnchorSec, see survivalLoop bonfireDerived).
      */
     bonfireFuel: number;
+    /**
+     * Bonfire current round burn start (gameTime total seconds). 0 = not burning.
+     * Original BonfireBuildAction.startTime — registered only when fuel hits 0.
+     */
+    bonfireRoundAnchorSec: number;
 };
 
 const SAVE_EXPORT_FORMAT = 'death-diary-save';
@@ -237,6 +243,14 @@ function normalizeSession(session: SessionState): SessionState {
     ) {
         // Existing saves predate the guide. Do not drop an established player into onboarding.
         session.guide = { version: 1, status: 'completed', step: 28 };
+    }
+    // Bonfire anchor migration: saves predating bonfireRoundAnchorSec treat an
+    // in-progress round as just started (max drift one fuel cycle, by design).
+    if (!isFiniteNumber(session.bonfireFuel)) {
+        session.bonfireFuel = 0;
+    }
+    if (!isFiniteNumber(session.bonfireRoundAnchorSec)) {
+        session.bonfireRoundAnchorSec = session.bonfireFuel > 0 ? session.gameTime : 0;
     }
     return session;
 }
@@ -555,6 +569,7 @@ export function createNewSession(role: RoleKey, talent: TalentId): SessionState 
         weatherLastDays: 0,
         buff: null,
         bonfireFuel: 0,
+        bonfireRoundAnchorSec: 0,
     };
     activeSession = session;
     persistSession(session);
@@ -570,7 +585,9 @@ export function hasSession(): boolean {
 }
 
 export function setSession(session: SessionState): void {
-    activeSession = session;
+    // Remote sessions (cloud pull) go through the same normalization as disk
+    // saves, so older payloads get bonfire/anchor migration on arrival.
+    activeSession = normalizeSession(session);
     persistSession(activeSession);
 }
 

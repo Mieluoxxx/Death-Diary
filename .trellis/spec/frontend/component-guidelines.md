@@ -53,6 +53,21 @@ scene.add.text(x, y, label, {
 
 ---
 
+## Build-panel action rows
+
+`buildPanel.ts` renders facility (bid) and craft rows through two shared helpers —
+reuse them for any new action row, do not hand-roll inline copies:
+
+- `addActionHintText` — original `LabelTTF cc.size(268, 0)` semantics: fixed 268px
+  width, CJK advanced wrap, top-anchored at the icon's top edge (`setOrigin(0, 0)`).
+- `addCostGrid` — original `ItemRichText(items, 268, 3, 0.3)`: 268px grid, 3 columns
+  per row, icon left / "xN" right, red when short, empty list renders string 1230.
+
+After any facility mutation that changes a row's visible state, emit
+`gameBusEmit('facility_changed', { bid })` (original `_sendUpdageSignal` →
+`build_node_update`) so the open panel rebuilds immediately instead of waiting for
+the next game-minute `session_updated` tick.
+
 ## Component Structure
 
 <!-- Standard structure of a component file -->

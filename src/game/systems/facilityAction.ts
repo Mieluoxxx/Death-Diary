@@ -18,7 +18,7 @@ import {
 import { checkVigourOk } from './buildSystem';
 import { gameBusEmit } from './gameBus';
 import { changeSpirit } from './playerAttrs';
-import { addBonfireFuel } from './survivalLoop';
+import { addBonfireFuel, bonfireDerived } from './survivalLoop';
 import type { TimerCallbackHandle } from './timeClock';
 import {
     getTimedProgressJob,
@@ -267,23 +267,25 @@ export function listFacilityActions(bid: number): FacilityActionView[] {
         ];
     }
 
-    // Bonfire / fireplace (5)
+    // Bonfire / fireplace (5) — original BonfireBuildAction viewInfo parity.
     if (bid === 5 && level >= 0) {
-        const fuel = session.bonfireFuel ?? 0;
-        const rows = costRowsFor([{ itemId: 1101011, num: 1 }]);
-        const okCost = rows.every((r) => r.ok);
+        const derived = bonfireDerived(session);
         return [
             {
                 bid,
                 actionId: 0,
-                iconHint: 'build_5_0.png',
-                isActioning: fuel > 0,
-                percentage: fuel > 0 ? Math.min(100, (fuel / 6) * 100) : 0,
-                hint: fuel > 0 ? `燃烧中 燃料${fuel}/6` : '添加木材生火取暖',
-                hintColor: fuel > 0 ? 'white' : 'gray',
-                costRows: rows,
-                actionLabel: fuel >= 6 ? '燃料已满' : '添柴',
-                actionDisabled: fuel >= 6 || !okCost,
+                iconHint: 'build_action_5_0.png',
+                isActioning: derived.burning,
+                percentage: derived.pct,
+                // Original strings 1012 (burning) / 1011 (unlit), both WHITE.
+                hint: derived.fuelLeft > 0
+                    ? `炉火很旺，炉膛里有${derived.fuelLeft}个木材可取暖${derived.fuelLeft * 4}个小时`
+                    : '炉火熄灭了，1个木材可供4小时取暖',
+                hintColor: 'white',
+                costRows: costRowsFor([{ itemId: 1101011, num: 1 }]),
+                // Original string 1010: always clickable; feedback via click result.
+                actionLabel: '添加燃料',
+                actionDisabled: false,
             },
         ];
     }
