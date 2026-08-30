@@ -30,6 +30,28 @@ When porting original UI, derive geometry from Cocos y-up coordinates per contai
 task's `research/audit.md` with aligned/kept-and-why verdicts.
 
 ---
+## Text styling (uiFont)
+
+All Phaser Text styles must go through the shared helpers in `src/game/ui/uiFont.ts` —
+never hand-write the `{ fontFamily, resolution, fontSize }` triple inline. The hand-copied
+form drifted once already (`radioNode.ts` missing `resolution`, text rendered at DPI 1).
+
+- `uiTextStyle(size, extra)` — base style (bundled CJK `fontFamily` + DPI `resolution` + `fontSize`).
+  `size` accepts a `UiFontSizeKey` (`'COMMON_1' | 'COMMON_2' | 'COMMON_3'`) or a raw px number.
+- `uiSpriteBtnTextStyle(tier, extra)` — atlas sprite button labels (tier − 4 px parity).
+- `uiWordWrap(width)` — CJK-aware advanced wrap.
+
+Preferred call-site form is a leading spread so per-instance fields stay inline:
+
+```ts
+scene.add.text(x, y, label, {
+    ...uiTextStyle('COMMON_2'),
+    color: '#111111',
+    wordWrap: uiWordWrap(textWidth),
+})
+```
+
+---
 
 ## Component Structure
 

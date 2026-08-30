@@ -45,3 +45,20 @@
 Rollback points: after save-contract changes, after lifecycle changes, and
 after any dead-entry cleanup. Revert the last isolated module if a validation
 step exposes behavior drift.
+
+## Execution log
+
+### 2026-08-30 — unify UI text styles via `uiTextStyle` (ponytail-audit follow-up)
+
+- Codemod replaced all 163 hand-copied `{ fontFamily, resolution, fontSize }` triples
+  across 40 files with `...uiTextStyle(...)` spreads (106 const-key + 50 px-literal
+  + 6 expression + 1 missing-resolution variant in `radioNode.ts`, fixing the DPI-1
+  drift bug there as part of the same change).
+- Import lines patched in the same pass; unused `UI_FONT_*` constants removed;
+  `biome check --write` normalized formatting. Reverted incidental formatting of
+  4 out-of-scope files (`tsconfig.json`, `vite/frameAtlasPlugin.mjs`,
+  `server/src/app.ts`, `tools/gen_frame_multiatlas.mjs`).
+- Validation: `biome lint` clean, `tsc --noEmit` (client + server) clean,
+  `bun run build` OK, client tests 24 pass, server tests 5 pass.
+- Net: 55 files, +286/−590 (−304 lines). Spec: added "Text styling (uiFont)"
+  section to `.trellis/spec/frontend/component-guidelines.md`.
