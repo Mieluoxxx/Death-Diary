@@ -241,6 +241,18 @@ export function unequipItem(pos: EquipPos): void {
     gameBusEmit('session_updated');
 }
 
+/** 原版 equipment.unequipByItemId：按 itemId 卸下对应槽位（未装备时为空操作）。 */
+export function unequipByItemId(itemId: number): void {
+    const session = getSession();
+    if (!session) {
+        return;
+    }
+    const pos = ([0, 1, 2, 3] as const).find((p) => session.equip[p] === itemId);
+    if (pos !== undefined) {
+        unequipItem(pos);
+    }
+}
+
 export function getEquipped(pos: EquipPos): number {
     const session = getSession();
     if (!session) {

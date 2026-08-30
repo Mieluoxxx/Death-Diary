@@ -127,8 +127,11 @@ export function mountEquipStrip(ctx: NodeMountContext, opts: EquipStripOptions):
             let frame = EMPTY_SLOT_FRAME[slot.pos];
             if (id === HAND_ITEM_ID) {
                 frame = 'icon_tab_hand.png';
-            } else if (id) {
+            } else if (id && getCount(bagCounts(), id) > 0) {
                 frame = `icon_tab_${id}.png`;
+            } else if (slot.pos === EquipPosMap.WEAPON) {
+                // 草稿交易扣空武器时回到拳头，与 commitNpcTrade 的 unequip 语义一致。
+                frame = 'icon_tab_hand.png';
             }
 
             if (ctx.scene.textures.exists('gate') && ctx.scene.textures.get('gate').has(frame)) {

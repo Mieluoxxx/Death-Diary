@@ -5,7 +5,7 @@ import { itemWeight } from '../../data/itemConfig';
 import { getNpcDef, isNpcId, type NpcId } from '../../data/npcConfig';
 import { getSession, type ItemCounts } from '../../session/sessionStore';
 import { playEffect, Sound } from '../../systems/audioManager';
-import { getBagCapacity } from '../../systems/inventory';
+import { getBagCapacity, unequipByItemId } from '../../systems/inventory';
 import {
     commitNpcTrade,
     getNpcState,
@@ -162,6 +162,10 @@ export function mountNpcStorageNode(ctx: NodeMountContext): NodeMountResult {
         }
         if (moveCount(from, to, itemId, requested) > 0) {
             didMove = true;
+            // 原版 Bag.decreaseItem：草稿把装备中物品扣空时立即真实卸下（拿回不自动装回）。
+            if (!toBag && !draftBag[itemId]) {
+                unequipByItemId(itemId);
+            }
             refresh();
         }
     };
