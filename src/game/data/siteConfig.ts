@@ -17,6 +17,8 @@ export type SiteConfig = {
     fixedProduceList: SiteLoot[];
     /** Sites unlocked when this site is fully cleared. */
     unlockSites: number[];
+    /** Secret-room (密道) tier; absent = site never spawns secret rooms. */
+    secretRoomsId?: 1 | 2 | 3 | 4 | 5;
     /** NPCs unlocked when this site is fully cleared. */
     unlockNpcs: number[];
     def: number;
@@ -25,6 +27,8 @@ export type SiteConfig = {
 export const HOME_SITE_ID = 100;
 export const STARTER_SITE_ID = 201;
 export const AD_SITE_ID = 202;
+/** In-game days between scrapyard secret-dungeon entries (original ad cooldown). */
+export const SCRAPYARD_COOLDOWN_DAYS = 7;
 export const WORK_SITE_ID = 204;
 export const BOSS_SITE_ID = 61;
 /** Boss-chain sub-sites, in original BossSite.bossSubSiteIds order. */
@@ -75,6 +79,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [10, 11],
         unlockNpcs: [],
         def: 10,
+        secretRoomsId: 1,
     },
     4: {
         id: 4,
@@ -88,6 +93,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 10,
+        secretRoomsId: 1,
     },
     5: {
         id: 5,
@@ -127,6 +133,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [9],
         unlockNpcs: [],
         def: 15,
+        secretRoomsId: 1,
     },
     8: {
         id: 8,
@@ -153,6 +160,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 20,
+        secretRoomsId: 1,
     },
     10: {
         id: 10,
@@ -166,6 +174,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [12, 13],
         unlockNpcs: [],
         def: 10,
+        secretRoomsId: 1,
     },
     11: {
         id: 11,
@@ -179,6 +188,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 10,
+        secretRoomsId: 2,
     },
     12: {
         id: 12,
@@ -192,6 +202,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [14],
         unlockNpcs: [],
         def: 15,
+        secretRoomsId: 3,
     },
     13: {
         id: 13,
@@ -205,6 +216,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 15,
+        secretRoomsId: 2,
     },
     14: {
         id: 14,
@@ -218,6 +230,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [5],
         def: 20,
+        secretRoomsId: 3,
     },
     20: {
         id: 20,
@@ -244,6 +257,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [22],
         unlockNpcs: [],
         def: 10,
+        secretRoomsId: 2,
     },
     22: {
         id: 22,
@@ -257,6 +271,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 15,
+        secretRoomsId: 2,
     },
     30: {
         id: 30,
@@ -283,6 +298,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 15,
+        secretRoomsId: 1,
     },
     32: {
         id: 32,
@@ -309,6 +325,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [61, 301],
         unlockNpcs: [],
         def: 20,
+        secretRoomsId: 4,
     },
     41: {
         id: 41,
@@ -348,6 +365,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 15,
+        secretRoomsId: 2,
     },
     51: {
         id: 51,
@@ -374,6 +392,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 10,
+        secretRoomsId: 1,
     },
     // BOSS_SITE (original site.js BOSS_SITE=61): boss-chain hub, NOT a normal site —
     // isSiteEnd() is always false; coordinate IS a map coordinate (61 < 300 renders on map).
@@ -424,14 +443,15 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
     202: {
         id: 202,
         name: '???',
-        des: '一台可疑的设备，不依靠外部供电而持续运转，偶尔派发礼物。每天可以来这里领取一次补给。',
+        des: '一台可疑的设备，不依靠外部供电而持续运转。每隔七天，它会开启一条通往地底的密道，里面藏着前人留下的补给。',
         coordinate: { x: 130, y: 207 },
-        battleRoom: 0,
+        battleRoom: 1,
         workRoom: 0,
-        difficulty: [],
+        difficulty: [1, 1],
         fixedProduceList: [],
         unlockSites: [],
         unlockNpcs: [],
+        secretRoomsId: 1,
         def: 10,
     },
     203: {
@@ -446,6 +466,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 50,
+        secretRoomsId: 2,
     },
     204: {
         id: 204,
@@ -479,6 +500,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [302],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     302: {
         id: 302,
@@ -496,6 +518,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [303],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     303: {
         id: 303,
@@ -514,6 +537,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [304],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     304: {
         id: 304,
@@ -533,6 +557,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [305],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     305: {
         id: 305,
@@ -551,6 +576,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [306],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     306: {
         id: 306,
@@ -569,6 +595,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [307],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     307: {
         id: 307,
@@ -588,6 +615,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [308],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     308: {
         id: 308,
@@ -606,6 +634,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [309],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     309: {
         id: 309,
@@ -623,6 +652,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [310],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     310: {
         id: 310,
@@ -642,6 +672,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [311],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     311: {
         id: 311,
@@ -661,6 +692,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [312],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
     312: {
         id: 312,
@@ -680,6 +712,7 @@ export const SITE_CONFIG: Record<number, SiteConfig> = {
         unlockSites: [],
         unlockNpcs: [],
         def: 100,
+        secretRoomsId: 5,
     },
 };
 
@@ -702,4 +735,3 @@ export const MAP_BASE_VELOCITY = (97 / (1 * 60 * 60)) * 0.8 * 1.1;
 export function travelTimeSeconds(distance: number): number {
     return distance / MAP_BASE_VELOCITY;
 }
-

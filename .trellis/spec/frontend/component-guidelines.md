@@ -120,3 +120,25 @@ map hosts the entry point.
 **Prevention**: When adding UI that reads a new atlas key, grep
 `atlasManifest.ts` for the atlas name — if it is only in `lazy`, add it to the
 owning scene's `*_ATLAS_KEYS` list in the same change.
+
+### Common Mistake: frame exists but was packed into a different atlas
+
+**Symptom**: Same silent-blank as the lazy-atlas mistake, but the atlas key
+IS loaded — `hasFrame(ctx, atlas, frame)` returns false because the frame
+lives in another atlas. No error thrown, image silently skips.
+
+**Cause**: Frame→atlas membership is decided by the source directory
+`public/source-art/frames/<atlas>/*.png` (packed by
+`tools/gen_frame_multiatlas.mjs`), not by naming convention. Sibling-looking
+frames can live in different atlases: 44 `site_dig_*` frames are in `site`,
+but `site_dig_secret.png` is in `ui`. The original Cocos build resolved frames
+from a global name registry, so ported code that guesses the atlas key
+compiles fine and only fails at runtime.
+
+**Fix**: Look up the owning atlas in `src/game/assets/frames.gen.ts`
+(build-generated frame map) and pass that key to `hasFrame`/`add.image`.
+
+**Prevention**: Never guess an atlas key from the frame-name prefix; grep
+`frames.gen.ts` for the frame basename first. When a hasFrame guard silently
+skips on a loaded atlas, check the actual frame→atlas mapping before
+assuming a loading problem.

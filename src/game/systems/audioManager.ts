@@ -7,7 +7,7 @@
  * Nav BGM mapping mirrors BottomFrameNode.current():
  *   HOME / STORAGE / GATE / GATE_OUT / RADIO / BUILD → HOME
  *   MAP → MAP (+ re-roll site track pool)
- *   SITE* / BATTLE_AND_WORK / AD_SITE → random SITE_1|2|3
+ *   SITE* / BATTLE_AND_WORK → random SITE_1|2|3
  *   NPC → NPC
  *   Death scene → DEATH (+ re-roll site track pool)
  */
@@ -28,7 +28,6 @@ const N = {
     GATE_OUT: 'GateOutNode',
     MAP: 'MapNode',
     SITE: 'SiteNode',
-    AD_SITE: 'AdSiteNode',
     SITE_STORAGE: 'SiteStorageNode',
     BATTLE_AND_WORK: 'BattleAndWorkNode',
     WORK_ROOM_STORAGE: 'WorkRoomStorageNode',
@@ -166,7 +165,6 @@ const HOME_NODES: Record<string, true> = {
 
 const SITE_NODES: Record<string, true> = {
     [N.SITE]: true,
-    [N.AD_SITE]: true,
     [N.SITE_STORAGE]: true,
     [N.BATTLE_AND_WORK]: true,
     [N.WORK_ROOM_STORAGE]: true,
@@ -296,6 +294,25 @@ export function playWeaponAttack(itemId: number, kind: 'melee' | 'gun'): void {
     playEffect(GUN_ATTACK_SFX[itemId] ?? Sound.ATTACK_4);
 }
 
+/** Currently playing BGM key, or null. Original audioManager.getPlayingMusic. */
+export function getPlayingMusic(): MusicKey | null {
+    return playingMusic;
+}
+
+/**
+ * Original battleAndWorkNode.afterInit music swap: secret theme in the caves,
+ * site theme outside. Shared by battleNode and siteNode.
+ */
+export function applySecretRoomMusic(active: boolean): void {
+    if (active) {
+        if (getPlayingMusic() !== Music.SITE_SECRET) {
+            playMusic(Music.SITE_SECRET);
+        }
+    } else if (getPlayingMusic() === Music.SITE_SECRET) {
+        playMusic(getSiteMusic());
+    }
+}
+
 export function getSiteMusic(): MusicKey {
     if (!siteMusic) {
         siteMusic = SITE_POOL[Math.floor(Math.random() * SITE_POOL.length)] ?? Music.SITE_1;
@@ -405,4 +422,3 @@ export function applyMainPageMusic(): void {
     currentNavMusic = null;
     playMusic(Music.MAIN_PAGE, true);
 }
-

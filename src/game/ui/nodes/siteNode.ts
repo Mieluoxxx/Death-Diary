@@ -11,8 +11,15 @@
  * - Buttons at cocos y=100: 物品存放点 | 进入副本
  */
 
-import { getSiteConfig } from '../../data/siteConfig';
-import { getSite, leaveSite, siteStorageCount } from '../../systems/mapSystem';
+import { AD_SITE_ID, getSiteConfig } from '../../data/siteConfig';
+import { applySecretRoomMusic } from '../../systems/audioManager';
+import {
+    enterScrapyardDungeon,
+    getSite,
+    leaveSite,
+    scrapyardProgressStr,
+    siteStorageCount,
+} from '../../systems/mapSystem';
 import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
@@ -40,15 +47,21 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
     const rightEdge = ctx.width / 2 + ctx.bgWidth / 2 - LEFT_EDGE;
 
     const siteName = cfg?.name ?? `地点${siteId}`;
-    const progress =
-        site && site.rooms.length > 0
-            ? formatSiteProgress(site.step, site.rooms.length)
-            : formatSiteProgress(0, 0);
+    // Site 202 chrome shows the 7-day refresh cooldown instead of room progress.
+    const isScrapyard = siteId === AD_SITE_ID;
+    const progress = isScrapyard
+        ? scrapyardProgressStr(siteId)
+        : site && site.rooms.length > 0
+          ? formatSiteProgress(site.step, site.rooms.length)
+          : formatSiteProgress(0, 0);
     mountSiteChromeCaptions(ctx, {
         siteName,
         progress,
         storageN: siteStorageCount(siteId),
     });
+
+    // Not in a secret room here: if the secret theme is still playing, restore site BGM.
+    applySecretRoomMusic(false);
 
     // dig: (bgW/2, contentTop - 50), anchor top-center
     const digTop = fromBottom(CONTENT_TOP - 50);
@@ -108,12 +121,17 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
         atlas: 'ui',
         frame: 'btn_common_white_normal.png',
         label: '进入副本',
-        enabled: !siteEnded,
+        enabled: !siteEnded || siteId === AD_SITE_ID,
         onClick: () => {
-            if (siteEnded) {
+            if (siteEnded && siteId !== AD_SITE_ID) {
                 return;
             }
             advanceGuide(GuideStep.ENTER_SITE);
+            if (siteId === AD_SITE_ID && !enterScrapyardDungeon(siteId)) {
+                // Cooldown gate; progress caption shows the days left.
+                ctx.showToast('设备还未刷新');
+                return;
+            }
             ctx.forward(NavNode.BATTLE_AND_WORK, siteId);
         },
     });

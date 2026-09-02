@@ -3,7 +3,6 @@
  * Ports map.js / site.js: unlock graph, genRooms, roomEnd, travel arrive.
  */
 
-import { AD_REWARD_CONFIG, SCRAPYARD_CLAIMS_PER_DAY } from '../data/adConfig';
 import { RANDOM_LOOT_EXCLUDED_SET } from '../data/blackList';
 import { ITEM_CONFIG } from '../data/itemConfig';
 import { rollMonsterList } from '../data/monsterConfig';
@@ -12,6 +11,7 @@ import {
     getSiteConfig,
     HOME_SITE_ID,
     mapDistance,
+    SCRAPYARD_COOLDOWN_DAYS,
     type SiteLoot,
     travelTimeSeconds,
 } from '../data/siteConfig';
@@ -449,7 +449,11 @@ export function travelTo(siteId: number, onArrived?: () => void): boolean {
 }
 
 export function fillTempLootFromRoom(siteId: number): SiteLoot[] {
-    const room = currentRoom(siteId);
+    // Inside secret rooms the work room lives on the secret chain, not rooms/step.
+    const site = getSite(siteId);
+    const room = site?.isInSecretRooms
+        ? (site.secretRooms?.[site.secretRoomsStep ?? 0] ?? null)
+        : currentRoom(siteId);
     if (room?.type !== 'work') {
         return [];
     }
@@ -485,57 +489,41 @@ export function flushTempToSite(siteId: number): void {
     gameBusEmit('session_updated');
 }
 
-/** Daily scrapyard claim progress: 0 = ready, 1 = claimed today. */
-export function scrapyardClaimStep(siteId: number = AD_SITE_ID): number {
-    if (siteId !== AD_SITE_ID) {
-        return SCRAPYARD_CLAIMS_PER_DAY;
+/** Remaining in-game days before the scrapyard gift refreshes (0 = claimable). */
+export function scrapyardCooldownRemaining(lastGiftDay: number | undefined, today: number): number {
+    if (lastGiftDay === undefined) {
+        return 0;
     }
-    const session = getSession();
-    if (!session) {
-        return SCRAPYARD_CLAIMS_PER_DAY;
-    }
-    const site = session.map.sites[siteId] ?? ensureSite(siteId);
-    if (!site) {
-        return SCRAPYARD_CLAIMS_PER_DAY;
-    }
-    return (site.lastGiftDay ?? 0) === session.day ? SCRAPYARD_CLAIMS_PER_DAY : 0;
+    return Math.max(0, SCRAPYARD_COOLDOWN_DAYS - (today - lastGiftDay));
 }
 
-/** Progress caption for AdSite chrome — room-style 进度:cur/total. */
+/** Progress caption for the site-202 chrome — ready, or days left until refresh. */
 export function scrapyardProgressStr(siteId: number = AD_SITE_ID): string {
-    return `进度:${scrapyardClaimStep(siteId)}/${SCRAPYARD_CLAIMS_PER_DAY}`;
-}
-
-/** Whether scrapyard free gift is available today (no ads). */
-export function canClaimScrapyardGift(siteId: number = AD_SITE_ID): boolean {
-    return scrapyardClaimStep(siteId) < SCRAPYARD_CLAIMS_PER_DAY;
+    const session = getSession();
+    const site = session?.map.sites[siteId];
+    const remaining =
+        siteId === AD_SITE_ID && session && site
+            ? scrapyardCooldownRemaining(site.lastGiftDay, session.day)
+            : 0;
+    return remaining > 0 ? `冷却中:剩余${remaining}天` : '进度:0/1';
 }
 
 /**
- * Claim free scrapyard gift into site storage.
- * Port of AdSiteNode ad dismiss reward — ads removed; once per day.
+ * Roll weighted item-id patterns until the value budget is spent, then aggregate
+ * into counts. Shared by scrapyard gift and secret-room work rooms
+ * (original utils.getFixedValueItemIds + convertItemIds2Item).
  */
-export function claimScrapyardGift(siteId: number = AD_SITE_ID): SiteLoot[] {
-    if (siteId !== AD_SITE_ID) {
-        return [];
-    }
-    const session = getSession();
-    if (!session) {
-        return [];
-    }
-    ensureSite(siteId);
-    const liveSite = getSite(siteId);
-    if (!liveSite || (liveSite.lastGiftDay ?? 0) === session.day) {
-        return [];
-    }
-
+export function rollValueBudgetLoot(
+    produceValue: number,
+    produceList: readonly WeightedSiteLoot[],
+): SiteLoot[] {
     const itemIds: number[] = [];
-    let remainingValue = AD_REWARD_CONFIG.produceValue;
+    let remainingValue = produceValue;
     while (remainingValue > 0) {
-        const itemId = resolveLootItemId(rollWeightedLoot(AD_REWARD_CONFIG.produceList).itemId);
+        const itemId = resolveLootItemId(rollWeightedLoot(produceList).itemId);
         const item = ITEM_CONFIG[itemId];
         if (!item) {
-            throw new Error(`Scrapyard gift item ${itemId} does not exist.`);
+            throw new Error(`Value-budget loot item ${itemId} does not exist.`);
         }
         remainingValue -= item.value;
         itemIds.push(itemId);
@@ -545,22 +533,49 @@ export function claimScrapyardGift(siteId: number = AD_SITE_ID): SiteLoot[] {
     for (const itemId of itemIds) {
         counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
     }
-    const loot: SiteLoot[] = [...counts].map(([itemId, num]) => ({ itemId, num }));
+    return [...counts].map(([itemId, num]) => ({ itemId, num }));
+}
 
+/**
+ * Enter the scrapyard secret dungeon (site 202) once per 7 in-game days.
+ * Re-rolls the table supply room and stamps the entry day; false while cooling.
+ * Rework of the original AdSiteNode daily ad claim into a dungeon visit.
+ */
+export function enterScrapyardDungeon(siteId: number = AD_SITE_ID): boolean {
+    if (siteId !== AD_SITE_ID) {
+        return false;
+    }
+    const session = getSession();
+    if (!session) {
+        return false;
+    }
+    ensureSite(siteId);
+    const liveSite = getSite(siteId);
+    if (!liveSite || scrapyardCooldownRemaining(liveSite.lastGiftDay, session.day) > 0) {
+        return false;
+    }
+
+    // Re-roll the run: one low-difficulty battle room leads into the secret chain.
+    const fresh = createSiteState(siteId);
     mutateSession((live) => {
         const site = live.map.sites[siteId];
         if (!site) {
             return;
         }
-        for (const row of loot) {
-            site.storage[row.itemId] = (site.storage[row.itemId] ?? 0) + row.num;
-        }
-        site.haveNewItems = true;
+        site.rooms = fresh.rooms;
+        site.step = 0;
+        site.ended = false;
         site.lastGiftDay = live.day;
+        site.secretRoomsShowedCount = 0;
+        // Clear any dangling secret-room state (e.g. abandoned after a defeat).
+        site.isInSecretRooms = false;
+        site.isSecretRoomsEntryShowed = false;
+        site.secretRooms = [];
+        site.secretRoomsStep = 0;
     });
-    appendSessionLog('你从可疑设备里拿到了补给。');
+    appendSessionLog('破损的墙壁后，一条通往地底的密道缓缓开启。');
     gameBusEmit('session_updated');
-    return loot;
+    return true;
 }
 
 export function siteStorageCount(siteId: number): number {

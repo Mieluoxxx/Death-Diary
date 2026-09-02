@@ -81,8 +81,15 @@ export type SiteState = {
     haveNewItems: boolean;
     closed: boolean;
     ended: boolean;
-    /** Scrapyard (202): last calendar day a free gift was claimed. */
+    /** Scrapyard (202): last in-game day the secret dungeon was entered. */
     lastGiftDay?: number;
+    /** Secret rooms (密道): all optional so legacy saves load untouched. */
+    secretRoomsShowedCount?: number;
+    isSecretRoomsEntryShowed?: boolean;
+    isInSecretRooms?: boolean;
+    secretRooms?: SiteRoom[];
+    secretRoomsStep?: number;
+    secretRoomType?: number;
 };
 
 export type MapState = {

@@ -738,6 +738,7 @@ export function mountMapNode(ctx: NodeMountContext): NodeMountResult {
     }
 
     function enterSite(siteId: number): void {
+        // Original MapNode.js routes by site id: BOSS has a dedicated node.
         if (siteId === BOSS_SITE_ID) {
             ctx.forward(NavNode.BOSS, siteId);
             return;

@@ -8,8 +8,10 @@
 
 import type { GameObjects } from 'phaser';
 import { getItemDef, HAND_ITEM_ID } from '../../data/itemConfig';
+import { SECRET_ENTRY } from '../../data/secretRooms';
 import { getSiteConfig } from '../../data/siteConfig';
 import { getSession } from '../../session/sessionStore';
+import { applySecretRoomMusic, getSiteMusic, playMusic } from '../../systems/audioManager';
 import {
     type BattleLogEntry,
     clearBattle,
@@ -27,6 +29,16 @@ import {
     siteStorageCount,
 } from '../../systems/mapSystem';
 import { isLowVigour, vigourEffect } from '../../systems/playerAttrs';
+import {
+    abortSecretRooms,
+    enterSecretRooms,
+    isInSecretRooms,
+    isSecretRoomsActive,
+    isSecretRoomsEntryShowed,
+    secretRoomBegin,
+    secretRoomEnd,
+    testSecretRoomsBegin,
+} from '../../systems/secretRoomSystem';
 import { advanceGuide, GuideStep, isGuideStep } from '../../systems/userGuide';
 import { addAtlasButton } from '../atlasButton';
 import type { NodeMountContext, NodeMountResult } from '../navigation';
@@ -104,12 +116,133 @@ function placeDigHeader(ctx: NodeMountContext, digFrame: string | null, digAtlas
     return below;
 }
 
+/**
+ * Original afterInit music swap: secret theme in the caves, site theme outside.
+ * Shared with siteNode (site 202 runs the secret theme for its dungeon).
+ */
+function applySecretMusic(siteId: number): void {
+    applySecretRoomMusic(isSecretRoomsActive(siteId));
+}
+
+/** Original showSecretRoomLeaveWarning: leaving abandons the chain for good. */
+function showSecretLeaveConfirm(ctx: NodeMountContext, siteId: number): void {
+    const panelW = 420;
+    const panelH = 190;
+    const panel = ctx.scene.add.container(ctx.width / 2, ctx.height / 2);
+    // Interactive blocker: swallow clicks so buttons behind stay unreachable.
+    panel.add(
+        ctx.scene.add.rectangle(0, 0, ctx.width, ctx.height, 0x000000, 0.55).setInteractive(),
+    );
+    panel.add(ctx.scene.add.rectangle(0, 0, panelW, panelH, 0x2b2b2b).setStrokeStyle(2, 0xc4a35a));
+    panel.add(
+        ctx.scene.add
+            .text(0, -panelH / 2 + 48, SECRET_ENTRY.leaveConfirm, {
+                ...uiTextStyle('COMMON_2'),
+                color: '#ffffff',
+                align: 'center',
+                wordWrap: uiWordWrap(panelW - 48),
+            })
+            .setOrigin(0.5),
+    );
+    const close = () => panel.destroy();
+    const stayBtn = addAtlasButton(ctx.scene, -panelW / 4, panelH / 2 - 46, {
+        atlas: 'ui',
+        frame: 'btn_common_white_normal.png',
+        label: SECRET_ENTRY.stayBtn,
+        onClick: close,
+    });
+    const leaveBtn = addAtlasButton(ctx.scene, panelW / 4, panelH / 2 - 46, {
+        atlas: 'ui',
+        frame: 'btn_common_white_normal.png',
+        label: SECRET_ENTRY.leaveBtn,
+        onClick: () => {
+            close();
+            abortSecretRooms(siteId);
+            playMusic(getSiteMusic());
+            ctx.back();
+        },
+    });
+    panel.add(stayBtn);
+    panel.add(leaveBtn);
+    ctx.content.add(panel);
+}
+
+/** Original createSecretRoomsEntryView: 密道 entry with 再想想 / 进入. */
+function mountSecretEntry(ctx: NodeMountContext, siteId: number): NodeMountResult {
+    ctx.setTitle(SECRET_ENTRY.title, { align: 'left' });
+    // Original: leftBtn hidden on the entry view.
+    ctx.setLeftEnabled(false);
+    ctx.setRightEnabled(false);
+
+    const fromBottom = (cocosY: number) => ctx.bgBottomY - cocosY;
+    const digTop = fromBottom(770 - 20);
+    let belowDig = digTop + 40;
+    // site_dig_secret ships in the ui atlas (see frames.gen.ts), not site.
+    if (hasFrame(ctx, 'ui', 'site_dig_secret.png')) {
+        const dig = ctx.scene.add
+            .image(ctx.width / 2, digTop, 'ui', 'site_dig_secret.png')
+            .setOrigin(0.5, 0);
+        ctx.content.add(dig);
+        belowDig = dig.y + dig.displayHeight;
+    }
+
+    ctx.content.add(
+        ctx.scene.add
+            .text(ctx.width / 2, belowDig + 20, SECRET_ENTRY.des, {
+                ...uiTextStyle('COMMON_2'),
+                color: '#ffffff',
+                align: 'center',
+                wordWrap: uiWordWrap(ctx.bgWidth - 80),
+            })
+            .setOrigin(0.5, 0),
+    );
+
+    // Same twin-button columns as siteNode (bg-content quarters, not canvas).
+    const stayBtn = addAtlasButton(ctx.scene, ctx.width / 2 - ctx.bgWidth / 4, fromBottom(60), {
+        atlas: 'ui',
+        frame: 'btn_common_white_normal.png',
+        label: SECRET_ENTRY.stayBtn,
+        onClick: () => {
+            abortSecretRooms(siteId);
+            playMusic(getSiteMusic());
+            ctx.back();
+        },
+    });
+    const enterBtn = addAtlasButton(ctx.scene, ctx.width / 2 + ctx.bgWidth / 4, fromBottom(60), {
+        atlas: 'ui',
+        frame: 'btn_common_white_normal.png',
+        label: SECRET_ENTRY.enterBtn,
+        onClick: () => {
+            enterSecretRooms(siteId);
+            ctx.replace(NavNode.BATTLE_AND_WORK, siteId);
+        },
+    });
+    ctx.content.add(stayBtn);
+    ctx.content.add(enterBtn);
+
+    applySecretMusic(siteId);
+
+    return {
+        onLeft: () => {
+            // Left button is disabled on the entry view; defensive no-op.
+        },
+        destroy: () => {},
+    };
+}
+
 export function mountBattleNode(ctx: NodeMountContext): NodeMountResult {
     const siteId = Number(ctx.userData);
-    const room = currentRoom(siteId);
     const cfg = getSiteConfig(siteId);
+
+    if (isSecretRoomsEntryShowed(siteId)) {
+        return mountSecretEntry(ctx, siteId);
+    }
+
+    // Secret rooms use their own chain; rooms/step stay on the normal dungeon.
+    const inSecret = isInSecretRooms(siteId);
+    const room = inSecret ? secretRoomBegin(siteId) : currentRoom(siteId);
     const site = getSite(siteId);
-    const siteName = cfg?.name ?? '战斗';
+    const siteName = inSecret ? SECRET_ENTRY.title : (cfg?.name ?? '战斗');
 
     ctx.setTitle(siteName, { align: 'left' });
     // Begin / work choose: back allowed (original leftBtn visible).
@@ -117,13 +250,18 @@ export function mountBattleNode(ctx: NodeMountContext): NodeMountResult {
     ctx.setLeftEnabled(true);
     ctx.setRightEnabled(false);
 
-    const progress =
-        site && site.rooms.length > 0 ? formatSiteProgress(site.step + 1, site.rooms.length) : '';
+    const progress = inSecret
+        ? SECRET_ENTRY.progress
+        : site && site.rooms.length > 0
+          ? formatSiteProgress(site.step + 1, site.rooms.length)
+          : '';
     mountSiteChromeCaptions(ctx, {
         siteName,
         progress,
         storageN: siteStorageCount(siteId),
     });
+
+    applySecretMusic(siteId);
 
     if (!room) {
         ctx.setLeftEnabled(true);
@@ -138,13 +276,23 @@ export function mountBattleNode(ctx: NodeMountContext): NodeMountResult {
         return { onLeft: () => ctx.back() };
     }
 
-    if (room.type === 'work') {
-        // Original createWorkBeginView — choose tool first, never auto-scavenge.
-        return mountWorkBegin(ctx, siteId, room.workType ?? 0);
-    }
+    const result =
+        room.type === 'work'
+            ? // Original createWorkBeginView — choose tool first, never auto-scavenge.
+              mountWorkBegin(ctx, siteId, room.workType ?? 0)
+            : mountBattleBegin(ctx, siteId, room.monsters, room.difficulty);
 
-    // Begin view first (not auto-start).
-    return mountBattleBegin(ctx, siteId, room.monsters, room.difficulty);
+    const innerOnLeft = result.onLeft;
+    return {
+        ...result,
+        onLeft: () => {
+            if (isSecretRoomsActive(siteId)) {
+                showSecretLeaveConfirm(ctx, siteId);
+                return;
+            }
+            innerOnLeft?.();
+        },
+    };
 }
 
 function mountBattleBegin(
@@ -626,7 +774,12 @@ function mountWorkProcess(
                 done = true;
                 bar.setPct(1);
                 fillTempLootFromRoom(siteId);
-                roomEnd(siteId, true);
+                if (isInSecretRooms(siteId)) {
+                    secretRoomEnd(siteId);
+                } else {
+                    roomEnd(siteId, true);
+                    testSecretRoomsBegin(siteId);
+                }
                 // Original createWorkProcessView end: bag.testWeaponBroken(itemId).
                 if (itemId && itemId !== HAND_ITEM_ID) {
                     testWeaponBroken(itemId);
@@ -724,7 +877,12 @@ function mountBattleProcess(
         // Defeat: leave battle node (back to site).
         const sum = getActiveBattle()?.sum;
         if (win) {
-            roomEnd(siteId, true);
+            if (isInSecretRooms(siteId)) {
+                secretRoomEnd(siteId);
+            } else {
+                roomEnd(siteId, true);
+                testSecretRoomsBegin(siteId);
+            }
         }
 
         const endDelay = ctx.scene.time.delayedCall(1800, () => {
@@ -833,9 +991,14 @@ function mountBattleProcess(
             }
 
             const nextRoom = currentRoom(siteId);
-            const siteEnded = Boolean(getSite(siteId)?.ended) || !nextRoom;
+            // Inside secret rooms — or when the entry just appeared — the chain
+            // must not be cut short even when the normal dungeon is already cleared.
+            const siteEnded =
+                !isSecretRoomsActive(siteId) && (Boolean(getSite(siteId)?.ended) || !nextRoom);
 
-            if (win && !siteEnded && nextRoom) {
+            // Secret-room entry/chain takes priority: the normal dungeon may
+            // already be out of rooms (site 202 has a single battle room).
+            if (win && !siteEnded) {
                 // 1060 下一个房间 → stay on BattleAndWorkNode, load next room view.
                 const btn = addAtlasButton(ctx.scene, ctx.width / 2, ctx.bgBottomY - 60, {
                     atlas: 'ui',

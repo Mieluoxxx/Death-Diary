@@ -10,8 +10,8 @@ import { applyNavMusic, playClick } from '../systems/audioManager';
 import { gameBusEmit } from '../systems/gameBus';
 import { playerGoHome } from '../systems/mapSystem';
 import { advanceGuide, GuideStep, isGuideStep, onGuideChanged } from '../systems/userGuide';
-import { mountAdSiteNode } from './nodes/adSiteNode';
 import { mountBattleNode } from './nodes/battleNode';
+import { mountBossNode } from './nodes/bossNode';
 import { mountGateNode } from './nodes/gateNode';
 import { mountGateOutNode } from './nodes/gateOutNode';
 import { mountHomeNode } from './nodes/homeNode';
@@ -19,7 +19,6 @@ import { mountMapNode } from './nodes/mapNode';
 import { mountNpcNode } from './nodes/npcNode';
 import { mountNpcStorageNode } from './nodes/npcStorageNode';
 import { mountRadioNode } from './nodes/radioNode';
-import { mountBossNode } from './nodes/bossNode';
 import { mountSiteNode } from './nodes/siteNode';
 import { mountSiteStorageNode } from './nodes/siteStorageNode';
 import { mountStorageNode } from './nodes/storageNode';
@@ -33,7 +32,6 @@ export const NavNode = {
     GATE_OUT: 'GateOutNode',
     MAP: 'MapNode',
     SITE: 'SiteNode',
-    AD_SITE: 'AdSiteNode',
     BOSS: 'BossNode',
     SITE_STORAGE: 'SiteStorageNode',
     BATTLE_AND_WORK: 'BattleAndWorkNode',
@@ -101,7 +99,6 @@ const MOUNTERS: Record<string, NodeMounter> = {
     [NavNode.GATE_OUT]: mountGateOutNode,
     [NavNode.MAP]: mountMapNode,
     [NavNode.SITE]: mountSiteNode,
-    [NavNode.AD_SITE]: mountAdSiteNode,
     [NavNode.BOSS]: mountBossNode,
     [NavNode.SITE_STORAGE]: mountSiteStorageNode,
     [NavNode.BATTLE_AND_WORK]: mountBattleNode,
@@ -469,4 +466,3 @@ export function createNavigationHost(
         },
     };
 }
-
