@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
-- **Last Active**: 2026-08-28
+- **Total Sessions**: 6
+- **Last Active**: 2026-09-02
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~116 | Active |
+| `journal-1.md` | ~138 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-09-02 | 密室机制补全 + 202 密道副本站 + 野兔陷阱/天气加成对齐 | `058814f`, `dc60bea` | `main` |
 | 5 | 2026-08-28 | 抽取数量滑条/全部拿取共享组件并对齐原版双栏转移交互 | `37c4adf` | `main` |
 | 4 | 2026-08-27 | Restore NPC meeting and trading | `5ce6544`, `5d6a666` | `main` |
 | 3 | 2026-08-26 | Refine main menu save entry | `1fad1cf` | `main` |

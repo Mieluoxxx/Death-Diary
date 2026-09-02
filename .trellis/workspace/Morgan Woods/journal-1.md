@@ -114,3 +114,25 @@ Restored the original two-page NPC meeting and trade flow, exact pricing and inv
 ### Status
 
 [OK] **Completed**
+
+
+## Session 6: 密室机制补全 + 202 密道副本站 + 野兔陷阱/天气加成对齐
+
+**Date**: 2026-09-02
+**Task**: 密室机制补全 + 202 密道副本站 + 野兔陷阱/天气加成对齐
+**Branch**: `main`
+
+### Summary
+
+移植原版 secretRooms 密道机制（5 档配置/28 站标注/触发生成/入口 UI/退出确认/密室音乐）；202 从广告领奖站经三轮迭代改造为密道循环副本（战斗房→必触发密道→密室补给→7 天冷却，重进清悬挂状态）；修结算按钮密道优先 bug；site_dig_secret 帧归属 ui 图集陷阱沉淀 spec；野兔陷阱对齐两阶段放置（随机 2~3 天）+ 设施天气加成（雨天肉+4/晴天蒸馏水-4/多云温棚+2）。advisor 终审 + trellis-check 复核通过，181 测试全绿。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `058814f` | (see git log) |
+| `dc60bea` | (see git log) |
+
+### Status
+
+[OK] **Completed**
