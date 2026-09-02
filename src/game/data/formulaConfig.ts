@@ -67,6 +67,8 @@ export const FORMULA_CONFIG: Record<number, FormulaDef> = {
         produce: [{ itemId: 1103041, num: 4 }],
         cost: [{ itemId: 1103011, num: 2 }],
         makeTime: 30,
+        // Original TrapBuildAction (build 8): random placement window of 2~3 in-game days.
+        placedTime: [2880, 4320],
     },
     1203052: {
         id: 1203052,

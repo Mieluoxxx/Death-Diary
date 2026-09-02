@@ -7,6 +7,7 @@ import { BUILD_CONFIG } from '../data/buildConfig';
 import { buildLevelName } from '../data/buildStrings';
 import { type FormulaDef, getFormulaDef } from '../data/formulaConfig';
 import { getItemDef } from '../data/itemConfig';
+import { type WeatherEffects, getWeatherValue } from '../data/weatherConfig';
 import {
     appendSessionLog,
     costStorageItems,
@@ -251,9 +252,11 @@ export function listCraftActions(bid: number): CraftActionView[] {
             actionDisabled = true;
         } else if (job.isActioning) {
             if (job.phase === 'place' || job.step === 1) {
-                const remainSec = Math.max(0, job.totalTime - job.pastTime);
-                const hours = Math.max(1, Math.ceil(remainSec / 3600));
-                hint = `${hours}小时后收取，去干点别的`;
+                // Original 1154: trap placement hides the countdown (random roll).
+                hint =
+                    def.placedTime?.length === 2
+                        ? '过两天来收取，去干点别的'
+                        : `${Math.max(1, Math.ceil((job.totalTime - job.pastTime) / 3600))}小时后收取，去干点别的`;
             } else {
                 hint = `正在制作${produceName}…`;
             }
@@ -369,7 +372,12 @@ function startPlacePhase(
     }
     costStorageItems(def.cost);
 
-    const placeMinutes = def.placedTime?.[0] ?? 0;
+    // Original TrapBuildAction.place(): roll a random duration across the
+    // placedTime window; single-value placedTime keeps the fixed length.
+    const placeMinutes =
+        def.placedTime?.length === 2
+            ? def.placedTime[0] + Math.floor(Math.random() * (def.placedTime[1] - def.placedTime[0] + 1))
+            : (def.placedTime?.[0] ?? 0);
     const placeTime = Math.max(1, placeMinutes * 60);
     job.step = 1;
     job.phase = 'place';
@@ -430,6 +438,17 @@ export function clickCraftAction(bid: number, formulaId: number): CraftClickResu
     // Harvest path
     if (job.step === 2 && !job.isActioning) {
         const produce = def.produce.map((p) => ({ ...p }));
+        // Original Formula/TrapBuildAction harvest: weather production bonus
+        // (e.g. rain attracts more rabbits → item_1103041 +4).
+        for (const row of produce) {
+            row.num += getWeatherValue(session.weatherId, `item_${row.itemId}` as keyof WeatherEffects);
+        }
+        // Original Formula harvest: greenhouse (bid 2) yield bonus in overcast weather.
+        if (bid === 2) {
+            for (const row of produce) {
+                row.num += getWeatherValue(session.weatherId, 'build_2');
+            }
+        }
         gainStorageItems(produce);
         const item = produce[0]!;
         const stock = getSession()?.storage[item.itemId] ?? 0;
