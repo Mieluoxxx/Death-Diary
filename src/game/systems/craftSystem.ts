@@ -258,10 +258,18 @@ export function listCraftActions(bid: number): CraftActionView[] {
                         ? '过两天来收取，去干点别的'
                         : `${Math.max(1, Math.ceil((job.totalTime - job.pastTime) / 3600))}小时后收取，去干点别的`;
             } else {
-                hint = `正在制作${produceName}…`;
+                // Original 1153: trap placement covers the produce name.
+                hint =
+                    def.placedTime?.length === 2 ? '正在设置陷阱' : `正在制作${produceName}…`;
             }
             hintColor = 'white';
-            actionLabel = job.step >= 1 ? '收获' : `制作(${def.makeTime}分)`;
+            // Original 1155/1002: trap placement reads 设置(N分), others 制作(N分).
+            actionLabel =
+                job.step >= 1
+                    ? '收获'
+                    : def.placedTime?.length === 2
+                      ? `设置(${def.makeTime}分)`
+                      : `制作(${def.makeTime}分)`;
             actionDisabled = true;
         } else if (job.step === 2 || (job.step === 1 && maxStep === 2 && !job.isActioning)) {
             // Ready to harvest after place phase (step 2 in original).
@@ -280,7 +288,10 @@ export function listCraftActions(bid: number): CraftActionView[] {
             }
         } else {
             // step 0 ready to craft
-            actionLabel = `制作(${def.makeTime}分)`;
+            actionLabel =
+                def.placedTime?.length === 2
+                    ? `设置(${def.makeTime}分)`
+                    : `制作(${def.makeTime}分)`;
             cost = costRows(def.cost);
             actionDisabled = cost.some((c) => !c.ok);
             // Another formula busy on this building
