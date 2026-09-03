@@ -8,6 +8,7 @@ import { initialBag, initialStorage } from '../data/initialItems';
 import { HAND_ITEM_ID } from '../data/itemConfig';
 import { getNpcDef, type NpcId, type NpcReward, ROLE_NPC_ID } from '../data/npcConfig';
 import { getSiteConfig, HOME_SITE_ID, STARTER_SITE_ID } from '../data/siteConfig';
+import { grantMedalBonuses } from '../medal/medalStore';
 import type { UserGuideState } from '../systems/userGuide';
 import { getActiveSaveProfile } from './authStore';
 import { deleteBrowserSave, readBrowserSave, writeBrowserSave } from './browserSave';
@@ -357,6 +358,8 @@ export async function activateSessionProfile(
     activeSaveProfile = profile;
     activeSession = session;
     if (session) {
+        // Original player ctor runs Medal.improve once per session activation.
+        grantMedalBonuses(session);
         await writeBrowserSave(profile, JSON.stringify(session));
     } else {
         await deleteBrowserSave(profile);
@@ -391,6 +394,7 @@ export async function importSessionJson(json: string): Promise<SessionState> {
         throw new Error('存档不是有效的 Death-Diary JSON。');
     }
     activeSession = session;
+    grantMedalBonuses(session);
     persistSession(session);
     await flushSessionSave();
     return session;
@@ -579,6 +583,7 @@ export function createNewSession(role: RoleKey, talent: TalentId): SessionState 
         bonfireRoundAnchorSec: 0,
     };
     activeSession = session;
+    grantMedalBonuses(session);
     persistSession(session);
     return session;
 }

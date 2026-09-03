@@ -11,6 +11,7 @@
 import type { GameObjects, Scene } from 'phaser';
 import { getItemDef, HAND_ITEM_ID } from '../data/itemConfig';
 import { appendSessionLog, getSession } from '../session/sessionStore';
+import { checkMonsterKilled as medalCheckMonsterKilled } from '../medal/medalStore';
 import {
     type BattleLogEntry,
     type BattleSumRes,
@@ -484,6 +485,10 @@ export function openRandomBattleDialog(
         const finishWithResult = (result: BattleSumRes) => {
             processTimer?.remove(false);
             processTimer = null;
+
+            // Roadside kills count toward the medals too (original BattleDialog
+            // gameEnd listener fires for every encounter, dodge included).
+            medalCheckMonsterKilled(result.monsterKilled ?? 0);
 
             if (result.isDodge && result.win) {
                 // Original: log 1114, dismiss, cb — after ~2s

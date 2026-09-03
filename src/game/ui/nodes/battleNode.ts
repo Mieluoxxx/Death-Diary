@@ -10,6 +10,7 @@ import type { GameObjects } from 'phaser';
 import { getItemDef, HAND_ITEM_ID } from '../../data/itemConfig';
 import { SECRET_ENTRY } from '../../data/secretRooms';
 import { getSiteConfig } from '../../data/siteConfig';
+import { checkMonsterKilled as medalCheckMonsterKilled } from '../../medal/medalStore';
 import { getSession } from '../../session/sessionStore';
 import { applySecretRoomMusic, getSiteMusic, playMusic } from '../../systems/audioManager';
 import {
@@ -871,6 +872,9 @@ function mountBattleProcess(
         }
         resultShown = true;
         finished = true;
+
+        // Original BattleDialog gameEnd listener counts kills for medals (win or lose).
+        medalCheckMonsterKilled(getActiveBattle()?.sum.monsterKilled ?? 0);
 
         // Original: roomEnd happens when battle ends, then after ~2s show end view.
         // End view: des "你成功地消灭了僵尸", 消耗/损失, button "下一个房间" → updateView (next room).

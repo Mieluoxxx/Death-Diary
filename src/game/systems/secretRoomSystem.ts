@@ -13,6 +13,7 @@ import {
     type SecretRoomsConfig,
 } from '../data/secretRooms';
 import { AD_SITE_ID, getSiteConfig } from '../data/siteConfig';
+import { checkSecretRoomEnd as medalCheckSecretRoomEnd } from '../medal/medalStore';
 import { getSession, mutateSession, type SiteRoom, type SiteState } from '../session/sessionStore';
 import { rollValueBudgetLoot } from './lootRoll';
 
@@ -145,6 +146,8 @@ export function secretRoomEnd(siteId: number): void {
         if (!site.secretRooms || step >= site.secretRooms.length) {
             site.isInSecretRooms = false;
             site.secretRoomsStep = 0;
+            // Original secretRoomsEnd counts a visit toward the secret medals.
+            medalCheckSecretRoomEnd(1);
             return;
         }
         site.secretRoomsStep = step;
@@ -162,6 +165,8 @@ export function abortSecretRooms(siteId: number): void {
         site.isSecretRoomsEntryShowed = false;
         site.secretRooms = [];
         site.secretRoomsStep = 0;
+        // Original secretRoomsEnd counts the visit even when abandoned.
+        medalCheckSecretRoomEnd(1);
     });
 }
 

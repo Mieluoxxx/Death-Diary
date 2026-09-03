@@ -1,8 +1,11 @@
 /**
  * Port of Buried-City Medal (assets/src/game/medal.js).
  * Cross-run medal progress in localStorage["medal"].
- * Web slice: storage + progress API; grant/improve wired when player/session exists.
+ * checkDay / checkMonsterKilled / checkSecretRoomEnd progress + grantMedalBonuses
+ * (original Medal.improve) applied on session activation.
  */
+
+import type { SessionState } from '../session/sessionStore';
 
 export type MedalSeriesIndex = 1 | 2 | 3;
 
@@ -233,3 +236,50 @@ export function checkDay(day: number): void {
     saveMedal();
 }
 
+export function checkMonsterKilled(kills: number): void {
+    const map = getMedalMap();
+    for (const medalId of ['201', '202', '203'] as MedalId[]) {
+        const info = map[medalId];
+        if (info.completed !== 1) {
+            info.aimCompleted += Number(kills);
+            checkCompleted(info, 2);
+        }
+    }
+    saveMedal();
+}
+
+export function checkSecretRoomEnd(count: number): void {
+    const map = getMedalMap();
+    for (const medalId of ['301', '302', '303'] as MedalId[]) {
+        const info = map[medalId];
+        if (info.completed !== 1) {
+            info.aimCompleted += Number(count);
+            checkCompleted(info, 3);
+        }
+    }
+    saveMedal();
+}
+
+/**
+ * Original Medal.improve (player ctor): apply completed-medal effects to a
+ * freshly activated session — items into home storage, HP bonus onto
+ * hpMaxOrigin/hpMax/hp. Called once per session activation, not per tick.
+ */
+export function grantMedalBonuses(session: SessionState): void {
+    const map = getMedalMap();
+    for (const medalId of Object.keys(map) as MedalId[]) {
+        const info = map[medalId];
+        if (info.completed !== 1) {
+            continue;
+        }
+        for (const item of info.effect.items ?? []) {
+            session.storage[item.itemId] = (session.storage[item.itemId] ?? 0) + item.num;
+        }
+        const hp = info.effect.attr?.hp ?? 0;
+        if (hp > 0) {
+            session.attrs.hpMaxOrigin += hp;
+            session.attrs.hpMax += hp;
+            session.attrs.hp += hp;
+        }
+    }
+}
