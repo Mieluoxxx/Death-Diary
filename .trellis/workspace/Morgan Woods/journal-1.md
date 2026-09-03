@@ -136,3 +136,24 @@ Restored the original two-page NPC meeting and trade flow, exact pricing and inv
 ### Status
 
 [OK] **Completed**
+
+
+## Session 7: NPC 来访求助对齐原版——随机求助清单 + 拒绝好感惩罚
+
+**Date**: 2026-09-03
+**Task**: NPC 来访求助对齐原版——随机求助清单 + 拒绝好感惩罚
+**Branch**: `main`
+
+### Summary
+
+调研定位 NPC 请求无法同意根因：移植版混淆原版两条需求链，来访弹窗错用面板链的静态酒需求（LUO 线无酒窖永远凑不齐）。修复：来访需求改为 npcGiftConfig 随机 roll（价值预算 4，木材系常见资源为主）；roll 函数抽至 lootRoll 共享消除循环依赖；giveNpcHelpItems 多物品 storage 扣减 + 好感净 +1；新增 declineNpcHelp 拒绝好感 -1（下限 0）；面板交付链行为不变。182 测试全绿。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `708fb31` | (see git log) |
+
+### Status
+
+[OK] **Completed**
