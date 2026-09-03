@@ -14,7 +14,7 @@ import {
 } from '../data/secretRooms';
 import { AD_SITE_ID, getSiteConfig } from '../data/siteConfig';
 import { getSession, mutateSession, type SiteRoom, type SiteState } from '../session/sessionStore';
-import { rollValueBudgetLoot } from './mapSystem';
+import { rollValueBudgetLoot } from './lootRoll';
 
 function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;

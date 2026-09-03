@@ -96,3 +96,16 @@ export function isNpcId(value: number): value is NpcId {
 export function getNpcDef(npcId: number): NpcDef | null {
     return isNpcId(npcId) ? NPC_CONFIG[npcId] : null;
 }
+
+/** Original npcGiftConfig: dawn needHelp request roll (value budget + weighted pool). */
+export const NPC_GIFT_CONFIG = {
+    produceValue: 4,
+    produceList: [
+        { itemId: '1101**', weight: 120 },
+        { itemId: '1103*1', weight: 50 },
+        { itemId: '1104*1', weight: 10 },
+        { itemId: '1105011', weight: 10 },
+        { itemId: '1105022', weight: 10 },
+        { itemId: '1302*1', weight: 10 },
+    ],
+} as const;

@@ -2,6 +2,7 @@ import { getItemDef, HAND_ITEM_ID, itemWeight } from '../data/itemConfig';
 import {
     getNpcDef,
     isNpcId,
+    NPC_GIFT_CONFIG,
     NPC_IDS,
     type NpcDef,
     type NpcId,
@@ -22,6 +23,7 @@ import { playEffect, Sound } from './audioManager';
 import { gameBusEmit } from './gameBus';
 import { isIapUnlocked } from './iapStore';
 import { getBagCapacity, getBagWeight, getCount } from './inventory';
+import { rollValueBudgetLoot } from './lootRoll';
 
 const NPC_REPUTATION_MAX = 10;
 const SOCIAL_EFFECT_IAP_ID = 104;
@@ -55,7 +57,7 @@ export type NpcVisit = {
     name: string;
     kind: 'gift' | 'help';
     deliveredRewards: NpcReward[];
-    need: NpcItemStack | null;
+    need: NpcItemStack[] | null;
 };
 
 function addCount(counts: ItemCounts, itemId: number, amount: number): void {
@@ -155,6 +157,75 @@ export function getNpcNeed(npcId: number): NpcItemStack | null {
         }
     }
     return null;
+}
+
+/** Original Npc.getNeedHelpItems: roll the dawn help request from npcGiftConfig. */
+export function rollNpcHelpItems(): NpcItemStack[] {
+    return rollValueBudgetLoot(NPC_GIFT_CONFIG.produceValue, NPC_GIFT_CONFIG.produceList);
+}
+
+/**
+ * Original Npc.needHelp yes-branch: hand over the rolled request items from the
+ * given source for a net +1 reputation. No reputation-max gate in the original.
+ */
+export function giveNpcHelpItems(
+    npcId: number,
+    source: 'bag' | 'storage',
+    items: readonly NpcItemStack[],
+): NpcActionResult {
+    const npc = getNpcDef(npcId);
+    const session = getSession();
+    if (!session) {
+        return { ok: false, reason: 'no_session' };
+    }
+    if (!npc) {
+        return { ok: false, reason: 'unknown_npc' };
+    }
+    const state = session.npcs[npc.id];
+    if (!state.unlocked) {
+        return { ok: false, reason: 'locked' };
+    }
+    if (
+        items.length === 0 ||
+        !items.every((item) => getCount(session[source], item.itemId) >= item.num)
+    ) {
+        return { ok: false, reason: 'not_enough' };
+    }
+    mutateSession((live) => {
+        const liveState = live.npcs[npc.id];
+        for (const item of items) {
+            addCount(live[source], item.itemId, -item.num);
+        }
+        applyReputationGain(liveState, npc, 1);
+    });
+    playEffect(Sound.GOOD_EFFECT);
+    const list = items.map((item) => `${getItemDef(item.itemId).name}x${item.num}`).join('、');
+    appendSessionLog(`你向${npc.name}交付了${list}，好感度提升。`);
+    gameBusEmit('session_updated');
+    return { ok: true };
+}
+
+/** Original needHelp no-branch: refusing costs 1 reputation (floor 0). */
+export function declineNpcHelp(npcId: number): NpcActionResult {
+    const npc = getNpcDef(npcId);
+    const session = getSession();
+    if (!session) {
+        return { ok: false, reason: 'no_session' };
+    }
+    if (!npc) {
+        return { ok: false, reason: 'unknown_npc' };
+    }
+    const state = session.npcs[npc.id];
+    if (!state.unlocked) {
+        return { ok: false, reason: 'locked' };
+    }
+    mutateSession((live) => {
+        const liveState = live.npcs[npc.id];
+        liveState.reputation = Math.max(0, liveState.reputation - 1);
+    });
+    appendSessionLog(`你拒绝了${npc.name}的请求，好感度下降。`);
+    gameBusEmit('session_updated');
+    return { ok: true };
 }
 
 export function giveNpcNeed(npcId: number, source: 'bag' | 'storage'): NpcActionResult {
@@ -348,11 +419,10 @@ export function runNpcDailyVisit(random: () => number = Math.random): NpcVisit |
     // Original NPCManager.needHelp runs on the first visit too; unlocking is
     // not a standalone encounter state.
     const kind: NpcVisit['kind'] = deliveredRewards.length > 0 ? 'gift' : 'help';
-    const need = kind === 'help' ? getNpcNeed(npcId) : null;
-    if (need) {
-        appendSessionLog(
-            `${npc.name} 托人询问你是否有${getItemDef(need.itemId).name}x${need.num}。`,
-        );
+    const need = kind === 'help' ? rollNpcHelpItems() : null;
+    if (need && need.length > 0) {
+        const list = need.map((item) => `${getItemDef(item.itemId).name}x${item.num}`).join('、');
+        appendSessionLog(`${npc.name} 托人询问你是否有${list}。`);
     }
     const visit = { npcId, name: npc.name, kind, deliveredRewards, need };
     playEffect(Sound.NPC_KNOCK);

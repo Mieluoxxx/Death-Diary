@@ -1,10 +1,9 @@
 import type { GameObjects, Scene } from 'phaser';
 import type { NpcReward } from '../data/npcConfig';
 import { getSiteConfig } from '../data/siteConfig';
-import { appendSessionLog, getSession } from '../session/sessionStore';
+import { getSession } from '../session/sessionStore';
 import { playEffect, Sound } from '../systems/audioManager';
-import { gameBusEmit } from '../systems/gameBus';
-import { giveNpcNeed, type NpcVisit } from '../systems/npcSystem';
+import { declineNpcHelp, giveNpcHelpItems, type NpcVisit } from '../systems/npcSystem';
 import { pauseTimeClock, resumeTimeClock } from '../systems/timeClock';
 import { addAtlasButton } from './atlasButton';
 import { addNpcHearts } from './npcHearts';
@@ -232,12 +231,15 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
         );
         cursorY += UI_FONT_SIZE.COMMON_3 + 10;
 
-        const need = visit.need;
-        const have = need ? (getSession()?.storage[need.itemId] ?? 0) : 0;
-        if (need) {
+        // Original needHelp rolls a random multi-item request from npcGiftConfig.
+        const needs = visit.need ?? [];
+        const canAgree =
+            needs.length > 0 &&
+            needs.every((item) => (getSession()?.storage[item.itemId] ?? 0) >= item.num);
+        if (needs.length > 0) {
             // Original help list is the same ItemRichText grid as gifts (icon +
             // "xN"); items the player lacks render red. No inventory row exists.
-            cursorY = addItemGrid(scene, root, [need], textLeft, cursorY, textWidth, (item) =>
+            cursorY = addItemGrid(scene, root, needs, textLeft, cursorY, textWidth, (item) =>
                 (getSession()?.storage[item.itemId] ?? 0) >= item.num ? '#111111' : '#b00000',
             );
         }
@@ -250,8 +252,7 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
             resumeTimeClock();
         };
         addButton(scene, root, bgCenterX - 90, actionCenterY, '拒绝', () => {
-            appendSessionLog(`你拒绝了${visit.name}的请求。`);
-            gameBusEmit('session_updated');
+            declineNpcHelp(visit.npcId);
             dismiss();
         });
         addButton(
@@ -261,11 +262,11 @@ export function openNpcVisitDialog(scene: Scene, visit: NpcVisit): GameObjects.C
             actionCenterY,
             '同意',
             () => {
-                const result = giveNpcNeed(visit.npcId, 'storage');
+                const result = giveNpcHelpItems(visit.npcId, 'storage', needs);
                 if (!result.ok) return;
                 dismiss();
             },
-            Boolean(need && have >= need.num),
+            canAgree,
         );
         return root;
     }

@@ -5,8 +5,10 @@ import { createNewSession, getSession } from '../session/sessionStore';
 import { gameBusClear } from './gameBus';
 import {
     commitNpcTrade,
+    declineNpcHelp,
     getNpcDialog,
     getNpcTradeRate,
+    giveNpcHelpItems,
     giveNpcNeed,
     runNpcDailyVisit,
     setNpcVisitChanceOverride,
@@ -27,29 +29,51 @@ afterEach(() => {
 });
 
 describe('NPC daily visits', () => {
-    test('first visit asks for an item instead of only marking the NPC met', () => {
+    test('first visit asks for rolled common items instead of only marking the NPC met', () => {
         const session = createNewSession('STRANGER', 0);
         session.day = 2;
 
         const visit = runNpcDailyVisit(() => 0);
 
         expect(visit?.kind).toBe('help');
-        expect(visit?.need).toEqual({ itemId: 1105022, num: 1 });
+        // Random roll from npcGiftConfig: always non-empty, budget 4 total value.
+        expect(Array.isArray(visit?.need)).toBe(true);
+        expect(visit?.need?.length ?? 0).toBeGreaterThan(0);
         expect(getSession()?.npcs[1].unlocked).toBe(true);
         expect(getSession()?.lastLog).toContain('托人询问');
     });
 
-    test('accepting the request consumes the home storage item', () => {
+    test('accepting the request consumes the rolled items from home storage', () => {
         const session = createNewSession('STRANGER', 0);
         session.day = 2;
-        session.storage[WINE_ID] = 1;
         session.bag[WINE_ID] = 2;
-        runNpcDailyVisit(() => 0);
+        const visit = runNpcDailyVisit(() => 0);
 
-        expect(giveNpcNeed(LUO_ID, 'storage').ok).toBe(true);
-        expect(getSession()?.storage[WINE_ID]).toBeUndefined();
+        const needs = visit?.need ?? [];
+        for (const item of needs) {
+            session.storage[item.itemId] = (session.storage[item.itemId] ?? 0) + item.num;
+        }
+
+        expect(giveNpcHelpItems(LUO_ID, 'storage', needs).ok).toBe(true);
+        for (const item of needs) {
+            expect(getSession()?.storage[item.itemId]).toBeUndefined();
+        }
         expect(getSession()?.bag[WINE_ID]).toBe(2);
         expect(getSession()?.npcs[LUO_ID].reputation).toBe(1);
+    });
+
+    test('declining the request costs one reputation with a floor at zero', () => {
+        const session = createNewSession('STRANGER', 0);
+        session.day = 2;
+        runNpcDailyVisit(() => 0);
+        session.npcs[LUO_ID].reputation = 2;
+
+        expect(declineNpcHelp(LUO_ID).ok).toBe(true);
+        expect(session.npcs[LUO_ID].reputation).toBe(1);
+        session.npcs[LUO_ID].reputation = 0;
+        expect(declineNpcHelp(LUO_ID).ok).toBe(true);
+        expect(session.npcs[LUO_ID].reputation).toBe(0);
+        expect(getSession()?.lastLog).toContain('拒绝');
     });
 
     test('supports forcing the visit chance for E2E setup', () => {
