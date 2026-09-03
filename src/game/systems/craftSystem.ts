@@ -69,6 +69,15 @@ type CraftRuntime = {
 /** Live craft jobs: one key `${bid}:${formulaId}`. */
 const runtime = new Map<string, CraftRuntime>();
 
+/** Per-building craft verb for the in-progress hint (original 1007 is generic;
+ * 种植/蒸馏/酿造 read better per facility). */
+const CRAFT_VERB_BY_BID: Record<number, string> = {
+    2: '种植', // 温棚：土豆/育苗/草药
+    4: '烹饪', // 灶台
+    6: '蒸馏', // 蒸馏器
+    7: '酿造', // 酒窖
+};
+
 /** Which formula index is active on a building (-2 = none), mirrors activeBtnIndex. */
 const activeFormulaByBid = new Map<number, number>();
 
@@ -258,9 +267,12 @@ export function listCraftActions(bid: number): CraftActionView[] {
                         ? '过两天来收取，去干点别的'
                         : `${Math.max(1, Math.ceil((job.totalTime - job.pastTime) / 3600))}小时后收取，去干点别的`;
             } else {
-                // Original 1153: trap placement covers the produce name.
+                // Original 1153 covers the produce name for traps; other facilities
+                // use a per-building verb instead of the generic 制作 (1007).
                 hint =
-                    def.placedTime?.length === 2 ? '正在设置陷阱' : `正在制作${produceName}…`;
+                    def.placedTime?.length === 2
+                        ? '正在设置陷阱'
+                        : `正在${CRAFT_VERB_BY_BID[bid] ?? '制作'}${produceName}…`;
             }
             hintColor = 'white';
             // Original 1155/1002: trap placement reads 设置(N分), others 制作(N分).
