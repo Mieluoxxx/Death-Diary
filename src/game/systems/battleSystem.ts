@@ -128,6 +128,9 @@ export type BattleState = {
     moveAcc: number;
     elapsed: number;
     monsterStopUntil: number;
+    /** Original Battle.escape: 1.5s real-time window, cancelled by any attack. */
+    escapeInProgress: boolean;
+    escapePassTime: number;
     isDodge: boolean;
     dodgeTime: number;
     dodgePassTime: number;
@@ -198,11 +201,8 @@ function buildLoadout(session: SessionState): BattleLoadout {
 }
 
 function hasElectricPower(session: SessionState): boolean {
-    return (
-        session.role === 'YAZI' &&
-        session.electricFenceActive &&
-        (session.map.unlocked.includes(204) || session.map.sites[204] != null)
-    );
+    // Original ElectricGun.isEnough → power plant WorkSite.isActive.
+    return Boolean(session.map.sites[204]?.powerPlantActive);
 }
 
 /** Original player.vigourEffect(): only the lowest vigour band doubles cooldowns. */
@@ -258,6 +258,8 @@ export function startBattle(monsterIds: number[], options: StartBattleOptions = 
         moveAcc: 0,
         elapsed: 0,
         monsterStopUntil: 0,
+        escapeInProgress: false,
+        escapePassTime: 0,
         isDodge: options.isDodge === true,
         dodgeTime: DODGE_DURATION_SEC,
         dodgePassTime: 0,
@@ -460,6 +462,26 @@ function strikeMelee(battle: BattleState): void {
     damageMonster(battle, target, weapon.attr.atk);
 }
 
+/** Original BattlePlayer.escape: begin the 1.5s flee window. */
+export function startEscape(): void {
+    const battle = getActiveBattle();
+    if (!battle?.running) {
+        return;
+    }
+    battle.escapeInProgress = true;
+    battle.escapePassTime = 0;
+    pushLog(battle, '你试图逃跑…', '#ffcc66');
+}
+
+/** Original interruptEscape: any player attack cancels the flee attempt. */
+function interruptEscape(battle: BattleState): void {
+    if (battle.escapeInProgress) {
+        battle.escapeInProgress = false;
+        battle.escapePassTime = 0;
+        pushLog(battle, '逃跑被打断了', '#ffcc66');
+    }
+}
+
 function useTool(battle: BattleState): void {
     const tool = battle.loadout.tool;
     if (!tool || battle.tools <= 0) {
@@ -490,6 +512,7 @@ function tickPlayerEquipment(battle: BattleState, session: SessionState, realDel
     if (battle.gunCooldown <= 0) {
         const gun = battle.loadout.gun;
         if (gun) {
+            interruptEscape(battle);
             fireGun(battle, session);
             battle.gunCooldown += cooldownFor(session, gun.attr.atkCD);
         }
@@ -497,6 +520,7 @@ function tickPlayerEquipment(battle: BattleState, session: SessionState, realDel
 
     battle.meleeCooldown -= realDelta;
     if (battle.meleeCooldown <= 0) {
+        interruptEscape(battle);
         strikeMelee(battle);
         battle.meleeCooldown += cooldownFor(session, battle.loadout.melee.attr.atkCD);
     }
@@ -505,6 +529,7 @@ function tickPlayerEquipment(battle: BattleState, session: SessionState, realDel
     if (battle.toolCooldown <= 0) {
         const tool = battle.loadout.tool;
         if (tool) {
+            interruptEscape(battle);
             useTool(battle);
             battle.toolCooldown += cooldownFor(session, tool.attr.atkCD);
         }
@@ -524,6 +549,14 @@ export function tickBattle(realDelta: number): BattleSumRes | null {
         battle.dodgePassTime += realDelta;
         if (battle.dodgePassTime >= battle.dodgeTime) {
             return endBattle(true);
+        }
+    }
+
+    // Original escape(): 1.5s real-time window; any attack interrupts it.
+    if (battle.escapeInProgress) {
+        battle.escapePassTime += realDelta;
+        if (battle.escapePassTime >= 1.5) {
+            return endBattle(false);
         }
     }
 
@@ -617,11 +650,16 @@ function endBattle(win: boolean): BattleSumRes {
     battle.running = false;
     battle.finished = true;
     battle.sum.win = win;
+    if (battle.escapeInProgress) {
+        battle.sum.escaped = true;
+    }
     consumeBattleSupplies(battle);
     if (win && !battle.isDodge) {
         appendSessionLog('战斗胜利');
-    } else if (!win) {
+    } else if (!win && !battle.sum.escaped) {
         appendSessionLog('战斗失败');
+    } else if (!win) {
+        appendSessionLog('你逃离了战斗');
     }
     resumeTimeClock();
     resumeMusic();

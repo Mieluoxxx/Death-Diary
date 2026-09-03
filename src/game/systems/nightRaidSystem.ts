@@ -74,11 +74,7 @@ function isElectricFenceActive(session: SessionState): boolean {
         return false;
     }
     // Original: ElectricFenceBuild.isActive → power plant WorkSite.isActive.
-    // Session flag is set when plant is considered powered; also require WORK_SITE unlocked.
-    if (!session.electricFenceActive) {
-        return false;
-    }
-    return session.map.unlocked.includes(WORK_SITE_ID) || Boolean(session.map.sites[WORK_SITE_ID]);
+    return Boolean(session.map.sites[WORK_SITE_ID]?.powerPlantActive);
 }
 
 /**
@@ -239,4 +235,3 @@ export function runNightRaid(): NightRaidResult {
     gameBusEmit('session_updated');
     return result;
 }
-

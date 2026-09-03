@@ -30,6 +30,16 @@ export const AD_SITE_ID = 202;
 /** In-game days between scrapyard secret-dungeon entries (original ad cooldown). */
 export const SCRAPYARD_COOLDOWN_DAYS = 7;
 export const WORK_SITE_ID = 204;
+/**
+ * Original workSiteConfig: power-plant repair cost/材料 and decay odds.
+ * lastTime in in-game minutes (96h = 4 game days of runtime before decay rolls).
+ */
+export const WORK_SITE_CONFIG = {
+    costTime: 120,
+    needItems: [{ itemId: 1102063, num: 1 }],
+    lastTime: 96 * 60,
+    brokenProbability: 0.02,
+} as const;
 export const BOSS_SITE_ID = 61;
 /** Boss-chain sub-sites, in original BossSite.bossSubSiteIds order. */
 export const BOSS_SUB_SITE_IDS = [

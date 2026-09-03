@@ -11,10 +11,11 @@
  * - Buttons at cocos y=100: 物品存放点 | 进入副本
  */
 
-import { AD_SITE_ID, getSiteConfig } from '../../data/siteConfig';
+import { AD_SITE_ID, getSiteConfig, WORK_SITE_ID } from '../../data/siteConfig';
 import { applySecretRoomMusic } from '../../systems/audioManager';
 import {
     enterScrapyardDungeon,
+    fixPowerPlant,
     getSite,
     leaveSite,
     scrapyardProgressStr,
@@ -49,11 +50,16 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
     const siteName = cfg?.name ?? `地点${siteId}`;
     // Site 202 chrome shows the 7-day refresh cooldown instead of room progress.
     const isScrapyard = siteId === AD_SITE_ID;
+    const isPowerPlantSite = siteId === WORK_SITE_ID;
     const progress = isScrapyard
         ? scrapyardProgressStr(siteId)
-        : site && site.rooms.length > 0
-          ? formatSiteProgress(site.step, site.rooms.length)
-          : formatSiteProgress(0, 0);
+        : isPowerPlantSite
+          ? '???'
+          : site && site.rooms.length > 0
+            ? scrapyardProgressStr(siteId)
+            : site && site.rooms.length > 0
+              ? formatSiteProgress(site.step, site.rooms.length)
+              : formatSiteProgress(0, 0);
     mountSiteChromeCaptions(ctx, {
         siteName,
         progress,
@@ -120,13 +126,22 @@ export function mountSiteNode(ctx: NodeMountContext): NodeMountResult {
     const enterBtn = addAtlasButton(ctx.scene, rightBtnX, btnY, {
         atlas: 'ui',
         frame: 'btn_common_white_normal.png',
-        label: '进入副本',
-        enabled: !siteEnded || siteId === AD_SITE_ID,
+        label: siteId === WORK_SITE_ID ? '修理发电厂' : '进入副本',
+        enabled: !siteEnded || siteId === AD_SITE_ID || siteId === WORK_SITE_ID,
         onClick: () => {
             if (siteEnded && siteId !== AD_SITE_ID) {
                 return;
             }
             advanceGuide(GuideStep.ENTER_SITE);
+            if (isPowerPlantSite) {
+                const result = fixPowerPlant(siteId);
+                if (!result.ok) {
+                    ctx.showToast(result.reason === 'not_enough' ? '缺少发电机组件' : '无法修理');
+                } else {
+                    ctx.showToast('开始修理发电厂');
+                }
+                return;
+            }
             if (siteId === AD_SITE_ID && !enterScrapyardDungeon(siteId)) {
                 // Cooldown gate; progress caption shows the days left.
                 ctx.showToast('设备还未刷新');

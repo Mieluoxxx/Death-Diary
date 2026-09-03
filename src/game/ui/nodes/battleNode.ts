@@ -19,6 +19,7 @@ import {
     forceEndBattle,
     getActiveBattle,
     startBattle,
+    startEscape,
     tickBattle,
 } from '../../systems/battleSystem';
 import { EquipPosMap, testWeaponBroken } from '../../systems/inventory';
@@ -845,6 +846,19 @@ function mountBattleProcess(
     const bar = placeBottomProgress(ctx);
     bar.setPct(0);
     bar.setCount(totalMon, totalMon);
+
+    // Original BattleScene btn4: 逃跑 — 1.5s real-time flee, cancelled by attacking.
+    const escapeBtn = addAtlasButton(ctx.scene, ctx.width / 2 - 100, ctx.bgBottomY - 110, {
+        atlas: 'ui',
+        frame: 'btn_common_white_normal.png',
+        label: '逃跑',
+        onClick: () => {
+            startEscape();
+            escapeBtn.disableInteractive();
+            escapeBtn.setAlpha(0.5);
+        },
+    });
+    ctx.content.add(escapeBtn);
 
     let finished = false;
     let resultShown = false;

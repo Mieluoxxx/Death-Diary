@@ -13,6 +13,8 @@ import {
     SCRAPYARD_COOLDOWN_DAYS,
     type SiteLoot,
     travelTimeSeconds,
+    WORK_SITE_CONFIG,
+    WORK_SITE_ID,
 } from '../data/siteConfig';
 import { getSiteProduceConfig } from '../data/siteProduceConfig';
 import {
@@ -25,9 +27,10 @@ import {
     type SiteState,
 } from '../session/sessionStore';
 import { gameBusEmit } from './gameBus';
-import { flushBagToStorage } from './inventory';
+import { flushBagToStorage, getCount } from './inventory';
 import { resolveLootItemId, rollWeightedLoot } from './lootRoll';
 import { unlockNpc } from './npcSystem';
+import { accelerateWorkTime, addTimerCallback } from './timeClock';
 
 function randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -499,6 +502,92 @@ export function enterScrapyardDungeon(siteId: number = AD_SITE_ID): boolean {
     appendSessionLog('破损的墙壁后，一条通往地底的密道缓缓开启。');
     gameBusEmit('session_updated');
     return true;
+}
+
+/**
+ * Original WorkSite.fix via WorkSiteNode.onClickFix: 120-minute repair that
+ * consumes 发电机组件 from the bag on completion, then powers the plant.
+ */
+export function fixPowerPlant(siteId: number = WORK_SITE_ID): { ok: boolean; reason?: string } {
+    const session = getSession();
+    if (!session || siteId !== WORK_SITE_ID) {
+        return { ok: false, reason: 'no_session' };
+    }
+    ensureSite(siteId);
+    const liveSite = getSite(siteId);
+    if (!liveSite || liveSite.powerPlantActive || liveSite.powerPlantFixing) {
+        return { ok: false, reason: 'busy' };
+    }
+    if (
+        getCount(session.bag, WORK_SITE_CONFIG.needItems[0]!.itemId) <
+        WORK_SITE_CONFIG.needItems[0]!.num
+    ) {
+        return { ok: false, reason: 'not_enough' };
+    }
+
+    mutateSession((live) => {
+        live.map.sites[siteId]!.powerPlantFixing = true;
+    });
+
+    const duration = Math.max(1, WORK_SITE_CONFIG.costTime * 60);
+    accelerateWorkTime(duration);
+    addTimerCallback(duration, {
+        end: () => {
+            mutateSession((live) => {
+                const site = live.map.sites[siteId];
+                if (!site?.powerPlantFixing) {
+                    return;
+                }
+                site.powerPlantFixing = false;
+                const need = WORK_SITE_CONFIG.needItems[0]!;
+                if (getCount(live.bag, need.itemId) < need.num) {
+                    return; // original costs on completion; missing materials aborts silently
+                }
+                live.bag[need.itemId] = Math.max(0, (live.bag[need.itemId] ?? 0) - need.num);
+                if (live.bag[need.itemId] === 0) {
+                    delete live.bag[need.itemId];
+                }
+                site.powerPlantActive = true;
+                site.powerPlantFixedAt = live.gameTime;
+            });
+            appendSessionLog('发电厂重新运转起来了。');
+            gameBusEmit('session_updated');
+        },
+    });
+    appendSessionLog('你开始修理发电厂。');
+    gameBusEmit('session_updated');
+    return { ok: true };
+}
+
+/** Original WorkSite.isActive. */
+export function isPowerPlantActive(siteId: number = WORK_SITE_ID): boolean {
+    return Boolean(getSession()?.map.sites[siteId]?.powerPlantActive);
+}
+
+/** Original WorkSite.checkActive (player.updateByTime): decay rolls past lastTime. */
+export function checkPowerPlantDecay(): void {
+    const session = getSession();
+    if (!session) {
+        return;
+    }
+    const site = session.map.sites[WORK_SITE_ID];
+    if (!site?.powerPlantActive || site.powerPlantFixedAt === undefined) {
+        return;
+    }
+    if (session.gameTime - site.powerPlantFixedAt <= WORK_SITE_CONFIG.lastTime * 60) {
+        return;
+    }
+    if (Math.random() < WORK_SITE_CONFIG.brokenProbability) {
+        mutateSession((live) => {
+            const liveSite = live.map.sites[WORK_SITE_ID];
+            if (liveSite) {
+                liveSite.powerPlantActive = false;
+                liveSite.powerPlantFixedAt = undefined;
+            }
+        });
+        appendSessionLog('发电厂又一次停止了运转，需要更换发电机组件。');
+        gameBusEmit('session_updated');
+    }
 }
 
 export function siteStorageCount(siteId: number): number {

@@ -35,6 +35,7 @@ import {
 import { clearBattle } from './battleSystem';
 import { clearCraftRuntime } from './craftSystem';
 import { gameBusEmit } from './gameBus';
+import { checkPowerPlantDecay, isPowerPlantActive } from './mapSystem';
 import { runNightRaid } from './nightRaidSystem';
 import { refreshNpcTrading, runNpcDailyVisit } from './npcSystem';
 import {
@@ -159,6 +160,7 @@ export function runHourlySurvivalTick(): void {
     tickBuff(SECONDS_PER_HOUR, session);
     expireCureBind(session);
     maybeBurnBonfireFuel(session);
+    checkPowerPlantDecay();
     updateByTime(session);
     updateTemperature(session);
     updateTemperatureEffect(session);
@@ -305,15 +307,12 @@ function updateByTime(session: SessionState): void {
 
 function isFireActive(session: SessionState): boolean {
     if (session.role === 'YAZI') {
-        // Electric stove (18) uses power plant active flag in original.
-        // Slice: treat electricFenceActive-adjacent plant unlock as proxy when stove built.
+        // Original ElectricStoveBuild.isActive → power plant WorkSite.isActive.
         const stoveLevel = session.buildLevels[18] ?? -1;
-        return stoveLevel >= 0 && session.electricFenceActive;
+        return stoveLevel >= 0 && isPowerPlantActive();
     }
     // Bonfire (5): derived fuelLeft > 0 (burn-down included via round anchor).
-    return (
-        bonfireDerived(session).fuelLeft > 0 && (session.buildLevels[5] ?? -1) >= 0
-    );
+    return bonfireDerived(session).fuelLeft > 0 && (session.buildLevels[5] ?? -1) >= 0;
 }
 
 function updateTemperature(session: SessionState): void {

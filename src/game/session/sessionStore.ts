@@ -84,6 +84,10 @@ export type SiteState = {
     ended: boolean;
     /** Scrapyard (202): last in-game day the secret dungeon was entered. */
     lastGiftDay?: number;
+    /** Power plant (204): original WorkSite isActive/fixedTime. */
+    powerPlantActive?: boolean;
+    powerPlantFixedAt?: number;
+    powerPlantFixing?: boolean;
     /** Secret rooms (密道): all optional so legacy saves load untouched. */
     secretRoomsShowedCount?: number;
     isSecretRoomsEntryShowed?: boolean;
@@ -152,7 +156,6 @@ export type SessionState = {
     dogStarve: number;
     dogStarveMax: number;
     /** Electric fence (bid 19) fuel/active flag for Yazi auto-defend. */
-    electricFenceActive: boolean;
     /** Medicine gate: blocks infect→infect/spirit band for 24h. */
     cured: boolean;
     cureTime: number;
@@ -572,7 +575,6 @@ export function createNewSession(role: RoleKey, talent: TalentId): SessionState 
         isBombActive: false,
         dogStarve: 0,
         dogStarveMax: 50,
-        electricFenceActive: false,
         cured: false,
         cureTime: 0,
         binded: false,

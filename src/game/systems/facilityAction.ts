@@ -17,6 +17,7 @@ import {
 } from '../session/sessionStore';
 import { checkVigourOk } from './buildSystem';
 import { gameBusEmit } from './gameBus';
+import { isPowerPlantActive } from './mapSystem';
 import { changeSpirit } from './playerAttrs';
 import { addBonfireFuel, bonfireDerived } from './survivalLoop';
 import type { TimerCallbackHandle } from './timeClock';
@@ -278,9 +279,10 @@ export function listFacilityActions(bid: number): FacilityActionView[] {
                 isActioning: derived.burning,
                 percentage: derived.pct,
                 // Original strings 1012 (burning) / 1011 (unlit), both WHITE.
-                hint: derived.fuelLeft > 0
-                    ? `炉火很旺，炉膛里有${derived.fuelLeft}个木材可取暖${derived.fuelLeft * 4}个小时`
-                    : '炉火熄灭了，1个木材可供4小时取暖',
+                hint:
+                    derived.fuelLeft > 0
+                        ? `炉火很旺，炉膛里有${derived.fuelLeft}个木材可取暖${derived.fuelLeft * 4}个小时`
+                        : '炉火熄灭了，1个木材可供4小时取暖',
                 hintColor: 'white',
                 costRows: costRowsFor([{ itemId: 1101011, num: 1 }]),
                 // Original string 1010: always clickable; feedback via click result.
@@ -311,9 +313,9 @@ export function listFacilityActions(bid: number): FacilityActionView[] {
         ];
     }
 
-    // Electric fence (19)
+    // Electric fence (19): no action of its own — powered whenever the plant runs.
     if (bid === 19 && level >= 0) {
-        const on = session.electricFenceActive;
+        const on = isPowerPlantActive();
         return [
             {
                 bid,
@@ -321,11 +323,11 @@ export function listFacilityActions(bid: number): FacilityActionView[] {
                 iconHint: 'build_19_0.png',
                 isActioning: false,
                 percentage: 0,
-                hint: on ? '电网运行中' : '启动电网抵御夜袭（需发电厂）',
+                hint: on ? '电网运行中' : '电网无电，需要发电厂运转',
                 hintColor: on ? 'white' : 'gray',
                 costRows: [],
-                actionLabel: on ? '关闭' : '启动',
-                actionDisabled: false,
+                actionLabel: '电网',
+                actionDisabled: true,
             },
         ];
     }
@@ -509,13 +511,7 @@ export function clickFacilityAction(bid: number, actionId: number): FacilityClic
     }
 
     if (bid === 19) {
-        mutateSession((live) => {
-            live.electricFenceActive = !live.electricFenceActive;
-        });
-        gameBusEmit('facility_changed', { bid });
-        gameBusEmit('session_updated');
-        const on = getSession()?.electricFenceActive;
-        return { ok: true, msg: on ? '电网已启动' : '电网已关闭' };
+        return { ok: false, msg: '电网由发电厂供电，无需手动操作' };
     }
 
     return { ok: false, msg: '设施动作尚未接入' };
